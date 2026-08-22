@@ -35,7 +35,7 @@ jobs:
         uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
 
       - name: Count Commits
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'Yuneko-dev/Nekori'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'hongducdev/booxbook'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -46,7 +46,7 @@ jobs:
           echo "COMMIT_COUNT=$commit_count" >> $GITHUB_ENV
 
       - name: Verify Commit Count
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'Yuneko-dev/Nekori'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'hongducdev/booxbook'
         run: |
           set -e
 
@@ -66,14 +66,14 @@ jobs:
       # resolves it by shelling out to `node` during settings evaluation. Without these three steps
       # the build dies before Gradle configures a single project.
       - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           # The npm root is js-runtime/, not the repo root, so the action cannot find the
           # packageManager pin on its own.
           package_json_file: js-runtime/package.json
 
       - name: Set up Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version-file: js-runtime/.nvmrc
           cache: pnpm
@@ -106,7 +106,7 @@ jobs:
           path: app/build/reports/tests/testDebugUnitTest
 
       - name: Sign APK
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'Yuneko-dev/Nekori'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'hongducdev/booxbook'
         uses: r0adkll/sign-android-release@f30bdd30588842ac76044ecdbd4b6d0e3e813478
         with:
           releaseDirectory: app/build/outputs/apk/nightly
@@ -118,19 +118,19 @@ jobs:
           BUILD_TOOLS_VERSION: '35.0.1'
 
       - name: Clean up build artifacts
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'Yuneko-dev/Nekori'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'hongducdev/booxbook'
         run: |
           set -e
 
-          mv app/build/outputs/apk/nightly/app-universal-nightly-signed.apk nekori-r${{ env.COMMIT_COUNT }}.apk
-          mv app/build/outputs/apk/nightly/app-arm64-v8a-nightly-signed.apk nekori-arm64-v8a-r${{ env.COMMIT_COUNT }}.apk
-          mv app/build/outputs/apk/nightly/app-armeabi-v7a-nightly-signed.apk nekori-armeabi-v7a-r${{ env.COMMIT_COUNT }}.apk
-          mv app/build/outputs/apk/nightly/app-x86-nightly-signed.apk nekori-x86-r${{ env.COMMIT_COUNT }}.apk
-          mv app/build/outputs/apk/nightly/app-x86_64-nightly-signed.apk nekori-x86_64-r${{ env.COMMIT_COUNT }}.apk
+          mv app/build/outputs/apk/nightly/app-universal-nightly-signed.apk booxbook-r${{ env.COMMIT_COUNT }}.apk
+          mv app/build/outputs/apk/nightly/app-arm64-v8a-nightly-signed.apk booxbook-arm64-v8a-r${{ env.COMMIT_COUNT }}.apk
+          mv app/build/outputs/apk/nightly/app-armeabi-v7a-nightly-signed.apk booxbook-armeabi-v7a-r${{ env.COMMIT_COUNT }}.apk
+          mv app/build/outputs/apk/nightly/app-x86-nightly-signed.apk booxbook-x86-r${{ env.COMMIT_COUNT }}.apk
+          mv app/build/outputs/apk/nightly/app-x86_64-nightly-signed.apk booxbook-x86_64-r${{ env.COMMIT_COUNT }}.apk
 
 
       - name: Upload signed APKs
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'Yuneko-dev/Nekori'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'hongducdev/booxbook'
         uses: actions/upload-artifact@v5
         with:
           name: signed-apks-${{ github.sha }}
@@ -138,36 +138,36 @@ jobs:
 
 
       - name: Create release
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'Yuneko-dev/Nekori'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'hongducdev/booxbook'
         uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
         with:
-          repository: Yuneko-dev/Nekori-nightly
+          repository: hongducdev/booxbook-nightly
           tag_name: r${{ env.COMMIT_COUNT }}
-          name: Nekori Nightly r${{ env.COMMIT_COUNT }}
+          name: Boox Book Nightly r${{ env.COMMIT_COUNT }}
           body: |
-            Here are the latest nightly builds of Nekori. These builds are automatically generated from the main branch and may contain new features or bug fixes that are not yet available in the stable release.
+            Here are the latest nightly builds of Boox Book. These builds are automatically generated from the main branch and may contain new features or bug fixes that are not yet available in the stable release.
 
             <!-->
             > [!TIP]
             >
-            > ### If you are unsure which version to download then go with `nekori-r${{ env.COMMIT_COUNT }}.apk`
+            > ### If you are unsure which version to download then go with `booxbook-r${{ env.COMMIT_COUNT }}.apk`
           files: |
-            nekori-r${{ env.COMMIT_COUNT }}.apk
-            nekori-arm64-v8a-r${{ env.COMMIT_COUNT }}.apk
-            nekori-armeabi-v7a-r${{ env.COMMIT_COUNT }}.apk
-            nekori-x86-r${{ env.COMMIT_COUNT }}.apk
-            nekori-x86_64-r${{ env.COMMIT_COUNT }}.apk
+            booxbook-r${{ env.COMMIT_COUNT }}.apk
+            booxbook-arm64-v8a-r${{ env.COMMIT_COUNT }}.apk
+            booxbook-armeabi-v7a-r${{ env.COMMIT_COUNT }}.apk
+            booxbook-x86-r${{ env.COMMIT_COUNT }}.apk
+            booxbook-x86_64-r${{ env.COMMIT_COUNT }}.apk
           prerelease: false
         env:
-          GITHUB_TOKEN: ${{ secrets.NEKORI_BOT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.BOOXBOOK_BOT_TOKEN }}
 
       - name: Prune old releases
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'Yuneko-dev/Nekori'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'hongducdev/booxbook'
         uses: dev-drprasad/delete-older-releases@dfbe6be2a006e9475dfcbe5b8d201f1824c2a9fe # v0.3.4
         env:
-          GITHUB_TOKEN: ${{ secrets.NEKORI_BOT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.BOOXBOOK_BOT_TOKEN }}
         with:
-          repo: Yuneko-dev/Nekori-nightly
+          repo: hongducdev/booxbook-nightly
           keep_latest: 28
           delete_tags: true
 

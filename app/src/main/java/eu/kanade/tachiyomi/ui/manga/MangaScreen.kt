@@ -372,7 +372,6 @@ class MangaScreen(
             is MangaViewModel.Dialog.Edit -> {
                 eu.kanade.presentation.manga.components.EditMangaDialog(
                     manga = dialog.manga,
-                    sourceInfo = CustomMangaInfo.fromSource(dialog.manga.memo),
                     onDismissRequest = onDismissRequest,
                     onSaveTitle = { viewModel.updateTitle(it) },
                     onSaveUrl = { viewModel.updateUrl(it) },
@@ -384,7 +383,9 @@ class MangaScreen(
                         viewModel.swapMainTitle(newMain, updatedAlts)
                     },
                     onGenerateMetadata = viewModel::generateEpubMetadata
-                        .takeIf { viewModel.isEpubMetadataGenerationAvailable },
+                        .takeIf { viewModel.isEpubMetadataEditingAvailable },
+                    onSaveEpubMetadata = viewModel::persistEpubMetadata
+                        .takeIf { viewModel.isEpubMetadataEditingAvailable },
                 )
             }
             MangaViewModel.Dialog.ClearCustomInfo -> {

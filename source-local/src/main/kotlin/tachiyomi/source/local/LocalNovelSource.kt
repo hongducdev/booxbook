@@ -38,6 +38,8 @@ import tachiyomi.source.local.filter.OrderBy
 import tachiyomi.source.local.image.LocalNovelCoverManager
 import tachiyomi.source.local.io.Archive
 import tachiyomi.source.local.io.LocalNovelSourceFileSystem
+import tachiyomi.source.local.metadata.EpubMetadataEditor
+import tachiyomi.source.local.metadata.LocalEpubMetadata
 import tachiyomi.source.local.metadata.fillMetadata
 import uy.kohesive.injekt.injectLazy
 import java.io.ByteArrayInputStream
@@ -329,6 +331,79 @@ class LocalNovelSource : CatalogueSource, UnmeteredSource {
 
         coverManager.find(manga.url)?.uri?.toString()
     }
+
+    suspend fun updateEpubMetadata(mangaUrl: String, metadata: LocalEpubMetadata): Int = withIOContext {
+        val novelEntry = resolveNovelEntry(mangaUrl)
+            ?: error("$mangaUrl is not a valid local novel entry")
+        val epubFiles = if (novelEntry.isDirectory) {
+            fileSystem.getFilesInNovelDirectory(mangaUrl)
+                .filter { it.extension.equals("epub", ignoreCase = true) }
+        } else {
+            listOf(novelEntry).filter { it.extension.equals("epub", ignoreCase = true) }
+        }
+        require(epubFiles.isNotEmpty()) { "No EPUB file found for $mangaUrl" }
+
+        val staged = mutableListOf<StagedEpubRewrite>()
+        try {
+            epubFiles.forEach { staged += prepareEpubMetadataRewrite(it, metadata) }
+        } catch (error: Throwable) {
+            staged.forEach { it.stage.delete() }
+            throw error
+        }
+        try {
+            staged.forEach { rewrite ->
+                check(rewrite.original.renameTo(rewrite.backupName)) { "Unable to preserve the original EPUB" }
+                rewrite.backup = rewrite.parent.findFile(rewrite.backupName) ?: rewrite.original
+                check(rewrite.stage.renameTo(rewrite.originalName)) { "Unable to commit EPUB metadata" }
+            }
+            staged.forEach { it.backup?.delete() }
+            staged.size
+        } catch (error: Throwable) {
+            staged.asReversed().forEach { rewrite ->
+                rewrite.stage.delete()
+                rewrite.backup?.let { backup ->
+                    rewrite.parent.findFile(rewrite.originalName)?.delete()
+                    backup.renameTo(rewrite.originalName)
+                }
+            }
+            throw error
+        }
+    }
+
+    private fun prepareEpubMetadataRewrite(file: UniFile, metadata: LocalEpubMetadata): StagedEpubRewrite {
+        val parent = requireNotNull(file.parentFile) { "EPUB has no parent directory" }
+        val originalName = requireNotNull(file.name) { "EPUB has no file name" }
+        val stageName = ".$originalName.metadata.tmp"
+        val backupName = ".$originalName.metadata.bak"
+        parent.findFile(stageName)?.delete()
+        parent.findFile(backupName)?.delete()
+        val stage = requireNotNull(parent.createFile(stageName)) { "Unable to stage EPUB metadata" }
+
+        try {
+            val packagePath = file.epubReader(context).use { it.getPackageHref() }
+            file.openInputStream().use { input ->
+                stage.openOutputStream().use { output ->
+                    EpubMetadataEditor.rewrite(input, output, packagePath, metadata)
+                }
+            }
+            stage.epubReader(context).use { staged ->
+                staged.getPackageDocument(staged.getPackageHref())
+            }
+            return StagedEpubRewrite(file, parent, stage, originalName, backupName)
+        } catch (error: Throwable) {
+            stage.delete()
+            throw error
+        }
+    }
+
+    private data class StagedEpubRewrite(
+        val original: UniFile,
+        val parent: UniFile,
+        val stage: UniFile,
+        val originalName: String,
+        val backupName: String,
+        var backup: UniFile? = null,
+    )
 
     private fun createSimpleChapter(manga: SManga, chapterFile: UniFile): SChapter {
         return SChapter.create().apply {

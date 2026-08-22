@@ -239,7 +239,7 @@ function customLibrary() {
       artifactVersion: "2.0.0",
       name: "node-html-markdown",
       description:
-        "Fast HTML to markdown converter for NodeJS or the browser. Adapted to work within the Nekori application.",
+        "Fast HTML to markdown converter for NodeJS or the browser. Adapted to work within the Boox Book application.",
       website: "https://www.npmjs.com/package/node-html-markdown",
       developers: [{ name: "crosstype" }],
       scm: {
@@ -254,7 +254,7 @@ function customLibrary() {
       artifactVersion: "1.6.15",
       name: "hls.js",
       description:
-        "JavaScript HLS client using MediaSourceExtension. Adapted to work within the Nekori application.",
+        "JavaScript HLS client using MediaSourceExtension. Adapted to work within the Boox Book application.",
       website: "https://github.com/video-dev/hls.js",
       developers: [{ name: "video-dev" }],
       scm: {

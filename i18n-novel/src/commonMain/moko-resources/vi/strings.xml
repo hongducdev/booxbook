@@ -9,7 +9,6 @@
      -->
     <string name="action_clear_custom_metadata">Xóa siêu dữ liệu tùy chỉnh</string>
     <string name="clear_custom_metadata_confirm">Xóa tác giả, họa sĩ, mô tả, thẻ và trạng thái bạn đã tự sửa, rồi khôi phục giá trị từ nguồn?</string>
-    <string name="edit_original_source_values">Giá trị gốc từ nguồn</string>
     <string name="edit_label_tags">Thẻ</string>
     <string name="edit_label_description">Mô tả</string>
     <!-- Screen Titles -->
@@ -444,6 +443,8 @@
     <string name="epub_metadata_generating">Đang tạo metadata từ nội dung EPUB…</string>
     <string name="epub_metadata_unconfigured">Hãy cấu hình nhà cung cấp cho metadata EPUB trong Cài đặt > AI trước</string>
     <string name="epub_metadata_no_content">Không tìm thấy nội dung EPUB có thể đọc</string>
+    <string name="epub_metadata_saved">Đã lưu metadata vào file EPUB</string>
+    <string name="epub_metadata_save_failed">Không thể lưu metadata vào file EPUB</string>
     <string name="chapter_summary_unconfigured">Hãy cấu hình nhà cung cấp AI trong Cài đặt > AI trước</string>
     <string name="pref_ai_resources">Tài nguyên</string>
     <string name="pref_ai_providers">Nhà cung cấp</string>

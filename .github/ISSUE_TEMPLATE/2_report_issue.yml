@@ -1,5 +1,5 @@
 name: 🐞 Issue report
-description: Report an issue in Nekori
+description: Report an issue in Boox Book
 labels: [bug]
 body:
   - type: textarea
@@ -47,10 +47,10 @@ body:
         You can upload the crash log file as an attachment, or paste the crash logs in plain text if needed.
 
   - type: input
-    id: nekori-version
+    id: booxbook-version
     attributes:
-      label: Nekori version
-      description: You can find your Nekori version in **More → About**.
+      label: Boox Book version
+      description: You can find your Boox Book version in **More → About**.
       placeholder: |
         Example: "0.0.2"
     validations:
@@ -95,9 +95,9 @@ body:
           required: true
         - label: I have gone through the [FAQ](https://tsundoku-otaku.github.io/docs/faq/general) and [troubleshooting guide](https://tsundoku-otaku.github.io/docs/guides/troubleshooting/).
           required: true
-        - label: I have updated the app to version **[0.0.2](https://github.com/Yuneko-dev/Nekori/releases/latest)**.
+        - label: I have updated the app to version **[0.0.2](https://github.com/hongducdev/booxbook/releases/latest)**.
           required: true
         - label: I have filled out all of the requested information in this form, including specific version numbers.
           required: true
-        - label: I understand that **Nekori does not have or fix any extensions**, and I **will not receive help** for any issues related to sources or extensions.
+        - label: I understand that **Boox Book does not have or fix any extensions**, and I **will not receive help** for any issues related to sources or extensions.
           required: true

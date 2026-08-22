@@ -1,6 +1,5 @@
 package eu.kanade.presentation.manga.components
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -17,8 +16,6 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.ExpandLess
-import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -56,7 +53,6 @@ import eu.kanade.tachiyomi.data.translation.EpubMetadataDraft
 import eu.kanade.tachiyomi.data.translation.EpubMetadataGenerationResult
 import eu.kanade.tachiyomi.source.model.SManga
 import kotlinx.coroutines.launch
-import tachiyomi.domain.manga.model.CustomMangaInfo
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.novel.TDMR
@@ -65,7 +61,6 @@ import tachiyomi.presentation.core.i18n.stringResource
 @Composable
 fun EditMangaDialog(
     manga: Manga,
-    sourceInfo: CustomMangaInfo? = null,
     onDismissRequest: () -> Unit,
     onSaveTitle: (String) -> Unit,
     onSaveUrl: (String) -> Unit,
@@ -79,6 +74,7 @@ fun EditMangaDialog(
     ) -> Unit,
     onSwapMainTitle: ((newMainTitle: String, updatedAltTitles: List<String>) -> Unit)? = null,
     onGenerateMetadata: (suspend (EpubMetadataDraft) -> EpubMetadataGenerationResult)? = null,
+    onSaveEpubMetadata: ((EpubMetadataDraft) -> Unit)? = null,
 ) {
     var title by remember { mutableStateOf(manga.title) }
     var description by remember { mutableStateOf(manga.description.orEmpty()) }
@@ -93,6 +89,16 @@ fun EditMangaDialog(
     var metadataGenerationError by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
+    fun currentMetadata() = EpubMetadataDraft(
+        title = title,
+        alternativeTitles = altTitles,
+        description = description,
+        tags = tags,
+        author = author,
+        artist = artist,
+        status = status,
+    )
+
     val tabTitles = listOf(
         TabTitle.Text(stringResource(MR.strings.pref_category_general)),
         TabTitle.Text(stringResource(TDMR.strings.edit_label_description)),
@@ -101,10 +107,14 @@ fun EditMangaDialog(
     TabbedDialog(
         onDismissRequest = {
             if (!didSwapMainTitle) {
-                onSaveTitle(title)
                 onSaveUrl(url)
-                onSaveAltTitles(altTitles)
-                onSaveInfo(description, tags, author, artist, status)
+                if (onSaveEpubMetadata != null) {
+                    onSaveEpubMetadata(currentMetadata())
+                } else {
+                    onSaveTitle(title)
+                    onSaveAltTitles(altTitles)
+                    onSaveInfo(description, tags, author, artist, status)
+                }
             }
             onDismissRequest()
         },
@@ -123,24 +133,13 @@ fun EditMangaDialog(
         ) {
             when (page) {
                 0 -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (sourceInfo != null) {
-                        SourceValuesSection(sourceInfo, manga)
-                    }
                     if (onGenerateMetadata != null) {
                         OutlinedButton(
                             onClick = {
                                 scope.launch {
                                     isGeneratingMetadata = true
                                     metadataGenerationError = null
-                                    val current = EpubMetadataDraft(
-                                        title = title,
-                                        alternativeTitles = altTitles,
-                                        description = description,
-                                        tags = tags,
-                                        author = author,
-                                        artist = artist,
-                                        status = status,
-                                    )
+                                    val current = currentMetadata()
                                     when (val result = onGenerateMetadata(current)) {
                                         is EpubMetadataGenerationResult.Success -> {
                                             val generated = result.metadata
@@ -230,13 +229,17 @@ fun EditMangaDialog(
                         onAltTitlesChange = { altTitles = it },
                         onSwapMainTitle = onSwapMainTitle?.let { swap ->
                             { newMain, updatedAlts ->
-                                // Title/alt-titles are persisted by swap() itself; other tabs'
-                                // edits are not, so save them explicitly before the guard below
-                                // skips the normal onDismissRequest save path.
                                 onSaveUrl(url)
-                                onSaveInfo(description, tags, author, artist, status)
                                 didSwapMainTitle = true
-                                swap(newMain, updatedAlts)
+                                if (onSaveEpubMetadata != null) {
+                                    title = newMain
+                                    altTitles = updatedAlts
+                                    onSaveEpubMetadata(currentMetadata())
+                                } else {
+                                    // swap() persists title/alt-titles; save the other edited fields separately.
+                                    onSaveInfo(description, tags, author, artist, status)
+                                    swap(newMain, updatedAlts)
+                                }
                                 onDismissRequest()
                             }
                         },
@@ -274,84 +277,6 @@ private fun EditTextField(
         singleLine = singleLine,
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
     )
-}
-
-@Composable
-private fun SourceValuesSection(source: CustomMangaInfo, current: Manga) {
-    // Only the fields the user actually changed, shown with their original source value.
-    val changedRows = buildList {
-        if (source.author.orEmpty() != current.author.orEmpty()) {
-            add(stringResource(MR.strings.author) to source.author)
-        }
-        if (source.artist.orEmpty() != current.artist.orEmpty()) {
-            add(stringResource(MR.strings.artist) to source.artist)
-        }
-        if (source.status != null && source.status != current.status) {
-            add(stringResource(MR.strings.status) to statusLabel(source.status))
-        }
-        if (source.genre?.toSet() != current.genre?.toSet()) {
-            add(stringResource(TDMR.strings.edit_label_tags) to source.genre?.joinToString(", "))
-        }
-        if (source.description.orEmpty() != current.description.orEmpty()) {
-            add(stringResource(TDMR.strings.edit_label_description) to source.description)
-        }
-    }
-
-    if (changedRows.isEmpty()) return
-
-    val noneLabel = stringResource(MR.strings.none)
-    var expanded by remember { mutableStateOf(false) }
-    Column {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { expanded = !expanded },
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = stringResource(TDMR.strings.edit_original_source_values),
-                style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier.weight(1f),
-            )
-            Icon(
-                imageVector = if (expanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
-                contentDescription = null,
-            )
-        }
-        if (expanded) {
-            changedRows.forEach { (label, value) ->
-                SourceValueRow(
-                    label,
-                    value.takeUnless { it.isNullOrBlank() } ?: noneLabel,
-                )
-            }
-        }
-        HorizontalDivider()
-    }
-}
-
-@Composable
-private fun SourceValueRow(label: String, value: String) {
-    Column(modifier = Modifier.padding(vertical = 2.dp)) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(text = value, style = MaterialTheme.typography.bodySmall)
-    }
-}
-
-@Composable
-private fun statusLabel(status: Long?): String? = when (status?.toInt()) {
-    null -> null
-    SManga.ONGOING -> stringResource(MR.strings.ongoing)
-    SManga.COMPLETED -> stringResource(MR.strings.completed)
-    SManga.LICENSED -> stringResource(MR.strings.licensed)
-    SManga.PUBLISHING_FINISHED -> stringResource(MR.strings.publishing_finished)
-    SManga.CANCELLED -> stringResource(MR.strings.cancelled)
-    SManga.ON_HIATUS -> stringResource(MR.strings.on_hiatus)
-    else -> stringResource(MR.strings.unknown)
 }
 
 @Composable

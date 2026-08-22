@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.data.translation
 
+import androidx.core.os.LocaleListCompat
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.mockk.coEvery
@@ -16,13 +17,14 @@ import tachiyomi.domain.translation.model.LlmOutputFormat
 import tachiyomi.domain.translation.model.LlmResult
 import tachiyomi.domain.translation.model.UserGuidelines
 import tachiyomi.domain.translation.service.TranslationPreferences
+import java.util.Locale
 
 class EpubMetadataGenerationServiceTest {
     private val preferences = TranslationPreferences(InMemoryPreferenceStore())
     private val json = Json { ignoreUnknownKeys = true }
     private val aiSettings = AiSettingsStore(preferences, json)
     private val generator = mockk<LlmGenerator>()
-    private val service = EpubMetadataGenerationService(generator, aiSettings, preferences, json)
+    private val service = EpubMetadataGenerationService(generator, aiSettings, preferences, json) { "English" }
 
     @Test
     fun `an unconfigured provider means metadata cannot be generated`() {
@@ -34,18 +36,21 @@ class EpubMetadataGenerationServiceTest {
     }
 
     @Test
-    fun `generation sends existing metadata and epub excerpts as structured input`() = runTest {
+    fun `generation uses the app language and sends existing metadata as structured input`() = runTest {
         aiSettings.saveProvider(provider, "secret")
         aiSettings.saveGuidelines(UserGuidelines("metadata", "Metadata", "Prefer canonical English titles"))
         preferences.epubMetadataGuidelinesId().set("metadata")
-        preferences.targetLanguage().set("vi")
+        preferences.targetLanguage().set("ja")
+        val vietnameseService = EpubMetadataGenerationService(generator, aiSettings, preferences, json) {
+            "Vietnamese"
+        }
         var captured: LlmGenerationRequest? = null
         coEvery { generator.generate(any(), any()) } answers {
             captured = secondArg()
             LlmResult.Success(validResponse)
         }
 
-        service.generate(
+        vietnameseService.generate(
             current = EpubMetadataDraft(
                 title = "Current title",
                 alternativeTitles = listOf("Old title"),
@@ -61,10 +66,20 @@ class EpubMetadataGenerationServiceTest {
         val request = requireNotNull(captured)
         request.input shouldContain "Current title"
         request.input shouldContain "Chapter 1"
+        request.systemPrompt shouldContain "must be written in Vietnamese"
+        request.systemPrompt shouldContain "Translate the title"
         request.input shouldContain "The story begins."
         request.systemPrompt shouldContain "Vietnamese"
         request.systemPrompt shouldContain "Prefer canonical English titles"
         (request.outputFormat is LlmOutputFormat.JsonSchema) shouldBe true
+    }
+
+    @Test
+    fun `explicit app locale takes precedence over system locale`() {
+        currentAppLanguageName(
+            appLocales = LocaleListCompat.forLanguageTags("vi"),
+            systemLocale = Locale.ENGLISH,
+        ) shouldBe "Vietnamese"
     }
 
     @Test

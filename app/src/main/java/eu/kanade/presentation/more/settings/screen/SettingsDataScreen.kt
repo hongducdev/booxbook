@@ -379,7 +379,7 @@ object SettingsDataScreen : SearchableSettings {
                 options = exportOptions,
                 onConfirm = { options ->
                     exportOptions = options
-                    saveFileLauncher.launch("nekori_library.csv")
+                    saveFileLauncher.launch("booxbook_library.csv")
                 },
                 onDismissRequest = { showDialog = false },
             )

@@ -9,7 +9,6 @@
      -->
     <string name="action_clear_custom_metadata">Clear custom metadata</string>
     <string name="clear_custom_metadata_confirm">Remove your manually edited author, artist, description, tags and status, then restore the source values?</string>
-    <string name="edit_original_source_values">Original source values</string>
     <string name="edit_label_tags">Tags</string>
     <string name="edit_label_description">Description</string>
     <!-- Screen Titles -->
@@ -453,6 +452,8 @@
     <string name="epub_metadata_generating">Generating metadata from EPUB content…</string>
     <string name="epub_metadata_unconfigured">Configure an AI provider for EPUB metadata in Settings > AI first</string>
     <string name="epub_metadata_no_content">No readable EPUB content was found</string>
+    <string name="epub_metadata_saved">Metadata saved to the EPUB file</string>
+    <string name="epub_metadata_save_failed">Could not save metadata to the EPUB file</string>
     <string name="chapter_summary_unconfigured">Configure an AI provider in Settings > AI first</string>
     <string name="pref_ai_resources">Resources</string>
     <string name="pref_ai_providers">Providers</string>

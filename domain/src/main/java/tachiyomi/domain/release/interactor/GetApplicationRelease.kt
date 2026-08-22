@@ -28,28 +28,33 @@ class GetApplicationRelease(
         versionName: String,
         versionTag: String,
     ): Boolean {
-        // Removes prefixes like "r" or "v"
-        val newVersion = versionTag.replace("[^\\d.]".toRegex(), "")
         return if (isNightly) {
-            // Nightly builds: based on releases in "Yuneko-dev/Nekori-nightly" repo
-            // tagged as something like "r1234"
-            newVersion.toInt() > commitCount
+            versionTag.removePrefix("r").toIntOrNull()?.let { it > commitCount } ?: false
         } else {
-            // Release builds: based on releases in "Yuneko-dev/Nekori" repo
-            // tagged as something like "v0.1.2"
-            val oldVersion = versionName.replace("[^\\d.]".toRegex(), "")
+            val newVersion = parseStableVersion(versionTag) ?: return false
+            val currentVersion = parseStableVersion(versionName) ?: return false
+            val componentCount = maxOf(newVersion.size, currentVersion.size)
 
-            val newSemVer = newVersion.split(".").map { it.toInt() }
-            val oldSemVer = oldVersion.split(".").map { it.toInt() }
-
-            oldSemVer.mapIndexed { index, i ->
-                if (newSemVer[index] > i) {
-                    return true
+            repeat(componentCount) { index ->
+                val comparison = newVersion.getOrElse(index) { 0 }
+                    .compareTo(currentVersion.getOrElse(index) { 0 })
+                if (comparison != 0) {
+                    return comparison > 0
                 }
             }
 
             false
         }
+    }
+
+    private fun parseStableVersion(value: String): List<Int>? {
+        val normalized = value.removePrefix("v")
+        if (!normalized.matches(STABLE_VERSION_PATTERN)) return null
+        return normalized.split(".").map { it.toIntOrNull() ?: return null }
+    }
+
+    companion object {
+        private val STABLE_VERSION_PATTERN = Regex("""\d+(?:\.\d+)*""")
     }
 
     data class Arguments(

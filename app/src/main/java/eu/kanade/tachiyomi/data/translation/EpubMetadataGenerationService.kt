@@ -1,5 +1,8 @@
 package eu.kanade.tachiyomi.data.translation
 
+import android.app.Application
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.os.LocaleListCompat
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -12,13 +15,13 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 import tachiyomi.domain.translation.model.AiExecutionConfig
-import tachiyomi.domain.translation.model.LanguageCodes
 import tachiyomi.domain.translation.model.LlmGenerationRequest
 import tachiyomi.domain.translation.model.LlmOutputFormat
 import tachiyomi.domain.translation.model.LlmResult
 import tachiyomi.domain.translation.service.TranslationPreferences
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
+import java.util.Locale
 
 @Serializable
 data class EpubMetadataDraft(
@@ -51,6 +54,7 @@ class EpubMetadataGenerationService(
     private val aiSettings: AiSettingsStore = Injekt.get(),
     private val preferences: TranslationPreferences = Injekt.get(),
     private val json: Json = Injekt.get(),
+    private val appLanguage: () -> String = ::currentAppLanguageName,
 ) {
     fun isConfigured(): Boolean = resolveConfig().isComplete
 
@@ -61,7 +65,7 @@ class EpubMetadataGenerationService(
         val config = resolveConfig()
         val request = LlmGenerationRequest(
             systemPrompt = buildPrompt(
-                targetLanguage = LanguageCodes.getDisplayName(preferences.targetLanguage().get()),
+                targetLanguage = appLanguage(),
                 guidelines = config.guidelines.orEmpty(),
             ),
             input = json.encodeToString(GenerationInput(current, excerpts)),
@@ -120,9 +124,11 @@ class EpubMetadataGenerationService(
             You generate editable metadata for a local EPUB novel from its existing metadata and representative excerpts.
 
             Rules:
-            - Write title, alternative titles, description, tags, author and artist in $targetLanguage when a localized form is appropriate.
+            - Every language-bearing value must be written in $targetLanguage.
+            - Translate the title, alternative titles, description and tags into $targetLanguage even when the existing metadata uses another language.
+            - Preserve personal names such as author and artist unless an established $targetLanguage form exists.
             - Use only facts supported by the supplied metadata or excerpts. Never invent names, credits or publication state.
-            - Keep a reliable existing value when the excerpts do not justify replacing it.
+            - Existing metadata is factual input, not a language template.
             - Use an empty string or empty array when a value is genuinely unknown.
             - Description must be a concise spoiler-light synopsis, not a review or chapter-by-chapter summary.
             - Tags must be short genre or theme labels without duplicates.
@@ -206,6 +212,18 @@ class EpubMetadataGenerationService(
         }
     }
 }
+
+internal fun currentAppLanguageName(
+    appLocales: LocaleListCompat = AppCompatDelegate.getApplicationLocales(),
+    systemLocale: Locale = currentResourceLocale(),
+): String {
+    val locale = appLocales.get(0) ?: systemLocale
+    return locale.getDisplayName(Locale.ENGLISH).ifBlank { locale.toLanguageTag() }
+}
+
+private fun currentResourceLocale(): Locale = runCatching {
+    Injekt.get<Application>().resources.configuration.locales[0]
+}.getOrDefault(Locale.getDefault())
 
 private fun String.removeMarkdownFence(): String {
     val trimmed = trim()

@@ -70,7 +70,7 @@ dependencyResolutionManagement {
 
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
-rootProject.name = "Nekori"
+rootProject.name = "BooxBook"
 include(":app")
 include(":baseline-profile")
 include(":core-metadata")

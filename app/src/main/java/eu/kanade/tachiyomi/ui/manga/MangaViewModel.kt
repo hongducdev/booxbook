@@ -89,6 +89,7 @@ import tachiyomi.domain.manga.interactor.GetLibraryManga
 import tachiyomi.domain.manga.interactor.GetMangaWithChapters
 import tachiyomi.domain.manga.interactor.SetMangaChapterFlags
 import tachiyomi.domain.manga.model.Manga
+import tachiyomi.domain.manga.model.MangaUpdate
 import tachiyomi.domain.manga.model.MangaWithChapterCount
 import tachiyomi.domain.manga.model.applyFilter
 import tachiyomi.domain.manga.repository.MangaRepository
@@ -105,6 +106,7 @@ import tachiyomi.i18n.novel.TDMR
 import tachiyomi.source.local.LocalNovelSource
 import tachiyomi.source.local.isLocal
 import tachiyomi.source.local.isLocalNovel
+import tachiyomi.source.local.metadata.LocalEpubMetadata
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import kotlin.math.floor
@@ -192,7 +194,7 @@ class MangaViewModel(
     private val skipFiltered by readerPreferences.skipFiltered.asState(viewModelScope)
     val isTranslationEnabled by translationPreferences.translationEnabled().asState(viewModelScope)
 
-    val isEpubMetadataGenerationAvailable: Boolean
+    val isEpubMetadataEditingAvailable: Boolean
         get() {
             if (source !is LocalNovelSource) return false
             if (manga?.url?.substringBefore('#')?.endsWith(".epub", ignoreCase = true) == true) return true
@@ -1575,6 +1577,59 @@ class MangaViewModel(
         updateSuccessState { it.copy(dialog = Dialog.ClearCustomInfo) }
     }
 
+    fun persistEpubMetadata(value: EpubMetadataDraft) {
+        val manga = successState?.manga ?: return
+        val localSource = source as? LocalNovelSource ?: return
+        val metadata = value.copy(
+            title = value.title.trim().ifEmpty { manga.title },
+            alternativeTitles = value.alternativeTitles.normalizedMetadataValues(),
+            description = value.description.trim(),
+            tags = value.tags.normalizedMetadataValues(),
+            author = value.author.trim(),
+            artist = value.artist.trim(),
+            status = value.status.takeIf { it in 0L..6L } ?: manga.status,
+        )
+        viewModelScope.launchIO {
+            try {
+                localSource.updateEpubMetadata(
+                    mangaUrl = manga.url,
+                    metadata = LocalEpubMetadata(
+                        title = metadata.title,
+                        alternativeTitles = metadata.alternativeTitles,
+                        description = metadata.description,
+                        tags = metadata.tags,
+                        author = metadata.author,
+                        artist = metadata.artist,
+                        status = metadata.status.toInt(),
+                    ),
+                )
+                setCustomMangaInfo.clear(manga.id)
+                updateManga.await(
+                    MangaUpdate(
+                        id = manga.id,
+                        title = metadata.title,
+                        alternativeTitles = metadata.alternativeTitles,
+                        description = metadata.description,
+                        genre = metadata.tags,
+                        author = metadata.author,
+                        artist = metadata.artist,
+                        status = metadata.status,
+                    ),
+                )
+                withUIContext {
+                    snackbarHostState.showSnackbar(context.stringResource(TDMR.strings.epub_metadata_saved))
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                logcat(LogPriority.ERROR, error) { "Failed to persist EPUB metadata for ${manga.url}" }
+                withUIContext {
+                    snackbarHostState.showSnackbar(context.stringResource(TDMR.strings.epub_metadata_save_failed))
+                }
+            }
+        }
+    }
+
     /**
      * Drop all custom metadata overrides for this manga and re-fetch details so the source values
      * repopulate the entry.
@@ -1965,3 +2020,6 @@ internal fun resolveEpubMetadataPageUrl(mangaUrl: String, chapterUrl: String): S
         ?.let { "$mangaUrl#$it" }
         ?: mangaUrl
 }
+
+private fun List<String>.normalizedMetadataValues(): List<String> =
+    map(String::trim).filter(String::isNotEmpty).distinctBy(String::lowercase)

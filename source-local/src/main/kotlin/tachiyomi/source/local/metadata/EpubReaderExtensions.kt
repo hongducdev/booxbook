@@ -46,13 +46,23 @@ fun EpubReader.fillMetadata(manga: SManga, chapter: SChapter) {
     }
 
     val collection = doc.select("meta[property=belongs-to-collection]").firstOrNull()?.text()
+    (title ?: collection)?.takeIf(String::isNotBlank)?.let { manga.title = it }
 
-    val currentTitle = runCatching { manga.title }.getOrNull()
-    if (!collection.isNullOrBlank() && currentTitle.isNullOrBlank()) {
-        manga.title = collection
-    } else if (!title.isNullOrBlank() && currentTitle.isNullOrBlank()) {
-        manga.title = title
-    }
+    val alternativeTitles = doc.select("meta[name=booxbook:alternative-title]")
+        .mapNotNull { it.attr("content").trim().takeIf(String::isNotEmpty) }
+        .distinct()
+    if (alternativeTitles.isNotEmpty()) manga.altTitles = alternativeTitles
+
+    doc.selectFirst("meta[name=booxbook:artist]")
+        ?.attr("content")
+        ?.trim()
+        ?.takeIf(String::isNotEmpty)
+        ?.let { manga.artist = it }
+    doc.selectFirst("meta[name=booxbook:status]")
+        ?.attr("content")
+        ?.toIntOrNull()
+        ?.takeIf { it in SManga.UNKNOWN..SManga.ON_HIATUS }
+        ?.let { manga.status = it }
 
     var date = doc.getElementsByTag("dc:date").firstOrNull()
         ?: doc.select("metadata > date").firstOrNull()

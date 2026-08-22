@@ -7,9 +7,9 @@
 ### Novel reader for LNReader plugins
 A personal fork of [Tsundoku](https://github.com/tsundoku-otaku/tsundoku), built around the LNReader plugin ecosystem.
 
-[![GitHub downloads](https://img.shields.io/github/downloads/Yuneko-dev/Nekori/total?label=downloads&labelColor=27303D&color=0D1117&logo=github&logoColor=FFFFFF&style=flat)](https://github.com/Yuneko-dev/Nekori/releases)
-[![CI](https://img.shields.io/github/actions/workflow/status/Yuneko-dev/Nekori/build.yml?labelColor=27303D)](https://github.com/Yuneko-dev/Nekori/actions/workflows/build.yml)
-[![License: Apache-2.0](https://img.shields.io/github/license/Yuneko-dev/Nekori?labelColor=27303D&color=0877d2)](/LICENSE)
+[![GitHub downloads](https://img.shields.io/github/downloads/hongducdev/booxbook/total?label=downloads&labelColor=27303D&color=0D1117&logo=github&logoColor=FFFFFF&style=flat)](https://github.com/hongducdev/booxbook/releases)
+[![CI](https://img.shields.io/github/actions/workflow/status/hongducdev/booxbook/build.yml?labelColor=27303D)](https://github.com/hongducdev/booxbook/actions/workflows/build.yml)
+[![License: Apache-2.0](https://img.shields.io/github/license/hongducdev/booxbook?labelColor=27303D&color=0877d2)](/LICENSE)
 
 </div>
 
@@ -28,7 +28,7 @@ A personal fork of [Tsundoku](https://github.com/tsundoku-otaku/tsundoku), built
 
 ## Download
 
-[![Boox Book Stable](https://img.shields.io/github/release/Yuneko-dev/Nekori.svg?maxAge=3600&label=Stable&labelColor=06599d&color=043b69)](https://github.com/Yuneko-dev/Nekori/releases/latest)
+[![Boox Book Stable](https://img.shields.io/github/release/hongducdev/booxbook.svg?maxAge=3600&label=Stable&labelColor=06599d&color=043b69)](https://github.com/hongducdev/booxbook/releases/latest)
 
 *Requires Android 8.0 or higher.*
 
@@ -39,7 +39,7 @@ library across is a backup and a restore.
 
 Most of this comes from Tsundoku and, before it, Mihon. Boox Book keeps it rather than rebuilds it — the list below is
 what the app does, not what this fork added. For the fork's own changes, see
-[NEKORI_CHANGELOG.md](./NEKORI_CHANGELOG.md).
+[BOOXBOOK_CHANGELOG.md](./BOOXBOOK_CHANGELOG.md).
 
 <div align="left">
 
@@ -91,7 +91,7 @@ Everything else stays. The library, categories, themes, backups, downloads, stat
 surface are Tsundoku's, and Boox Book follows upstream rather than diverging from it — this fork is a narrowing,
 not a rewrite.
 
-The full list lives in [NEKORI_CHANGELOG.md](./NEKORI_CHANGELOG.md). [CHANGELOG.md](./CHANGELOG.md) is Tsundoku's own
+The full list lives in [BOOXBOOK_CHANGELOG.md](./BOOXBOOK_CHANGELOG.md). [CHANGELOG.md](./CHANGELOG.md) is Tsundoku's own
 release record and is kept identical to upstream so it merges cleanly.
 
 ## Contributing
@@ -113,6 +113,7 @@ Boox Book exists because of work done elsewhere:
 * [Tsundoku](https://github.com/tsundoku-otaku/tsundoku) — the novel support this fork is built on.
 * [LNReader](https://github.com/LNReader/lnreader) — the plugin ecosystem that makes this app worth using, and the
   backup format it imports.
+* [Nekori](https://github.com/Yuneko-dev/Nekori) — the previous fork and implementation work Boox Book builds on.
 
 ### Disclaimer
 

@@ -14,7 +14,6 @@ import org.gradle.process.ExecOperations
 import java.io.FileInputStream
 import java.util.Properties
 import javax.inject.Inject
-import kotlin.io.encoding.Base64
 
 abstract class GenerateShippedJsLicenses @Inject constructor(
     private val execOperations: ExecOperations,
@@ -103,8 +102,8 @@ android {
     defaultConfig {
         applicationId = "com.hongducdev.booxbook"
 
-        versionCode = 2
-        versionName = "0.0.2"
+        versionCode = 1
+        versionName = "0.0.1"
 
         buildConfigField("String", "COMMIT_COUNT", "\"${getLatestCommitCount()}\"")
         buildConfigField("String", "COMMIT_SHA", "\"${getLatestCommitSha()}\"")
@@ -115,25 +114,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    if (System.getenv("NEKORI_GITHUB_RELEASE").toBoolean() &&
-        System.getenv("GITHUB_REPOSITORY_OWNER") == "Yuneko-dev"
-    ) {
-        val tempStoreFile = file(System.getenv("RUNNER_TEMP")).resolve("nekori.keystore")
-
-        val storeFileBytes = System.getenv("storeFileBase64").filter {
-            !it.isWhitespace() && it != '"'
-        }.let(Base64::decode)
-        tempStoreFile.outputStream().use { it.write(storeFileBytes) }
-
-        signingConfigs {
-            named("debug") {
-                storeFile = tempStoreFile
-                storePassword = System.getenv("storePassword")
-                keyAlias = System.getenv("keyAlias")
-                keyPassword = System.getenv("keyPassword")
-            }
-        }
-    } else if (keystorePropertiesFile.exists()) {
+    if (keystorePropertiesFile.exists()) {
         val keystoreProperties = FileInputStream(keystorePropertiesFile).use { Properties().apply { load(it) } }
 
         signingConfigs {
@@ -163,6 +144,8 @@ android {
             proguardFiles("proguard-android-optimize.txt", "proguard-rules.pro")
 
             buildConfigField("String", "BUILD_TIME", "\"${getBuildTime(useLatestCommitTime = true)}\"")
+            // Stable builds update from this repository's published GitHub releases.
+            buildConfigField("boolean", "UPDATER_ENABLED", "true")
         }
 
         val commonMatchingFallbacks = listOf(release.name)

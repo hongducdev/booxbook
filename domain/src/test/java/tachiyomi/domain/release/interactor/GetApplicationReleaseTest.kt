@@ -93,4 +93,55 @@ class GetApplicationReleaseTest {
 
         result shouldBe GetApplicationRelease.Result.NoNewUpdate
     }
+
+    @Test
+    fun `Stable update compares patch versions`() = runTest {
+        stableResult(currentVersion = "0.0.1", releaseVersion = "v0.0.2")
+            .let { it is GetApplicationRelease.Result.NewUpdate } shouldBe true
+    }
+
+    @Test
+    fun `Stable update stops at first lower component`() = runTest {
+        stableResult(currentVersion = "1.0.0", releaseVersion = "v0.1.0") shouldBe
+            GetApplicationRelease.Result.NoNewUpdate
+    }
+
+    @Test
+    fun `Stable update normalizes missing trailing components`() = runTest {
+        stableResult(currentVersion = "1.0.0", releaseVersion = "v1.0") shouldBe
+            GetApplicationRelease.Result.NoNewUpdate
+    }
+
+    @Test
+    fun `Stable update rejects malformed release tags`() = runTest {
+        stableResult(currentVersion = "0.0.1", releaseVersion = "latest") shouldBe
+            GetApplicationRelease.Result.NoNewUpdate
+    }
+
+    @Test
+    fun `Version 0_0_1 is not newer than itself`() = runTest {
+        stableResult(currentVersion = "0.0.1", releaseVersion = "v0.0.1") shouldBe
+            GetApplicationRelease.Result.NoNewUpdate
+    }
+
+    private suspend fun stableResult(
+        currentVersion: String,
+        releaseVersion: String,
+    ): GetApplicationRelease.Result {
+        coEvery { releaseService.latest(any()) } returns Release(
+            releaseVersion,
+            "info",
+            "http://example.com/release_link",
+            "http://example.com/release_link.apk",
+        )
+
+        return getApplicationRelease.await(
+            GetApplicationRelease.Arguments(
+                isNightly = false,
+                commitCount = 0,
+                versionName = currentVersion,
+                repository = "test",
+            ),
+        )
+    }
 }

@@ -16,6 +16,8 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ## [Unreleased]
 
+## [0.0.1] - 2026-08-23
+
 ### Added
 
 #### JS plugin runtime
@@ -70,11 +72,13 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Vietnamese translations for the fork's own strings.
 
 ### Changed
-- **Rebranded from Tsundoku to Boox Book.** `applicationId` is `com.hongducdev.booxbook`, so this installs alongside Tsundoku rather than upgrading it — moving data across is a backup and restore. The launcher uses separate supplied artwork for light and dark mode. CI, the in-app updater and repository links remain at `Yuneko-dev/Nekori`.
+- **Rebranded from Tsundoku to Boox Book.** `applicationId` is `com.hongducdev.booxbook`, so this installs alongside Tsundoku rather than upgrading it — moving data across is a backup and restore. The launcher uses separate supplied artwork for light and dark mode. CI, the in-app updater and repository links use `hongducdev/booxbook`.
 - Contextual anchoring is off by default. It only matters once a chapter is split, and it costs the chapter its parallelism because a chunk cannot start before the one ahead of it finishes.
 - Duplicate detection rebuilt on Material 3; the duplicate-URL mode was dropped.
 - The statistics interface choice moved into settings.
 - The reader is native WebView plus Compose; React Native is the plugin runtime only.
+- EPUB metadata generation follows the app language instead of the separate translation target language.
+- Local EPUB metadata edits are written atomically into each EPUB package document instead of existing only as app-side overrides; the original-source comparison panel was removed.
 
 ### Removed
 - Discord Rich Presence, including its OAuth callback, gateway runtime, preferences, and settings.
@@ -125,7 +129,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 
 #### Elsewhere
-- Launcher artwork is inset against a matching theme background instead of being zoomed and cropped by adaptive-icon masks.
+- Launcher artwork uses a full-size theme background with a scaled mascot layer placed in the adaptive foreground safe zone, avoiding intrinsic-size corner cropping, launcher zoom, and a visible inset square; every build variant inherits the same icon.
 - The Android notification permission prompt waits for the permissions onboarding step instead of overlapping storage setup.
 - The download cache stops re-indexing the whole downloads tree on every cold start.
 - Found chapter directories keyed by chapter id.
