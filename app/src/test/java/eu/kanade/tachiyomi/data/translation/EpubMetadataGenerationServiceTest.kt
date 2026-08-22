@@ -88,6 +88,32 @@ class EpubMetadataGenerationServiceTest {
     }
 
     @Test
+    fun `nested partial JSON preserves metadata fields omitted by the provider`() = runTest {
+        aiSettings.saveProvider(provider, "secret")
+        coEvery { generator.generate(any(), any()) } returns LlmResult.Success(
+            """{"epub_metadata":{"description":"New description","tags":["Mystery"]}}""",
+        )
+        val current = EpubMetadataDraft(
+            title = "Existing title",
+            alternativeTitles = listOf("Existing alternative"),
+            description = "Existing description",
+            tags = listOf("Thriller"),
+            author = "Existing author",
+            artist = "Existing artist",
+            status = 2,
+        )
+
+        val result = service.generate(current, emptyList())
+
+        result shouldBe EpubMetadataGenerationResult.Success(
+            current.copy(
+                description = "New description",
+                tags = listOf("Mystery"),
+            ),
+        )
+    }
+
+    @Test
     fun `malformed provider JSON returns a failure without hiding the response problem`() = runTest {
         aiSettings.saveProvider(provider, "secret")
         coEvery { generator.generate(any(), any()) } returns LlmResult.Success("not-json")

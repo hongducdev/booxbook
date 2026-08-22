@@ -2,9 +2,12 @@ package eu.kanade.tachiyomi.data.translation
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
@@ -71,25 +74,37 @@ class EpubMetadataGenerationService(
             ) { generator.generate(config, request) }
         ) {
             is LlmResult.Failure -> EpubMetadataGenerationResult.Failure(result.message)
-            is LlmResult.Success -> parseResponse(result.text)
+            is LlmResult.Success -> parseResponse(result.text, current)
         }
     }
 
-    private fun parseResponse(value: String): EpubMetadataGenerationResult {
+    private fun parseResponse(
+        value: String,
+        current: EpubMetadataDraft,
+    ): EpubMetadataGenerationResult {
         val payload = runCatching {
-            json.decodeFromString<EpubMetadataDraft>(value.removeMarkdownFence())
+            val root = json.parseToJsonElement(value.removeMarkdownFence()).jsonObject
+            val metadataObject = if (OUTPUT_FIELDS.any(root::containsKey)) {
+                root
+            } else {
+                root.values.filterIsInstance<JsonObject>().singleOrNull() ?: root
+            }
+            json.decodeFromJsonElement<GeneratedMetadataPayload>(metadataObject)
         }.getOrElse {
             return EpubMetadataGenerationResult.Failure("Invalid AI metadata response: ${it.message}")
         }
+        if (payload.isEmpty) {
+            return EpubMetadataGenerationResult.Failure("Invalid AI metadata response: no metadata fields")
+        }
         return EpubMetadataGenerationResult.Success(
-            payload.copy(
-                title = payload.title.trim(),
-                alternativeTitles = payload.alternativeTitles.normalizeValues(),
-                description = payload.description.trim(),
-                tags = payload.tags.normalizeValues(),
-                author = payload.author.trim(),
-                artist = payload.artist.trim(),
-                status = payload.status.takeIf { it in VALID_STATUSES } ?: 0,
+            EpubMetadataDraft(
+                title = payload.title?.trim()?.takeIf(String::isNotEmpty) ?: current.title,
+                alternativeTitles = payload.alternativeTitles?.normalizeValues() ?: current.alternativeTitles,
+                description = payload.description?.trim() ?: current.description,
+                tags = payload.tags?.normalizeValues() ?: current.tags,
+                author = payload.author?.trim() ?: current.author,
+                artist = payload.artist?.trim() ?: current.artist,
+                status = payload.status?.takeIf { it in VALID_STATUSES } ?: current.status,
             ),
         )
     }
@@ -126,8 +141,37 @@ class EpubMetadataGenerationService(
         val epubExcerpts: List<EpubContentExcerpt>,
     )
 
+    @Serializable
+    private data class GeneratedMetadataPayload(
+        val title: String? = null,
+        val alternativeTitles: List<String>? = null,
+        val description: String? = null,
+        val tags: List<String>? = null,
+        val author: String? = null,
+        val artist: String? = null,
+        val status: Long? = null,
+    ) {
+        val isEmpty: Boolean
+            get() = title == null &&
+                alternativeTitles == null &&
+                description == null &&
+                tags == null &&
+                author == null &&
+                artist == null &&
+                status == null
+    }
+
     companion object {
         private val VALID_STATUSES = 0L..6L
+        private val OUTPUT_FIELDS = setOf(
+            "title",
+            "alternativeTitles",
+            "description",
+            "tags",
+            "author",
+            "artist",
+            "status",
+        )
 
         private val OUTPUT_SCHEMA = buildJsonObject {
             put("type", "object")

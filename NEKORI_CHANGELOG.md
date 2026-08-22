@@ -121,6 +121,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Request timeout honoured by every engine.
 - Cancelling a chapter no longer kills the queue for the rest of the process.
 - AI requests paced before they are issued rather than inside them, so a low limit no longer turns throttling into timeouts.
+- EPUB metadata generation accepts nested or partial provider JSON and preserves existing values for omitted fields.
 
 
 #### Elsewhere
