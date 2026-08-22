@@ -1,4 +1,4 @@
-package eu.kanade.tachiyomi.discord
+package eu.kanade.tachiyomi.security
 
 import eu.kanade.domain.source.interactor.GetIncognitoState
 import eu.kanade.tachiyomi.core.security.SecurityPreferences
@@ -12,7 +12,6 @@ class SensitiveContentPolicy(
     enum class Action {
         READING_PROGRESS,
         READING_HISTORY,
-        DISCORD_RPC,
     }
 
     fun isBlocked(action: Action, sourceId: Long?): Boolean {
@@ -22,12 +21,10 @@ class SensitiveContentPolicy(
             CONTENT_WARNING_MIXED -> when (action) {
                 Action.READING_PROGRESS -> securityPreferences.mixedBlockReadingProgress.get()
                 Action.READING_HISTORY -> securityPreferences.mixedBlockReadingHistory.get()
-                Action.DISCORD_RPC -> securityPreferences.mixedBlockDiscordRpc.get()
             }
             CONTENT_WARNING_NSFW -> when (action) {
                 Action.READING_PROGRESS -> securityPreferences.nsfwBlockReadingProgress.get()
                 Action.READING_HISTORY -> securityPreferences.nsfwBlockReadingHistory.get()
-                Action.DISCORD_RPC -> securityPreferences.nsfwBlockDiscordRpc.get()
             }
             else -> false
         }

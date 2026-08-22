@@ -101,7 +101,7 @@ android {
     namespace = "eu.kanade.tachiyomi"
 
     defaultConfig {
-        applicationId = "app.yuneko.nekori"
+        applicationId = "com.hongducdev.booxbook"
 
         versionCode = 2
         versionName = "0.0.2"
@@ -394,8 +394,7 @@ dependencies {
     androidTestImplementation(libs.androidx.test.junit)
     androidTestImplementation(libs.androidx.test.espresso.core)
 
-    // For detecting memory leaks; see https://square.github.io/leakcanary/
-    debugImplementation(libs.leakCanary.core)
+    // Workarounds for Android SDK memory leaks
     implementation(libs.leakCanary.plumber)
 
     testImplementation(libs.kotlinx.coroutines.test)

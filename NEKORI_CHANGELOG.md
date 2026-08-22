@@ -1,9 +1,9 @@
-# Nekori Changelog
+# Boox Book Changelog
 
 All notable changes **this fork** makes on top of Tsundoku are documented in this file.
 
 `CHANGELOG.md` is Tsundoku's own release record and is kept byte-identical to upstream so it can be
-merged without conflict — nothing about Nekori belongs in it. Everything below is work that exists
+merged without conflict — nothing about Boox Book belongs in it. Everything below is work that exists
 only here.
 
 The format is a modified version of [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -62,7 +62,6 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Request throttling scoped to JS plugin traffic, so covers, trackers and translation are not paced by source settings.
 
 #### Elsewhere
-- Discord rich presence.
 - Novel-only backup and restore overhaul, plus LNReader backup import, including local novels and an
   opt-in for novels whose plugin the backup cannot identify.
 - Novel structures and reading sessions in the database.
@@ -70,13 +69,14 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Vietnamese translations for the fork's own strings.
 
 ### Changed
-- **Rebranded from Tsundoku to Nekori.** `applicationId` is `app.yuneko.nekori`, so this installs alongside Tsundoku rather than upgrading it — moving data across is a backup and restore. Discord's OAuth callback moved to `nekori://discord-auth`. CI, the in-app updater and repository links point at `Yuneko-dev/Nekori`.
+- **Rebranded from Tsundoku to Boox Book.** `applicationId` is `com.hongducdev.booxbook`, so this installs alongside Tsundoku rather than upgrading it — moving data across is a backup and restore. The launcher uses separate supplied artwork for light and dark mode. CI, the in-app updater and repository links remain at `Yuneko-dev/Nekori`.
 - Contextual anchoring is off by default. It only matters once a chapter is split, and it costs the chapter its parallelism because a chunk cannot start before the one ahead of it finishes.
 - Duplicate detection rebuilt on Material 3; the duplicate-URL mode was dropped.
 - The statistics interface choice moved into settings.
 - The reader is native WebView plus Compose; React Native is the plugin runtime only.
 
 ### Removed
+- Discord Rich Presence, including its OAuth callback, gateway runtime, preferences, and settings.
 - The manga page viewer, the native image decoder and the Fresco stack.
 - Legacy Kotlin extension discovery, and the Shizuku extension installer.
 - Obsolete manga download preferences.
@@ -124,6 +124,8 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - The `mihon://` callback scheme restored, so Bangumi and Shikimori can log in again. Those two still use mihon's OAuth client ids, so their registered redirect is mihon's and cannot move.
 
 #### Elsewhere
+- Launcher artwork is inset against a matching theme background instead of being zoomed and cropped by adaptive-icon masks.
+- The Android notification permission prompt waits for the permissions onboarding step instead of overlapping storage setup.
 - The download cache stops re-indexing the whole downloads tree on every cold start.
 - Found chapter directories keyed by chapter id.
 - The novel queue sampled instead of debounced.
@@ -140,10 +142,11 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Chapter text returned directly from the runtime instead of round-tripping.
 - JavaScript stack traces preserved across the bridge.
 - Automatic video conversion setting.
+- LeakCanary's debug runtime removed; the lightweight Android leak workarounds remain.
 - Dead novel-irrelevant legacy UI, preference accessors, and resources pruned without changing novel behavior or database/backup compatibility.
 
 ## Upstream Sync
 
-Nekori is based on Tsundoku v0.3.1 (as of August 2026).
+Boox Book is based on Tsundoku v0.3.1 (as of August 2026).
 
 Upstream changes from Tsundoku are tracked in [CHANGELOG.md](./CHANGELOG.md).

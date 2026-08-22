@@ -5,9 +5,9 @@ import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.source.interactor.GetIncognitoState
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.core.security.SecurityPreferences
-import eu.kanade.tachiyomi.discord.SensitiveContentPolicy
 import eu.kanade.tachiyomi.jsplugin.model.InstalledJsPlugin
 import eu.kanade.tachiyomi.jsplugin.model.JsPlugin
+import eu.kanade.tachiyomi.security.SensitiveContentPolicy
 import io.kotest.matchers.shouldBe
 import io.mockk.every
 import io.mockk.mockk
@@ -61,7 +61,7 @@ class JsPluginIncognitoTest {
     }
 
     @Test
-    fun `plugin incognito blocks reader and Discord actions`() {
+    fun `plugin incognito blocks reader actions`() {
         sourcePreferences.incognitoExtensions.set(setOf(plugin.pkgName()))
         val policy = SensitiveContentPolicy(getIncognitoState, securityPreferences, pluginManager)
 

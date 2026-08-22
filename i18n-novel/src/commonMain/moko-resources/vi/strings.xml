@@ -603,7 +603,7 @@
     <string name="pref_show_manga_source_name">Hiện tên nguồn trong chi tiết tiểu thuyết</string>
     <string name="pref_show_manga_source_name_summary">Hiển thị tên nguồn dưới trạng thái trên màn hình chi tiết tiểu thuyết</string>
     <string name="onboarding_permission_install_updates">Cài đặt bản cập nhật ứng dụng</string>
-    <string name="onboarding_permission_install_updates_description">Cho phép Nekori cài đặt bản cập nhật APK do trình cập nhật trong ứng dụng tải về</string>
+    <string name="onboarding_permission_install_updates_description">Cho phép Boox Book cài đặt bản cập nhật APK do trình cập nhật trong ứng dụng tải về</string>
     <string name="pref_experimental_library_pagination">Thử nghiệm: phân trang thư viện (giảm bộ nhớ)</string>
     <string name="pref_experimental_library_pagination_summary">Tải mỗi danh mục từng trang một (mặc định 300, mới nhất trước) và tải thêm khi cuộn, thay vì giữ toàn bộ thư viện trong bộ nhớ. Sắp xếp, lọc và tìm kiếm áp dụng cho các mục đã tải. Khởi động lại sau khi thay đổi.</string>
     <string name="pref_experimental_library_page_size">Thử nghiệm: kích thước trang thư viện</string>
@@ -676,24 +676,6 @@
     <string name="novel_status_bar_element_chapter">Chương</string>
     <string name="novel_status_bar_element_progress">Tiến độ</string>
     <string name="novel_status_bar_element_battery">Pin</string>
-    <!-- Discord Rich Presence -->
-    <string name="pref_category_discord">Discord Rich Presence</string>
-    <string name="pref_discord_summary">Chia sẻ hoạt động duyệt và đọc với Discord</string>
-    <string name="discord_not_connected">Chưa kết nối Discord</string>
-    <string name="discord_login">Đăng nhập bằng Discord</string>
-    <string name="discord_logout">Đăng xuất</string>
-    <string name="discord_connected_as">Đã kết nối với tư cách %1$s</string>
-    <string name="discord_rpc_settings">Rich Presence</string>
-    <string name="discord_enable_rpc">Bật Discord Rich Presence</string>
-    <string name="discord_enable_rpc_summary">Kết nối với Discord và chia sẻ những hoạt động đã bật</string>
-    <string name="discord_show_app">Hiện hoạt động ứng dụng và thư viện</string>
-    <string name="discord_show_app_summary">Hiện khi Nekori hoặc thư viện đang mở</string>
-    <string name="discord_show_browsing">Hiện hoạt động duyệt</string>
-    <string name="discord_show_browsing_summary">Hiện các nguồn đang được duyệt</string>
-    <string name="discord_show_reading">Hiện hoạt động đọc</string>
-    <string name="discord_show_reading_summary">Hiện tiểu thuyết và chương đang đọc</string>
-    <string name="discord_authorizing">Đang chờ ủy quyền Discord…</string>
-    <string name="discord_error">Lỗi Discord: %1$s</string>
 
     <!-- Sensitive content privacy -->
     <string name="sensitive_content">Nội dung nhạy cảm</string>
@@ -701,7 +683,6 @@
     <string name="sensitive_content_nsfw">Nguồn NSFW</string>
     <string name="sensitive_block_reading_progress">Chặn lưu tiến độ đọc</string>
     <string name="sensitive_block_reading_history">Chặn lưu lịch sử đọc</string>
-    <string name="sensitive_block_discord_rpc">Chặn Discord Rich Presence</string>
 
     <string name="external_link_dialog_title">Mở liên kết ngoài?</string>
     <string name="external_link_dialog_message">Liên kết này sẽ mở trong ứng dụng khác. Bạn có muốn tiếp tục?</string>
@@ -763,7 +744,7 @@
     <string name="stats_storage_plugins_fonts">Plugin và phông chữ</string>
     <string name="stats_storage_other">Sao lưu và dữ liệu khác</string>
     <string name="stats_storage_available">Khả dụng</string>
-    <string name="stats_storage_note">Dung lượng khả dụng thuộc cùng thiết bị lưu trữ với thư mục Nekori.</string>
+    <string name="stats_storage_note">Dung lượng khả dụng thuộc cùng thiết bị lưu trữ với thư mục Boox Book.</string>
     <string name="stats_storage_available_unavailable">Nhà cung cấp lưu trữ không báo dung lượng khả dụng.</string>
     <string name="stats_publication_status">Trạng thái phát hành</string>
     <string name="stats_titles_count">%1$s truyện</string>

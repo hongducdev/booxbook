@@ -63,7 +63,6 @@ import eu.kanade.tachiyomi.data.cache.ChapterCache
 import eu.kanade.tachiyomi.data.download.DownloadCache
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
 import eu.kanade.tachiyomi.data.updater.AppUpdateChecker
-import eu.kanade.tachiyomi.discord.DiscordAuth
 import eu.kanade.tachiyomi.ui.base.activity.BaseActivity
 import eu.kanade.tachiyomi.ui.browse.extension.NovelExtensionReposScreen
 import eu.kanade.tachiyomi.ui.browse.source.browse.BrowseSourceScreen
@@ -398,25 +397,6 @@ class MainActivity : BaseActivity() {
     //                         modifier = Modifier
     //                             .fillMaxWidth()
     //                             .weight(1f),
-    //                         onClick = { uriHandler.openUri(Constants.URL_DISCORD) },
-    //                     ) {
-    //                         Row(
-    //                             verticalAlignment = Alignment.CenterVertically,
-    //                             horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small),
-    //                         ) {
-    //                             Text(
-    //                                 text = stringResource(MR.strings.donationCampaign_contactPlatform),
-    //                             )
-    //                             Icon(
-    //                                 imageVector = Icons.AutoMirrored.Default.OpenInNew,
-    //                                 contentDescription = null,
-    //                             )
-    //                         }
-    //                     }
-    //                     OutlinedButton(
-    //                         modifier = Modifier
-    //                             .fillMaxWidth()
-    //                             .weight(1f),
     //                         onClick = dismissSupportMessage,
     //                     ) {
     //                         Text(
@@ -567,9 +547,7 @@ class MainActivity : BaseActivity() {
                 null
             }
             Intent.ACTION_VIEW -> {
-                if (Injekt.get<DiscordAuth>().handleRedirect(intent.data)) {
-                    // OAuth callback is handled asynchronously by DiscordAuth.
-                } else if (intent.data.toString().endsWith(".tachibk")) {
+                if (intent.data.toString().endsWith(".tachibk")) {
                     // Handling opening of backup files
                     navigator.popUntilRoot()
                     navigator.push(RestoreBackupScreen(intent.data.toString()))

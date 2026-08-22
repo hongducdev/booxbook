@@ -26,15 +26,12 @@ import eu.kanade.tachiyomi.data.translation.ChapterSummaryService
 import eu.kanade.tachiyomi.data.translation.LlmGenerator
 import eu.kanade.tachiyomi.data.translation.TranslationEngineManager
 import eu.kanade.tachiyomi.data.translation.TranslationService
-import eu.kanade.tachiyomi.discord.DiscordAuth
-import eu.kanade.tachiyomi.discord.DiscordRpcManager
-import eu.kanade.tachiyomi.discord.DiscordSecureStore
-import eu.kanade.tachiyomi.discord.SensitiveContentPolicy
 import eu.kanade.tachiyomi.extension.ExtensionManager
 import eu.kanade.tachiyomi.jsplugin.JsPluginManager
 import eu.kanade.tachiyomi.jsruntime.JsRuntime
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.network.interceptor.RequestRateLimitPolicy
+import eu.kanade.tachiyomi.security.SensitiveContentPolicy
 import eu.kanade.tachiyomi.source.AndroidSourceManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -172,28 +169,7 @@ class AppModule(val app: Application) : InjektModule {
         // JS Plugin management (LNReader-style plugins)
         addSingletonFactory { JsPluginManager(app) }
 
-        addSingletonFactory { DiscordSecureStore(app) }
-        addSingletonFactory {
-            DiscordAuth(
-                context = app,
-                client = get<NetworkHelper>().client,
-                json = get(),
-                scope = get(),
-                store = get(),
-            )
-        }
         addSingletonFactory { SensitiveContentPolicy(get(), get(), get()) }
-        addSingletonFactory {
-            DiscordRpcManager(
-                client = get<NetworkHelper>().client,
-                json = get(),
-                scope = get(),
-                auth = get(),
-                preferences = get(),
-                basePreferences = get(),
-                sensitiveContentPolicy = get(),
-            )
-        }
 
         addSingletonFactory { AndroidStorageFolderProvider(app) }
         addSingletonFactory { LocalNovelSourceFileSystem(get()) }

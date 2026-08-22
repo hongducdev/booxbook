@@ -67,14 +67,6 @@ object SettingsSecurityScreen : SearchableSettings {
                     },
                     title = stringResource(TDMR.strings.sensitive_block_reading_history),
                 ),
-                Preference.PreferenceItem.SwitchPreference(
-                    preference = if (mixed) {
-                        securityPreferences.mixedBlockDiscordRpc
-                    } else {
-                        securityPreferences.nsfwBlockDiscordRpc
-                    },
-                    title = stringResource(TDMR.strings.sensitive_block_discord_rpc),
-                ),
             ),
         )
     }

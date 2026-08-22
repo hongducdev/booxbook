@@ -140,7 +140,6 @@ kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serializa
 kotlinx-serialization-jsonOkio = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json-okio", version.ref = "kotlinx-serialization" }
 kotlinx-serialization-protobuf = { module = "org.jetbrains.kotlinx:kotlinx-serialization-protobuf", version.ref = "kotlinx-serialization" }
 ktlint-bom = { module = "com.pinterest.ktlint:ktlint-bom", version.ref = "ktlint" }
-leakCanary-core = { module = "com.squareup.leakcanary:leakcanary-android", version.ref = "leakCanary" }
 leakCanary-plumber = { module = "com.squareup.leakcanary:plumber-android", version.ref = "leakCanary" }
 logcat = { module = "com.squareup.logcat:logcat", version.ref = "logcat" }
 markdown-coil = { module = "com.mikepenz:multiplatform-markdown-renderer-coil3", version.ref = "markdown" }

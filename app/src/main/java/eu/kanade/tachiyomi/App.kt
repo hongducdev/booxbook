@@ -39,7 +39,6 @@ import eu.kanade.tachiyomi.data.download.DownloadManager
 import eu.kanade.tachiyomi.data.notification.Notifications
 import eu.kanade.tachiyomi.di.AppModule
 import eu.kanade.tachiyomi.di.PreferenceModule
-import eu.kanade.tachiyomi.discord.DiscordRpcManager
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.network.NetworkPreferences
 import eu.kanade.tachiyomi.network.interceptor.rateLimitExempt
@@ -133,7 +132,6 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
 
             Injekt.get<DownloadManager>()
         }
-        Injekt.get<DiscordRpcManager>().initialize()
 
         setupNotificationChannels()
 

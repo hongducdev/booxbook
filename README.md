@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="./.github/assets/logo.png" alt="Nekori logo" title="Nekori logo" width="80"/>
+<img src="./.github/assets/logo.png" alt="Boox Book logo" title="Boox Book logo" width="80"/>
 
-# Nekori [App](#)
+# Boox Book [App](#)
 
 ### Novel reader for LNReader plugins
 A personal fork of [Tsundoku](https://github.com/tsundoku-otaku/tsundoku), built around the LNReader plugin ecosystem.
@@ -14,7 +14,7 @@ A personal fork of [Tsundoku](https://github.com/tsundoku-otaku/tsundoku), built
 </div>
 
 > [!IMPORTANT]
-> **Nekori does not support Kotlin extensions.** Nothing built against `tachiyomix` will load — not
+> **Boox Book does not support Kotlin extensions.** Nothing built against `tachiyomix` will load — not
 > Tachiyomi's, not Mihon's, not Tsundoku's. The only content sources are **LNReader plugins**.
 >
 > So yes: this is a fork of a fork of Tachiyomi that cannot run a single Tachiyomi extension. Funny, isn't it.
@@ -28,16 +28,16 @@ A personal fork of [Tsundoku](https://github.com/tsundoku-otaku/tsundoku), built
 
 ## Download
 
-[![Nekori Stable](https://img.shields.io/github/release/Yuneko-dev/Nekori.svg?maxAge=3600&label=Stable&labelColor=06599d&color=043b69)](https://github.com/Yuneko-dev/Nekori/releases/latest)
+[![Boox Book Stable](https://img.shields.io/github/release/Yuneko-dev/Nekori.svg?maxAge=3600&label=Stable&labelColor=06599d&color=043b69)](https://github.com/Yuneko-dev/Nekori/releases/latest)
 
 *Requires Android 8.0 or higher.*
 
-Nekori installs alongside Tsundoku rather than upgrading it — the application id is `app.yuneko.nekori`. Moving your
+Boox Book installs alongside Tsundoku rather than upgrading it — the application id is `com.hongducdev.booxbook`. Moving your
 library across is a backup and a restore.
 
 ## Features
 
-Most of this comes from Tsundoku and, before it, Mihon. Nekori keeps it rather than rebuilds it — the list below is
+Most of this comes from Tsundoku and, before it, Mihon. Boox Book keeps it rather than rebuilds it — the list below is
 what the app does, not what this fork added. For the fork's own changes, see
 [NEKORI_CHANGELOG.md](./NEKORI_CHANGELOG.md).
 
@@ -80,13 +80,12 @@ what the app does, not what this fork added. For the fork's own changes, see
 * Read-ahead chapter downloads for offline reading.
 * Novel-only backup and restore, plus LNReader backup import.
 * Reading statistics: session tracking, publication status and storage breakdowns, and a reading heatmap.
-* Discord Rich Presence.
 
 </div>
 
 ## Differences from Tsundoku
 
-Tsundoku is a Mihon fork that added novel support while keeping the manga side intact. Nekori drops that side entirely:
+Tsundoku is a Mihon fork that added novel support while keeping the manga side intact. Boox Book drops that side entirely:
 
 * The manga page viewer, the native image decoder and the Fresco stack are gone.
 * Kotlin extension discovery and the Shizuku extension installer are gone.
@@ -94,7 +93,7 @@ Tsundoku is a Mihon fork that added novel support while keeping the manga side i
 * React Native is the plugin runtime only — the reader itself is a native WebView plus Compose.
 
 Everything else stays. The library, categories, trackers, themes, backups, downloads, statistics and the whole
-settings surface are Tsundoku's, and Nekori follows upstream rather than diverging from it — this fork is a narrowing,
+settings surface are Tsundoku's, and Boox Book follows upstream rather than diverging from it — this fork is a narrowing,
 not a rewrite.
 
 The full list lives in [NEKORI_CHANGELOG.md](./NEKORI_CHANGELOG.md). [CHANGELOG.md](./CHANGELOG.md) is Tsundoku's own
@@ -112,7 +111,7 @@ There is no Discord server, and there will not be one.
 
 ### Credits
 
-Nekori exists because of work done elsewhere:
+Boox Book exists because of work done elsewhere:
 
 * [Mihon](https://github.com/mihonapp/mihon) and [Tachiyomi](https://github.com/tachiyomiorg/tachiyomi) — the app this
   is descended from.
@@ -130,7 +129,7 @@ application hosts zero content.
 <pre>
 Copyright © 2015 Javier Tomás
 Copyright © 2024 Mihon Open Source Project
-Copyright © 2026 Nekori
+Copyright © 2026 Boox Book
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

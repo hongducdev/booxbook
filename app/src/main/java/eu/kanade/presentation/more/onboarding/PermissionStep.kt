@@ -23,6 +23,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -53,6 +54,7 @@ internal class PermissionStep : OnboardingStep {
 
     private var notificationGranted by mutableStateOf(false)
     private var batteryGranted by mutableStateOf(false)
+    private var notificationRequestAttempted = false
 
     override val isComplete: Boolean = true
 
@@ -97,10 +99,18 @@ internal class PermissionStep : OnboardingStep {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 val permissionRequester = rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.RequestPermission(),
-                    onResult = {
-                        // no-op. resulting checks is being done on resume
-                    },
+                    onResult = { notificationGranted = it },
                 )
+                LaunchedEffect(Unit) {
+                    if (
+                        !notificationRequestAttempted &&
+                        context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+                        PackageManager.PERMISSION_GRANTED
+                    ) {
+                        notificationRequestAttempted = true
+                        permissionRequester.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                }
                 PermissionCheckbox(
                     title = stringResource(MR.strings.onboarding_permission_notifications),
                     subtitle = stringResource(MR.strings.onboarding_permission_notifications_description),

@@ -79,11 +79,9 @@ import eu.kanade.presentation.reader.deserializeStatusBarOrder
 import eu.kanade.presentation.reader.settings.ReaderSettingsDialog
 import eu.kanade.presentation.util.formatChapterNumber
 import eu.kanade.tachiyomi.R
-import eu.kanade.tachiyomi.data.database.models.Chapter
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
 import eu.kanade.tachiyomi.data.notification.Notifications
 import eu.kanade.tachiyomi.databinding.ReaderActivityBinding
-import eu.kanade.tachiyomi.discord.DiscordRpcManager
 import eu.kanade.tachiyomi.jsplugin.source.JsSource
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.ui.base.activity.BaseActivity
@@ -123,7 +121,6 @@ import tachiyomi.core.common.Constants
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.launchNonCancellable
-import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.i18n.MR
@@ -137,13 +134,6 @@ import kotlin.time.Duration.Companion.seconds
 import androidx.compose.ui.graphics.Color as ComposeColor
 
 class ReaderActivity : BaseActivity() {
-
-    private data class DiscordReaderActivity(
-        val sourceId: Long,
-        val novelName: String,
-        val chapter: Chapter,
-        val cover: String?,
-    )
 
     companion object {
         fun newIntent(context: Context, mangaId: Long?, chapterId: Long?): Intent {
@@ -368,34 +358,6 @@ class ReaderActivity : BaseActivity() {
             .distinctUntilChanged()
             .filterNotNull()
             .onEach(::setChapters)
-            .launchIn(lifecycleScope)
-
-        val discordRpc = Injekt.get<DiscordRpcManager>()
-        viewModel.state
-            .map { state ->
-                val manga = state.manga ?: return@map null
-                val chapter = state.novelVisibleChapter
-                    ?: state.currentChapter?.chapter
-                    ?: return@map null
-                DiscordReaderActivity(
-                    sourceId = manga.source,
-                    novelName = manga.title,
-                    chapter = chapter,
-                    cover = manga.thumbnailUrl,
-                )
-            }
-            .distinctUntilChanged()
-            .filterNotNull()
-            .onEach { activity ->
-                val chapterUrl = withIOContext { viewModel.getChapterUrl(activity.chapter) }
-                discordRpc.showChapter(
-                    sourceId = activity.sourceId,
-                    novelName = activity.novelName,
-                    chapterName = activity.chapter.name,
-                    cover = activity.cover,
-                    chapterUrl = chapterUrl,
-                )
-            }
             .launchIn(lifecycleScope)
 
         viewModel.eventFlow

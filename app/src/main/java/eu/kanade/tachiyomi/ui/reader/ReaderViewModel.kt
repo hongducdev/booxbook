@@ -26,8 +26,8 @@ import eu.kanade.tachiyomi.data.download.DownloadProvider
 import eu.kanade.tachiyomi.data.download.model.Download
 import eu.kanade.tachiyomi.data.translation.TranslationRequestTracker
 import eu.kanade.tachiyomi.data.translation.TranslationService
-import eu.kanade.tachiyomi.discord.SensitiveContentPolicy
 import eu.kanade.tachiyomi.jsplugin.source.JsSource
+import eu.kanade.tachiyomi.security.SensitiveContentPolicy
 import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.awaitInitialized
 import eu.kanade.tachiyomi.source.isNovelSource

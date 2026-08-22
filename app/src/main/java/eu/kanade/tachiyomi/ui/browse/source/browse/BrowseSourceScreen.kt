@@ -77,7 +77,6 @@ import eu.kanade.presentation.library.components.MassImportDialog
 import eu.kanade.presentation.manga.DuplicateMangaDialog
 import eu.kanade.presentation.util.AssistContentScreen
 import eu.kanade.presentation.util.Screen
-import eu.kanade.tachiyomi.discord.DiscordRpcManager
 import eu.kanade.tachiyomi.source.isNovelSource
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.ui.browse.extension.details.SourcePreferencesScreen
@@ -133,21 +132,6 @@ data class BrowseSourceScreen(
         val state by viewModel.state.collectAsState()
         val filterPresets by viewModel.filterPresets.collectAsState()
         val source = viewModel.source
-        val discordRpc = remember { Injekt.get<DiscordRpcManager>() }
-        val jsPluginManager = remember { Injekt.get<eu.kanade.tachiyomi.jsplugin.JsPluginManager>() }
-        LaunchedEffect(source.id, source.name) {
-            val sourceUrl = when (source) {
-                is eu.kanade.tachiyomi.jsplugin.source.JsSource -> source.baseUrl
-                is HttpSource -> source.baseUrl
-                else -> null
-            }
-            discordRpc.showSource(
-                sourceId = source.id,
-                sourceName = source.name,
-                sourceUrl = sourceUrl,
-                sourceIcon = jsPluginManager.iconUrlForSource(source.id),
-            )
-        }
 
         val navigator = LocalNavigator.currentOrThrow
 

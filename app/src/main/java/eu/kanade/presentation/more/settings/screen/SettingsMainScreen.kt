@@ -231,12 +231,6 @@ object SettingsMainScreen : Screen() {
             screen = SettingsSecurityScreen,
         ),
         Item(
-            titleRes = TDMR.strings.pref_category_discord,
-            subtitleRes = TDMR.strings.pref_discord_summary,
-            icon = DiscordIcon,
-            screen = SettingsDiscordScreen,
-        ),
-        Item(
             titleRes = MR.strings.label_data_storage,
             subtitleRes = MR.strings.pref_backup_summary,
             icon = Icons.Outlined.Storage,

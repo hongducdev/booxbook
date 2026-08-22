@@ -75,18 +75,6 @@
                 <data android:pathPrefix="/add" />
             </intent-filter>
 
-            <!-- Discord OAuth callback. Narrow by host on purpose: this replaced a filter that
-                 claimed every lnreader:// URL just to catch one callback. -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-
-                <data android:scheme="nekori" />
-                <data android:host="discord-auth" />
-            </intent-filter>
-
             <!-- Open backup files -->
             <intent-filter android:label="@string/pref_restore_backup">
                 <action android:name="android.intent.action.VIEW" />
