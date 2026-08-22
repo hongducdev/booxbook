@@ -7,15 +7,23 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,10 +33,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
@@ -53,7 +66,6 @@ import soup.compose.material.motion.animation.materialFadeThroughIn
 import soup.compose.material.motion.animation.materialFadeThroughOut
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.i18n.MR
-import tachiyomi.presentation.core.components.material.NavigationBar
 import tachiyomi.presentation.core.components.material.NavigationRail
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.i18n.pluralStringResource
@@ -110,9 +122,20 @@ object HomeScreen : Screen() {
                                 enter = expandVertically(),
                                 exit = shrinkVertically(),
                             ) {
-                                NavigationBar {
-                                    TABS.fastForEach {
-                                        NavigationBarItem(it)
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .navigationBarsPadding()
+                                        .padding(vertical = 8.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    HorizontalFloatingToolbar(
+                                        expanded = true,
+                                        contentPadding = PaddingValues(horizontal = 4.dp),
+                                    ) {
+                                        TABS.fastForEach {
+                                            HomeFloatingToolbarItem(it)
+                                        }
                                     }
                                 }
                             }
@@ -180,31 +203,48 @@ object HomeScreen : Screen() {
     }
 
     @Composable
-    private fun RowScope.NavigationBarItem(tab: eu.kanade.presentation.util.Tab) {
+    private fun HomeFloatingToolbarItem(tab: eu.kanade.presentation.util.Tab) {
         val tabNavigator = LocalTabNavigator.current
         val navigator = LocalNavigator.currentOrThrow
         val scope = rememberCoroutineScope()
         val selected = tabNavigator.current::class == tab::class
-        NavigationBarItem(
-            selected = selected,
-            onClick = {
-                if (!selected) {
-                    tabNavigator.current = tab
-                } else {
-                    scope.launch { tab.onReselect(navigator) }
-                }
-            },
-            icon = { NavigationIconItem(tab) },
-            label = {
+        val onClick: () -> Unit = {
+            if (!selected) {
+                tabNavigator.current = tab
+            } else {
+                scope.launch { tab.onReselect(navigator) }
+            }
+        }
+        val itemModifier = Modifier.semantics {
+            role = Role.Tab
+            this.selected = selected
+        }
+
+        if (selected) {
+            FilledTonalButton(
+                onClick = onClick,
+                modifier = itemModifier
+                    .widthIn(max = 112.dp)
+                    .heightIn(min = 48.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp),
+            ) {
+                NavigationIconItem(tab, hasVisibleLabel = true)
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = tab.options.title,
-                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.weight(1f, fill = false),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-            },
-            alwaysShowLabel = true,
-        )
+            }
+        } else {
+            IconButton(
+                onClick = onClick,
+                modifier = itemModifier,
+            ) {
+                NavigationIconItem(tab, hasVisibleLabel = false)
+            }
+        }
     }
 
     @Composable
@@ -222,7 +262,7 @@ object HomeScreen : Screen() {
                     scope.launch { tab.onReselect(navigator) }
                 }
             },
-            icon = { NavigationIconItem(tab) },
+            icon = { NavigationIconItem(tab, hasVisibleLabel = true) },
             label = {
                 Text(
                     text = tab.options.title,
@@ -236,7 +276,10 @@ object HomeScreen : Screen() {
     }
 
     @Composable
-    private fun NavigationIconItem(tab: eu.kanade.presentation.util.Tab) {
+    private fun NavigationIconItem(
+        tab: eu.kanade.presentation.util.Tab,
+        hasVisibleLabel: Boolean,
+    ) {
         BadgedBox(
             badge = {
                 when {
@@ -287,7 +330,7 @@ object HomeScreen : Screen() {
         ) {
             Icon(
                 painter = tab.options.icon!!,
-                contentDescription = tab.options.title,
+                contentDescription = if (hasVisibleLabel) null else tab.options.title,
             )
         }
     }
@@ -309,6 +352,6 @@ object HomeScreen : Screen() {
         data object Updates : Tab
         data object History : Tab
         data class Browse(val toExtensions: Boolean = false) : Tab
-        data class More(val toDownloads: Boolean) : Tab
+        data class More(val toDownloads: Boolean = false) : Tab
     }
 }
