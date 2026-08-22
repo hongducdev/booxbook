@@ -13,6 +13,7 @@ class BackupNovelOnlyOptionsTest {
 
         assertFalse(values[1])
         assertTrue(values[2])
+        assertFalse(values[5])
     }
 
     @Test

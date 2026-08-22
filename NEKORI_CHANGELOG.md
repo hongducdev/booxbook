@@ -60,7 +60,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - HLS streamed straight to MP4 through the hls.js remuxer.
 - Local-aware DoH and DPI bypass.
 - Domain forwarding rules, applied to resolved plugin URLs and mass import.
-- Request throttling scoped to JS plugin traffic, so covers, trackers and translation are not paced by source settings.
+- Request throttling scoped to JS plugin traffic, so covers, AI and translation are not paced by source settings.
 
 #### Elsewhere
 - Novel-only backup and restore overhaul, plus LNReader backup import, including local novels and an
@@ -82,6 +82,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Legacy Kotlin extension discovery, and the Shizuku extension installer.
 - Obsolete manga download preferences.
 - Firebase configuration, with release telemetry disabled.
+- External tracking services, OAuth/login flows, automatic progress sync, tracker filters/sorts, and tracker-backed statistics. Local reading-time and session statistics remain.
 - The FOSS build. Upstream needs it because the regular build ships Firebase and F-Droid will not take
   that; this fork dropped Firebase, so the two builds were the same app under two package names, built
   twice on every release.
@@ -121,8 +122,6 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Cancelling a chapter no longer kills the queue for the rest of the process.
 - AI requests paced before they are issued rather than inside them, so a low limit no longer turns throttling into timeouts.
 
-#### Tracking
-- The `mihon://` callback scheme restored, so Bangumi and Shikimori can log in again. Those two still use mihon's OAuth client ids, so their registered redirect is mihon's and cannot move.
 
 #### Elsewhere
 - Launcher artwork is inset against a matching theme background instead of being zoomed and cropped by adaptive-icon masks.

@@ -66,16 +66,11 @@ what the app does, not what this fork added. For the fork's own changes, see
 **Network**
 
 * DNS over HTTPS and DPI bypass, applied locally.
-* Domain forwarding rules, and request throttling scoped to plugin traffic so covers, trackers and translation are
+* Domain forwarding rules and request throttling scoped to plugin traffic so covers, AI and translation are
   not paced by source settings.
 
 **Library**
 
-* Tracker support: [NovelUpdates](https://www.novelupdates.com/), [NovelList](https://www.novellist.co/) and
-  [RanobeDB](https://ranobedb.org/), plus the classics — [MangaBaka](https://mangabaka.org),
-  [MyAnimeList](https://myanimelist.net/), [AniList](https://anilist.co/), [Kitsu](https://kitsu.app/),
-  [MangaUpdates](https://mangaupdates.com), [Shikimori](https://shikimori.one), [Bangumi](https://bgm.tv/) and
-  [Hikka](https://hikka.io/).
 * Categories, light and dark themes, and scheduled library updates.
 * Read-ahead chapter downloads for offline reading.
 * Novel-only backup and restore, plus LNReader backup import.
@@ -92,8 +87,8 @@ Tsundoku is a Mihon fork that added novel support while keeping the manga side i
 * Firebase configuration is gone, and release telemetry is disabled.
 * React Native is the plugin runtime only — the reader itself is a native WebView plus Compose.
 
-Everything else stays. The library, categories, trackers, themes, backups, downloads, statistics and the whole
-settings surface are Tsundoku's, and Boox Book follows upstream rather than diverging from it — this fork is a narrowing,
+Everything else stays. The library, categories, themes, backups, downloads, statistics and the whole settings
+surface are Tsundoku's, and Boox Book follows upstream rather than diverging from it — this fork is a narrowing,
 not a rewrite.
 
 The full list lives in [NEKORI_CHANGELOG.md](./NEKORI_CHANGELOG.md). [CHANGELOG.md](./CHANGELOG.md) is Tsundoku's own

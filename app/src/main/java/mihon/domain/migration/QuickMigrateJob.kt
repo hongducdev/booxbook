@@ -11,10 +11,8 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import eu.kanade.domain.manga.interactor.UpdateManga
-import eu.kanade.domain.track.service.TrackPreferences
 import eu.kanade.tachiyomi.data.download.DownloadManager
 import eu.kanade.tachiyomi.data.notification.Notifications
-import eu.kanade.tachiyomi.data.track.source.SourceTrackerDispatcher
 import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.awaitInitialized
 import eu.kanade.tachiyomi.ui.reader.quote.QuoteManager
@@ -65,8 +63,6 @@ class QuickMigrateJob(private val context: Context, workerParams: WorkerParamete
     private val getCategories: GetCategories by lazy { Injekt.get() }
     private val createCategoryWithName: CreateCategoryWithName by lazy { Injekt.get() }
     private val setMangaCategories: SetMangaCategories by lazy { Injekt.get() }
-    private val sourceTrackerDispatcher: SourceTrackerDispatcher by lazy { Injekt.get() }
-    private val trackPreferences: TrackPreferences by lazy { Injekt.get() }
     private val getManga: GetManga by lazy { Injekt.get() }
     private val downloadManager: DownloadManager by lazy { Injekt.get() }
     private val translatedChapterRepository: TranslatedChapterRepository by lazy { Injekt.get() }
@@ -292,13 +288,6 @@ class QuickMigrateJob(private val context: Context, workerParams: WorkerParamete
             // deletes the on-disk index and restarts the full SAF scan.
             if (attemptedDownloadMove) downloadManager.invalidateDownloadCache()
             val migrated = migratedIds.size
-
-            if (migratedIds.isNotEmpty() && trackPreferences.migrationTriggersSourceTracker.get()) {
-                migratedIds.forEach { id ->
-                    val freshManga = getManga.await(id) ?: return@forEach
-                    sourceTrackerDispatcher.notifyFavorited(freshManga)
-                }
-            }
 
             if (migratedIds.isNotEmpty() && !categoryName.isNullOrBlank()) {
                 var categoryId: Long? = null

@@ -113,11 +113,6 @@ class LibraryPreferences(
         TriState.DISABLED,
     )
 
-    fun filterTracking(id: Int): Preference<TriState> = preferenceStore.getEnum(
-        "pref_filter_library_tracked_${id}_v2",
-        TriState.DISABLED,
-    )
-
     // Stores extension IDs that are excluded (unchecked) from the library filter
     val excludedExtensions: Preference<Set<String>> = preferenceStore.getStringSet(
         "pref_excluded_library_extensions",

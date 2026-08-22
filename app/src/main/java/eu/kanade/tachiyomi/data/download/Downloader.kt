@@ -69,7 +69,6 @@ import tachiyomi.domain.download.service.NovelDownloadPreferences
 import tachiyomi.domain.manga.interactor.GetManga
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.service.SourceManager
-import tachiyomi.domain.track.interactor.GetTracks
 import tachiyomi.domain.translation.service.TranslationPreferences
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.novel.TDMR
@@ -96,7 +95,6 @@ class Downloader(
     private val translationService: TranslationService = Injekt.get(),
     private val xml: XML = Injekt.get(),
     private val getCategories: GetCategories = Injekt.get(),
-    private val getTracks: GetTracks = Injekt.get(),
     private val getManga: GetManga = Injekt.get(),
     private val getChapter: GetChapter = Injekt.get(),
     private val networkHelper: NetworkHelper = Injekt.get(),
@@ -1008,17 +1006,12 @@ class Downloader(
         source: CatalogueSource,
     ) {
         val categories = getCategories.await(manga.id).map { it.name.trim() }.takeUnless { it.isEmpty() }
-        val urls = getTracks.await(manga.id)
-            .mapNotNull { track ->
-                track.remoteUrl.takeUnless { url -> url.isBlank() }?.trim()
-            }
-            .plus(
-                when (source) {
-                    is HttpSource -> source.getChapterUrl(chapter.toSChapter()).trim()
-                    else -> chapter.url.trim()
-                },
-            )
-            .distinct()
+        val urls = listOf(
+            when (source) {
+                is HttpSource -> source.getChapterUrl(chapter.toSChapter()).trim()
+                else -> chapter.url.trim()
+            },
+        )
 
         val comicInfo = getComicInfo(
             manga,

@@ -136,7 +136,6 @@ fun AdvancedStatsScreenContent(
                 selectedManga = rank to manga
             }
         }
-        item { TrackerStats(state.trackers) }
     }
 
     selectedDay?.let { day ->

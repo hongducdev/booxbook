@@ -8,7 +8,6 @@ import eu.kanade.tachiyomi.data.backup.models.BackupChapter
 import eu.kanade.tachiyomi.data.backup.models.BackupHistory
 import eu.kanade.tachiyomi.data.backup.models.BackupManga
 import eu.kanade.tachiyomi.data.backup.models.BackupNovelStructure
-import eu.kanade.tachiyomi.data.backup.models.BackupTracking
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import tachiyomi.data.AlternativeTitlesColumnAdapter
@@ -25,9 +24,6 @@ import tachiyomi.domain.novel.model.NovelLayout
 import tachiyomi.domain.novel.model.NovelSection
 import tachiyomi.domain.novel.model.NovelStructureSnapshot
 import tachiyomi.domain.novel.repository.NovelStructureRepository
-import tachiyomi.domain.track.interactor.GetTracks
-import tachiyomi.domain.track.interactor.InsertTrack
-import tachiyomi.domain.track.model.Track
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.util.Date
@@ -40,8 +36,6 @@ class MangaRestorer(
     private val getMangaByUrlAndSourceId: GetMangaByUrlAndSourceId = Injekt.get(),
     private val getChaptersByMangaId: GetChaptersByMangaId = Injekt.get(),
     private val updateManga: UpdateManga = Injekt.get(),
-    private val getTracks: GetTracks = Injekt.get(),
-    private val insertTrack: InsertTrack = Injekt.get(),
     private val novelStructureRepository: NovelStructureRepository = Injekt.get(),
     fetchInterval: FetchInterval = Injekt.get(),
 ) {
@@ -70,7 +64,6 @@ class MangaRestorer(
                 categories = backupManga.categories,
                 backupCategories = backupCategories,
                 history = backupManga.history,
-                tracks = backupManga.tracking,
                 excludedScanlators = backupManga.excludedScanlators,
             )
             restoreNovelStructure(
@@ -284,12 +277,10 @@ class MangaRestorer(
         categories: List<Long>,
         backupCategories: List<BackupCategory>,
         history: List<BackupHistory>,
-        tracks: List<BackupTracking>,
         excludedScanlators: List<String>,
     ): Manga {
         restoreCategories(manga, categories, backupCategories)
         restoreChapters(manga, chapters)
-        restoreTracking(manga, tracks)
         restoreHistory(manga, history)
         restoreExcludedScanlators(manga, excludedScanlators)
         updateManga.awaitUpdateFetchInterval(manga, timeZone, now, currentFetchWindow)
@@ -375,62 +366,6 @@ class MangaRestorer(
             }
         }
     }
-
-    private suspend fun restoreTracking(manga: Manga, backupTracks: List<BackupTracking>) {
-        val dbTrackByTrackerId = getTracks.await(manga.id).associateBy { it.trackerId }
-
-        val (existingTracks, newTracks) = backupTracks
-            .mapNotNull {
-                val track = it.getTrackImpl()
-                val dbTrack = dbTrackByTrackerId[track.trackerId]
-                    ?: // New track
-                    return@mapNotNull track.copy(
-                        id = 0, // Let DB assign new ID
-                        mangaId = manga.id,
-                    )
-
-                if (track.forComparison() == dbTrack.forComparison()) {
-                    // Same state; skip
-                    return@mapNotNull null
-                }
-
-                // Update to an existing track
-                dbTrack.copy(
-                    remoteId = track.remoteId,
-                    libraryId = track.libraryId,
-                    lastChapterRead = max(dbTrack.lastChapterRead, track.lastChapterRead),
-                )
-            }
-            .partition { it.id > 0 }
-
-        if (newTracks.isNotEmpty()) {
-            insertTrack.awaitAll(newTracks)
-        }
-
-        if (existingTracks.isEmpty()) return
-        database.transaction {
-            existingTracks.forEach { track ->
-                database.manga_syncQueries.update(
-                    track.mangaId,
-                    track.trackerId,
-                    track.remoteId,
-                    track.libraryId,
-                    track.title,
-                    track.lastChapterRead,
-                    track.totalChapters,
-                    track.status,
-                    track.score,
-                    track.remoteUrl,
-                    track.startDate,
-                    track.finishDate,
-                    track.private,
-                    track.id,
-                )
-            }
-        }
-    }
-
-    private fun Track.forComparison() = this.copy(id = 0L, mangaId = 0L)
 
     /**
      * Restores the excluded scanlators for the manga.

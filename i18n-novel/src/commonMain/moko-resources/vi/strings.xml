@@ -909,33 +909,6 @@
     <string name="settings_reader_tts_auto_next_title">TTS tự động sang chương tiếp theo</string>
     <string name="settings_reader_tts_auto_next_summary">Tự động chuyển sang chương tiếp theo khi TTS đọc xong</string>
 
-    <!-- Settings: tracking -->
-    <string name="settings_tracking_min_chapters_title">Số chương tối thiểu trước khi theo dõi</string>
-    <string name="settings_tracking_min_chapters_summary">Số chương phải đọc trước khi tự động theo dõi bắt đầu (0 = luôn theo dõi)</string>
-    <string name="settings_tracking_mark_read_mangabaka">Đánh dấu chương đã đọc trên MangaBaka</string>
-    <string name="settings_tracking_mark_read_summary">Tự động đánh dấu chương đã đọc khi bạn đọc chúng trong ứng dụng</string>
-    <string name="settings_tracking_sync_reading_list_title">Đồng bộ danh sách đọc</string>
-    <string name="settings_tracking_sync_reading_list_mangabaka">Giữ trạng thái danh sách đọc đồng bộ với MangaBaka</string>
-    <string name="settings_tracking_novel_trackers_group">Theo dõi tiểu thuyết</string>
-    <string name="settings_tracking_mark_read_novelupdates">Đánh dấu chương đã đọc trên NovelUpdates</string>
-    <string name="settings_tracking_sync_reading_list_novelupdates">Giữ trạng thái danh sách đọc đồng bộ với NovelUpdates</string>
-    <string name="settings_tracking_custom_list_mapping_title">Ánh xạ danh sách tùy chỉnh</string>
-    <string name="settings_tracking_custom_list_mapping_summary">Ánh xạ trạng thái sang danh sách NovelUpdates tùy chỉnh</string>
-    <string name="settings_tracking_configure_list_mapping_title">Cấu hình ánh xạ danh sách</string>
-    <string name="settings_tracking_configure_list_mapping_summary">Chọn danh sách mà mỗi trạng thái ánh xạ tới</string>
-    <string name="settings_tracking_mark_read_novellist">Đánh dấu chương đã đọc trên NovelList</string>
-    <string name="settings_tracking_sync_reading_list_novellist">Giữ trạng thái danh sách đọc đồng bộ với NovelList</string>
-    <string name="settings_tracking_mark_read_ranobedb">Đánh dấu chương đã đọc trên RanobeDB</string>
-    <string name="settings_tracking_mark_read_summary_volumes">Tự động đánh dấu chương/tập đã đọc khi bạn đọc chúng trong ứng dụng</string>
-    <string name="settings_tracking_sync_reading_list_ranobedb">Giữ trạng thái danh sách đọc đồng bộ với RanobeDB</string>
-    <string name="settings_tracking_source_defined_group">Trình theo dõi do nguồn định nghĩa</string>
-    <string name="settings_tracking_run_source_trackers_title">Chạy trình theo dõi của nguồn khi di chuyển</string>
-    <string name="settings_tracking_run_source_trackers_summary">Kích hoạt sự kiện theo dõi do nguồn định nghĩa khi di chuyển hoặc di chuyển nhanh một mục</string>
-    <string name="settings_tracking_login_to">Đăng nhập vào %1$s</string>
-    <string name="settings_tracking_token_cookies_label">Token / Cookie</string>
-    <string name="settings_tracking_login_failed">Đăng nhập thất bại</string>
-    <string name="settings_tracking_list_mapping_dialog_title">Ánh xạ danh sách</string>
-    <string name="settings_tracking_fetch_lists_failed">Không thể lấy danh sách</string>
 
     <!-- Settings: debug worker info -->
     <!-- Browse: page jump dialog -->

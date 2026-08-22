@@ -3,12 +3,8 @@ package mihon.domain.migration.usecases
 import eu.kanade.domain.manga.interactor.UpdateManga
 import eu.kanade.domain.manga.model.hasCustomCover
 import eu.kanade.domain.source.service.SourcePreferences
-import eu.kanade.domain.track.service.TrackPreferences
 import eu.kanade.tachiyomi.data.cache.CoverCache
 import eu.kanade.tachiyomi.data.download.DownloadManager
-import eu.kanade.tachiyomi.data.track.EnhancedTracker
-import eu.kanade.tachiyomi.data.track.TrackerManager
-import eu.kanade.tachiyomi.data.track.source.SourceTrackerDispatcher
 import kotlinx.coroutines.CancellationException
 import mihon.domain.migration.models.MigrationFlag
 import mihon.domain.source.interactor.UpdateMangaFromRemote
@@ -17,20 +13,14 @@ import tachiyomi.domain.category.interactor.SetMangaCategories
 import tachiyomi.domain.chapter.interactor.GetChaptersByMangaId
 import tachiyomi.domain.chapter.interactor.UpdateChapter
 import tachiyomi.domain.chapter.model.toChapterUpdate
-import tachiyomi.domain.manga.interactor.GetManga
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.model.MangaUpdate
 import tachiyomi.domain.source.service.SourceManager
-import tachiyomi.domain.track.interactor.GetTracks
-import tachiyomi.domain.track.interactor.InsertTrack
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.time.Instant
 import kotlin.time.Clock
 
 class MigrateMangaUseCase(
     private val sourcePreferences: SourcePreferences,
-    private val trackerManager: TrackerManager,
     private val sourceManager: SourceManager,
     private val downloadManager: DownloadManager,
     private val updateManga: UpdateManga,
@@ -38,19 +28,12 @@ class MigrateMangaUseCase(
     private val updateChapter: UpdateChapter,
     private val getCategories: GetCategories,
     private val setMangaCategories: SetMangaCategories,
-    private val getTracks: GetTracks,
-    private val insertTrack: InsertTrack,
     private val coverCache: CoverCache,
     private val updateMangaFromRemote: UpdateMangaFromRemote,
 ) {
-    private val enhancedServices by lazy { trackerManager.trackers.filterIsInstance<EnhancedTracker>() }
-
-    private val sourceTrackerDispatcher: SourceTrackerDispatcher by lazy { Injekt.get() }
-    private val trackPreferences: TrackPreferences by lazy { Injekt.get() }
-    private val getMangaInteractor: GetManga by lazy { Injekt.get() }
 
     suspend operator fun invoke(current: Manga, target: Manga, replace: Boolean) {
-        val targetSource = sourceManager.get(target.source) ?: return
+        if (sourceManager.get(target.source) == null) return
         val currentSource = sourceManager.get(current.source)
         val flags = sourcePreferences.migrationFlags.get()
 
@@ -97,22 +80,6 @@ class MigrateMangaUseCase(
                 setMangaCategories.await(target.id, categoryIds)
             }
 
-            // Update track
-            getTracks.await(current.id).mapNotNull { track ->
-                val updatedTrack = track.copy(mangaId = target.id)
-
-                val service = enhancedServices
-                    .firstOrNull { it.isTrackFrom(updatedTrack, current, currentSource) }
-
-                if (service != null) {
-                    service.migrateTrack(updatedTrack, target, targetSource)
-                } else {
-                    updatedTrack
-                }
-            }
-                .takeIf { it.isNotEmpty() }
-                ?.let { insertTrack.awaitAll(it) }
-
             // Delete downloaded
             if (MigrationFlag.REMOVE_DOWNLOAD in flags && currentSource != null) {
                 downloadManager.deleteManga(current, currentSource)
@@ -139,20 +106,6 @@ class MigrateMangaUseCase(
             )
 
             updateManga.awaitAll(listOfNotNull(currentMangaUpdate, targetMangaUpdate))
-
-            if (trackPreferences.migrationTriggersSourceTracker.get()) {
-                val freshTarget = getMangaInteractor.await(target.id)
-                if (freshTarget != null) {
-                    sourceTrackerDispatcher.notifyFavorited(freshTarget)
-                    if (MigrationFlag.CHAPTER in flags) {
-                        val targetChapters = getChaptersByMangaId.await(target.id)
-                        val readChapters = targetChapters.filter { it.read }
-                        if (readChapters.isNotEmpty()) {
-                            sourceTrackerDispatcher.notifyChaptersRead(freshTarget, readChapters)
-                        }
-                    }
-                }
-            }
         } catch (e: Throwable) {
             if (e is CancellationException) {
                 throw e

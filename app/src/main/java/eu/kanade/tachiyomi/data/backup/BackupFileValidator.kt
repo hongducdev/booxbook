@@ -4,7 +4,6 @@ import android.content.Context
 import android.net.Uri
 import eu.kanade.tachiyomi.data.backup.models.BackupManga
 import eu.kanade.tachiyomi.data.backup.models.BackupSource
-import eu.kanade.tachiyomi.data.track.TrackerManager
 import kotlinx.serialization.protobuf.ProtoBuf
 import tachiyomi.domain.source.service.SourceManager
 import uy.kohesive.injekt.Injekt
@@ -14,19 +13,17 @@ class BackupFileValidator(
     private val context: Context,
 
     private val sourceManager: SourceManager = Injekt.get(),
-    private val trackerManager: TrackerManager = Injekt.get(),
     private val parser: ProtoBuf = Injekt.get(),
 ) {
 
     /**
      * Checks for critical backup file data.
      *
-     * @return List of missing sources or missing trackers.
+     * @return Missing novel sources.
      */
     suspend fun validate(uri: Uri): Results {
         val backupSources = mutableListOf<BackupSource>()
         val novelSourceIds = mutableSetOf<Long>()
-        val trackerIds = mutableSetOf<Long>()
         val reader = BackupProtoReader(context)
         try {
             reader.read(uri) { fieldNumber, data ->
@@ -36,7 +33,6 @@ class BackupFileValidator(
                         val manga = parser.decodeFromByteArray(BackupManga.serializer(), migrated)
                         if (manga.isNovel) {
                             novelSourceIds += manga.source
-                            manga.tracking.forEach { trackerIds.add(it.syncId.toLong()) }
                         }
                     }
                     101 -> {
@@ -65,17 +61,10 @@ class BackupFileValidator(
             .distinct()
             .sorted()
 
-        val missingTrackers = trackerIds
-            .mapNotNull { trackerManager.get(it) }
-            .filter { !it.isLoggedIn }
-            .map { it.name }
-            .sorted()
-
-        return Results(missingSources, missingTrackers)
+        return Results(missingSources)
     }
 
     data class Results(
         val missingSources: List<String>,
-        val missingTrackers: List<String>,
     )
 }

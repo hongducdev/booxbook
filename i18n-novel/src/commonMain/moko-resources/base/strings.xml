@@ -1042,34 +1042,6 @@
     <string name="settings_reader_tts_auto_next_title">TTS auto-next chapter</string>
     <string name="settings_reader_tts_auto_next_summary">Automatically continue to next chapter when TTS finishes</string>
 
-    <!-- Settings: tracking -->
-    <string name="settings_tracking_min_chapters_title">Minimum chapters before tracking</string>
-    <string name="settings_tracking_min_chapters_summary">Number of chapters that must be read before auto-tracking starts (0 = always track)</string>
-    <string name="settings_tracking_mark_read_mangabaka">Mark chapters as read on MangaBaka</string>
-    <string name="settings_tracking_mark_read_summary">Automatically mark chapters as read when you read them in the app</string>
-    <string name="settings_tracking_sync_reading_list_title">Sync reading list</string>
-    <string name="settings_tracking_sync_reading_list_mangabaka">Keep reading list status in sync with MangaBaka</string>
-    <string name="settings_tracking_novel_trackers_group">Novel Trackers</string>
-    <string name="settings_tracking_mark_read_novelupdates">Mark chapters as read on NovelUpdates</string>
-    <string name="settings_tracking_sync_reading_list_novelupdates">Keep reading list status in sync with NovelUpdates</string>
-    <string name="settings_tracking_custom_list_mapping_title">Custom list mapping</string>
-    <string name="settings_tracking_custom_list_mapping_summary">Map statuses to custom NovelUpdates lists</string>
-    <string name="settings_tracking_configure_list_mapping_title">Configure list mapping</string>
-    <string name="settings_tracking_configure_list_mapping_summary">Choose which list each status maps to</string>
-    <string name="settings_tracking_mark_read_novellist">Mark chapters as read on NovelList</string>
-    <string name="settings_tracking_sync_reading_list_novellist">Keep reading list status in sync with NovelList</string>
-    <string name="settings_tracking_mark_read_ranobedb">Mark chapters as read on RanobeDB</string>
-    <string name="settings_tracking_mark_read_summary_volumes">Automatically mark chapters/volumes as read when you read them in the app</string>
-    <string name="settings_tracking_sync_reading_list_ranobedb">Keep reading list status in sync with RanobeDB</string>
-    <string name="settings_tracking_source_defined_group">Source-defined trackers</string>
-    <string name="settings_tracking_run_source_trackers_title">Run source trackers on migration</string>
-    <string name="settings_tracking_run_source_trackers_summary">Fire source-defined tracker events when migrating or quick-migrating an entry</string>
-    <string name="settings_tracking_login_to">Login to %1$s</string>
-    <string name="settings_tracking_token_cookies_label">Token / Cookies</string>
-    <string name="settings_tracking_login_failed">Login failed</string>
-    <string name="settings_tracking_list_mapping_dialog_title">List Mapping</string>
-    <string name="settings_tracking_fetch_lists_failed">Failed to fetch lists</string>
-
     <!-- Settings: debug worker info -->
     <!-- Browse: page jump dialog -->
     <string name="browse_page_jump_title_single">Jump to Page</string>

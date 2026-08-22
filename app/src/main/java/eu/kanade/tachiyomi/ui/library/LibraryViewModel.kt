@@ -28,7 +28,6 @@ import eu.kanade.tachiyomi.data.download.DownloadManager
 import eu.kanade.tachiyomi.data.epub.EpubExportJob
 import eu.kanade.tachiyomi.data.library.LibraryClearJob
 import eu.kanade.tachiyomi.data.library.LibraryUpdateJob
-import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.data.translation.TranslationJob
 import eu.kanade.tachiyomi.data.translation.TranslationService
 import eu.kanade.tachiyomi.jsplugin.source.JsSource
@@ -43,8 +42,6 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.dropWhile
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -86,8 +83,6 @@ import tachiyomi.domain.manga.model.MangaUpdate
 import tachiyomi.domain.manga.model.applyFilter
 import tachiyomi.domain.manga.repository.MangaRepository
 import tachiyomi.domain.source.service.SourceManager
-import tachiyomi.domain.track.interactor.GetTracksPerManga
-import tachiyomi.domain.track.model.Track
 import tachiyomi.domain.translation.repository.TranslatedChapterRepository
 import tachiyomi.domain.translation.service.TranslationPreferences
 import tachiyomi.i18n.MR
@@ -101,7 +96,6 @@ import kotlin.random.Random
 class LibraryViewModel(
     private val getLibraryManga: GetLibraryManga = Injekt.get(),
     private val getCategories: GetCategories = Injekt.get(),
-    private val getTracksPerManga: GetTracksPerManga = Injekt.get(),
     private val getNextChapters: GetNextChapters = Injekt.get(),
     private val getChaptersByMangaId: GetChaptersByMangaId = Injekt.get(),
     private val getBookmarkedChaptersByMangaId: GetBookmarkedChaptersByMangaId = Injekt.get(),
@@ -117,7 +111,6 @@ class LibraryViewModel(
     private val sourceManager: SourceManager = Injekt.get(),
     private val downloadManager: DownloadManager = Injekt.get(),
     private val downloadCache: DownloadCache = Injekt.get(),
-    private val trackerManager: TrackerManager = Injekt.get(),
     private val translatedChapterRepository: TranslatedChapterRepository = Injekt.get(),
     private val translationPreferences: TranslationPreferences = Injekt.get(),
     private val mangaRepository: MangaRepository = Injekt.get(),
@@ -279,24 +272,15 @@ class LibraryViewModel(
             val filteredLibraryDataFlow = combine(
                 categoriesFlow,
                 getFavoritesFlow(displayPreferencesFlow),
-                combine(getTracksPerManga.subscribe(), getTrackingFiltersFlow(), ::Pair),
                 itemPreferencesFlow,
                 getLibraryManga.isLoading(),
-            ) { categories, favorites, tracksAndFilters, itemPreferences, isLoading ->
-                val (tracksMap, trackingFilters) = tracksAndFilters
-
+            ) { categories, favorites, itemPreferences, isLoading ->
                 val showSystemCategory = favorites.any { it.libraryManga.categories.contains(0L) }
-
-                val filteredFavorites = favorites
-                    .applyFilters(tracksMap, trackingFilters, itemPreferences)
-
                 LibraryData(
                     isInitialized = !isLoading,
                     showSystemCategory = showSystemCategory,
                     categories = categories,
-                    favorites = filteredFavorites,
-                    tracksMap = tracksMap,
-                    loggedInTrackerIds = trackingFilters.keys,
+                    favorites = favorites.applyFilters(itemPreferences),
                 )
             }
 
@@ -337,7 +321,7 @@ class LibraryViewModel(
                 .map { data ->
                     data.favorites
                         .applyGrouping(data.categories, data.showSystemCategory)
-                        .applySort(itemCache, data.tracksMap, data.loggedInTrackerIds)
+                        .applySort(itemCache)
                 }
                 .collectLatest {
                     mutableState.update { state ->
@@ -366,25 +350,21 @@ class LibraryViewModel(
             }
             .launchIn(viewModelScope)
 
-        combine(
-            getLibraryItemPreferencesFlow(),
-            getTrackingFiltersFlow(),
-        ) { prefs, trackFilters ->
-            listOf(
-                prefs.filterDownloaded,
-                prefs.filterUnread,
-                prefs.filterStarted,
-                prefs.filterBookmarked,
-                prefs.filterCompleted,
-                prefs.filterIntervalCustom,
-                prefs.filterNoTags,
-                prefs.filterChapterCount,
-                *trackFilters.values.toTypedArray(),
-            )
-                .any { it != TriState.DISABLED } ||
-                prefs.includedTags.isNotEmpty() ||
-                prefs.excludedTags.isNotEmpty()
-        }
+        getLibraryItemPreferencesFlow()
+            .map { prefs ->
+                listOf(
+                    prefs.filterDownloaded,
+                    prefs.filterUnread,
+                    prefs.filterStarted,
+                    prefs.filterBookmarked,
+                    prefs.filterCompleted,
+                    prefs.filterIntervalCustom,
+                    prefs.filterNoTags,
+                    prefs.filterChapterCount,
+                ).any { it != TriState.DISABLED } ||
+                    prefs.includedTags.isNotEmpty() ||
+                    prefs.excludedTags.isNotEmpty()
+            }
             .distinctUntilChanged()
             .onEach {
                 mutableState.update { state ->
@@ -394,11 +374,7 @@ class LibraryViewModel(
             .launchIn(viewModelScope)
     }
 
-    private fun List<LibraryItem>.applyFilters(
-        trackMap: Map<Long, List<Track>>,
-        trackingFilter: Map<Long, TriState>,
-        preferences: ItemPreferences,
-    ): List<LibraryItem> {
+    private fun List<LibraryItem>.applyFilters(preferences: ItemPreferences): List<LibraryItem> {
         val downloadedOnly = preferences.globalFilterDownloaded
         val skipOutsideReleasePeriod = preferences.skipOutsideReleasePeriod
         val filterDownloaded = if (downloadedOnly) TriState.ENABLED_IS else preferences.filterDownloaded
@@ -408,30 +384,6 @@ class LibraryViewModel(
         val filterCompleted = preferences.filterCompleted
         val filterIntervalCustom = preferences.filterIntervalCustom
 
-        val isNotLoggedInAnyTrack = trackingFilter.isEmpty()
-
-        @Suppress("ktlint:standard:max-line-length")
-        val excludedTracks = trackingFilter.mapNotNullTo(HashSet()) {
-            if (it.value ==
-                TriState.ENABLED_NOT
-            ) {
-                it.key
-            } else {
-                null
-            }
-        }
-
-        @Suppress("ktlint:standard:max-line-length")
-        val includedTracks = trackingFilter.mapNotNullTo(HashSet()) {
-            if (it.value ==
-                TriState.ENABLED_IS
-            ) {
-                it.key
-            } else {
-                null
-            }
-        }
-        val trackFiltersIsIgnored = includedTracks.isEmpty() && excludedTracks.isEmpty()
         val tagIncluded = preferences.includedTags
         val tagExcluded = preferences.excludedTags
         val tagCaseSensitive = preferences.tagCaseSensitive
@@ -481,23 +433,6 @@ class LibraryViewModel(
                 true
             }
             if (!intervalPasses) return@fastFilter false
-
-            // Tracking filter
-            val trackingPasses = if (isNotLoggedInAnyTrack || trackFiltersIsIgnored) {
-                true
-            } else {
-                val mangaTracks = trackMap[it.id].orEmpty()
-
-                @Suppress("ktlint:standard:max-line-length")
-                val isExcluded =
-                    excludedTracks.isNotEmpty() && mangaTracks.fastAny { track -> track.trackerId in excludedTracks }
-
-                @Suppress("ktlint:standard:max-line-length")
-                val isIncluded =
-                    includedTracks.isEmpty() || mangaTracks.fastAny { track -> track.trackerId in includedTracks }
-                !isExcluded && isIncluded
-            }
-            if (!trackingPasses) return@fastFilter false
 
             // Extension filter
             val extensionPasses = excludedSourceIds.isEmpty() ||
@@ -590,32 +525,14 @@ class LibraryViewModel(
 
     private fun Map<Category, List</* LibraryItem */ Long>>.applySort(
         favoritesById: Map<Long, LibraryItem>,
-        trackMap: Map<Long, List<Track>>,
-        loggedInTrackerIds: Set<Long>,
     ): Map<Category, List</* LibraryItem */ Long>> {
         val sortAlphabetically: (LibraryItem, LibraryItem) -> Int = { manga1, manga2 ->
             manga1.libraryManga.manga.title.compareToWithCollator(manga2.libraryManga.manga.title)
         }
 
-        val defaultTrackerScoreSortValue = -1.0
         val needsSourceName = keys.any { it.sort.type == LibrarySort.Type.SourceName }
-        val needsTrackerMean = keys.any { it.sort.type == LibrarySort.Type.TrackerMean }
-        val sourceNameCache = if (needsSourceName) HashMap<Long, String>() else null
-        val trackerScores = if (needsTrackerMean) {
-            val trackerMap = trackerManager.getAll(loggedInTrackerIds).associateBy { e -> e.id }
-            trackMap.mapValues { entry ->
-                when {
-                    entry.value.isEmpty() -> null
-                    else ->
-                        entry.value
-                            .mapNotNull { trackerMap[it.trackerId]?.get10PointScore(it) }
-                            .average()
-                }
-            }
-        } else {
-            emptyMap()
-        }
 
+        val sourceNameCache = if (needsSourceName) HashMap<Long, String>() else null
         fun LibrarySort.comparator(): Comparator<LibraryItem> = Comparator { manga1, manga2 ->
             when (this.type) {
                 LibrarySort.Type.Alphabetical -> {
@@ -648,11 +565,6 @@ class LibraryViewModel(
                 }
                 LibrarySort.Type.DateAdded -> {
                     manga1.libraryManga.manga.dateAdded.compareTo(manga2.libraryManga.manga.dateAdded)
-                }
-                LibrarySort.Type.TrackerMean -> {
-                    val item1Score = trackerScores[manga1.id] ?: defaultTrackerScoreSortValue
-                    val item2Score = trackerScores[manga2.id] ?: defaultTrackerScoreSortValue
-                    item1Score.compareTo(item2Score)
                 }
                 LibrarySort.Type.SourceName -> {
                     val sourceName1 = sourceNameCache!!.getOrPut(manga1.libraryManga.manga.source) {
@@ -843,24 +755,6 @@ class LibraryViewModel(
                 localBadge = localBadge,
                 languageBadge = languageBadge,
             )
-        }
-    }
-
-    /**
-     * Flow of tracking filter preferences
-     *
-     * @return map of track id with the filter value
-     */
-    private fun getTrackingFiltersFlow(): Flow<Map<Long, TriState>> {
-        return trackerManager.loggedInTrackersFlow().flatMapLatest { loggedInTrackers ->
-            if (loggedInTrackers.isEmpty()) {
-                flowOf(emptyMap())
-            } else {
-                val filterFlows = loggedInTrackers.map { tracker ->
-                    libraryPreferences.filterTracking(tracker.id.toInt()).changes().map { tracker.id to it }
-                }
-                combine(filterFlows) { it.toMap() }
-            }
         }
     }
 
@@ -1188,8 +1082,8 @@ class LibraryViewModel(
         TriState.ENABLED_NOT -> 2
     }
 
-    /** Map a library sort to the spec sort id. Non-DB sorts (source name, tracker, downloaded,
-     *  random) fall back to date_added and are re-sorted in memory per loaded page. */
+    /** Map a library sort to the spec sort id. Non-DB sorts (source name, downloaded, random)
+     *  fall back to date_added and are re-sorted in memory per loaded page. */
     private fun mapSort(sort: LibrarySort): Pair<Int, Boolean> {
         val type = when (sort.type) {
             LibrarySort.Type.Alphabetical -> LibraryPageSpec.SORT_ALPHABETICAL
@@ -1209,7 +1103,7 @@ class LibraryViewModel(
      * Build the desired per-(category, content type) page specs. Filters/search are global, sort is
      * per category. Only a single positive default-field search term is pushed to SQL as a LIKE.
      * Regex / multi-term / field-prefixed / negated searches stay page-local. Tags, downloaded,
-     * source-name and tracker filters are applied in memory (hybrid).
+     * and source-name filters are applied in memory (hybrid).
      */
     private fun buildPageSpecs(
         categories: List<Category>,
@@ -1311,7 +1205,7 @@ class LibraryViewModel(
     /**
      * Load the next page of a category when the user scrolls to the bottom (paginated mode only).
      *
-     * The visible list is the DB page minus in-memory filters (downloaded / tracker / exact tag /
+     * The visible list is the DB page minus in-memory filters (downloaded / exact tag /
      * source-name), so a fetched page can yield few or zero visible rows. Bumping the pagination
      * generation re-fires the sentinel after every real fetch even when the visible count didn't
      * change, so a fully-filtered-out page can't dead-end the category. Draining stops when a fetch
@@ -1661,8 +1555,6 @@ class LibraryViewModel(
         val showSystemCategory: Boolean = false,
         val categories: List<Category> = emptyList(),
         val favorites: List<LibraryItem> = emptyList(),
-        val tracksMap: Map</* Manga */ Long, List<Track>> = emptyMap(),
-        val loggedInTrackerIds: Set<Long> = emptySet(),
     ) {
         val favoritesById: Map<Long, LibraryItem> by lazy {
             HashMap<Long, LibraryItem>(favorites.size * 2).also { map ->

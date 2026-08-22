@@ -215,8 +215,8 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
         return ImageLoader.Builder(this).apply {
             val callFactoryLazy = lazy { Injekt.get<NetworkHelper>().client }
             // The default fetcher handles everything that isn't a manga/novel cover (extension
-            // icons, tracker avatars, ...) - not source traffic, so exempt it from novel-source
-            // rate limiting same as the other non-source consumers (see RateLimitExemptInterceptor).
+            // icons, avatars, ...) - not source traffic, so exempt it from novel-source rate
+            // limiting like the other non-source consumers (see RateLimitExemptInterceptor).
             // MangaCoverFactory/MangaFactory below intentionally keep the raw, paced client since
             // covers ARE source traffic.
             val exemptCallFactoryLazy = lazy { Injekt.get<NetworkHelper>().client.rateLimitExempt() }

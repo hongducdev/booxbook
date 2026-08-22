@@ -127,7 +127,6 @@ interface SearchableSettings : Screen {
                 is Preference.PreferenceItem.EditTextPreference -> item.preference.delete()
                 is Preference.PreferenceItem.SliderPreference -> item.preference?.delete()
                 is Preference.PreferenceItem.TextPreference -> {}
-                is Preference.PreferenceItem.TrackerPreference -> {}
                 is Preference.PreferenceItem.InfoPreference -> {}
                 is Preference.PreferenceItem.CustomPreference -> {}
                 is Preference.PreferenceItem.BasicListPreference -> {}

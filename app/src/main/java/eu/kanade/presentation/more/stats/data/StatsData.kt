@@ -24,12 +24,6 @@ sealed interface StatsData {
         val downloadCount: Int,
     ) : StatsData
 
-    data class Trackers(
-        val trackedTitleCount: Int,
-        val meanScore: Double,
-        val trackerCount: Int,
-    ) : StatsData
-
     data class Advanced(
         val selectedYear: Int,
         val availableYears: List<Int>,

@@ -22,7 +22,6 @@ import eu.kanade.domain.source.interactor.GetIncognitoState
 import eu.kanade.domain.source.interactor.ManageFilterPresets
 import eu.kanade.domain.source.model.FilterPreset
 import eu.kanade.domain.source.service.SourcePreferences
-import eu.kanade.domain.track.interactor.AddTracks
 import eu.kanade.tachiyomi.data.cache.CoverCache
 import eu.kanade.tachiyomi.data.translation.PendingTitleTranslations
 import eu.kanade.tachiyomi.data.translation.TranslationEngineManager
@@ -92,7 +91,6 @@ class BrowseSourceViewModel(
     private val getFavorites: GetFavorites = Injekt.get(),
     private val getLibraryManga: GetLibraryManga = Injekt.get(),
     private val updateManga: UpdateManga = Injekt.get(),
-    private val addTracks: AddTracks = Injekt.get(),
     private val getIncognitoState: GetIncognitoState = Injekt.get(),
     private val manageFilterPresets: ManageFilterPresets = Injekt.get(),
     private val translationEngineManager: TranslationEngineManager = Injekt.get(),
@@ -481,7 +479,6 @@ class BrowseSourceViewModel(
                 new = new.removeCovers(coverCache)
             } else {
                 setMangaDefaultChapterFlags.await(manga)
-                addTracks.bindEnhancedTrackers(manga, source)
             }
 
             updateManga.await(new.toMangaUpdate())
@@ -951,7 +948,6 @@ class BrowseSourceViewModel(
                 )
                 updateManga.await(newManga.toMangaUpdate())
                 setMangaDefaultChapterFlags.await(manga)
-                addTracks.bindEnhancedTrackers(manga, source)
 
                 // Set category if specified
                 if (categoryId != null && categoryId != 0L) {

@@ -15,10 +15,10 @@ import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.GetApp
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.QueryStats
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.Storage
-import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.Translate
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
@@ -213,10 +213,10 @@ object SettingsMainScreen : Screen() {
             screen = SettingsTranslationScreen,
         ),
         Item(
-            titleRes = MR.strings.pref_category_tracking,
-            subtitleRes = MR.strings.pref_tracking_summary,
-            icon = Icons.Outlined.Sync,
-            screen = SettingsTrackingScreen,
+            titleRes = TDMR.strings.pref_novel_read_tracking_group,
+            subtitleRes = TDMR.strings.pref_novel_read_tracking_summary,
+            icon = Icons.Outlined.QueryStats,
+            screen = SettingsReadingStatisticsScreen,
         ),
         Item(
             titleRes = MR.strings.browse,

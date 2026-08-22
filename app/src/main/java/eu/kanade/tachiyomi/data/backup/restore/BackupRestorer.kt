@@ -161,7 +161,7 @@ class BackupRestorer(
                 restoreJsPluginRepositories(summary.backupJsPluginRepositories)
             }
 
-            // TODO: optionally trigger online library + tracker update
+            // TODO: optionally trigger an online library update
         }
     }
 

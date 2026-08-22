@@ -9,7 +9,6 @@ import eu.kanade.tachiyomi.data.backup.models.BackupNovelSection
 import eu.kanade.tachiyomi.data.backup.models.BackupNovelStructure
 import eu.kanade.tachiyomi.data.backup.models.BackupReadingSession
 import eu.kanade.tachiyomi.data.backup.models.backupChapterRawMemoMapper
-import eu.kanade.tachiyomi.data.backup.models.backupTrackMapper
 import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -109,15 +108,6 @@ class MangaBackupCreator(
                 mangaObject.categories = categoriesForManga
                     .map { it.order }
                     .filter { allowedCategoryOrders.isEmpty() || it in allowedCategoryOrders }
-            }
-        }
-
-        if (options.tracking) {
-            val tracks = database.manga_syncQueries
-                .getTracksByMangaId(manga.id, backupTrackMapper)
-                .awaitAsList()
-            if (tracks.isNotEmpty()) {
-                mangaObject.tracking = tracks
             }
         }
 

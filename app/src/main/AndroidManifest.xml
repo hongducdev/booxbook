@@ -227,38 +227,6 @@
             android:configChanges="uiMode|orientation|screenSize"
             android:exported="false" />
 
-        <activity
-            android:name=".ui.webview.TrackerWebViewLoginActivity"
-            android:configChanges="uiMode|orientation|screenSize"
-            android:exported="false" />
-
-        <activity
-            android:name=".ui.setting.track.TrackLoginActivity"
-            android:exported="true"
-            android:label="@string/track_activity_name">
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-
-                <!-- Every scheme an OAuth client is registered under has to be listed, and the
-                     list only ever grows. AniList, MyAnimeList and MangaBaka run on this fork's own
-                     client ids and redirect to tsundoku://; Bangumi and Shikimori still run on
-                     mihon's client ids, so their registered redirect is mihon:// and stays that way.
-                     Replacing a scheme here instead of adding one silently kills the trackers left
-                     on it - that is exactly how bangumi-auth and shikimori-auth stopped arriving. -->
-                <data android:scheme="tsundoku" />
-                <data android:scheme="mihon" />
-
-                <data android:host="anilist-auth" />
-                <data android:host="bangumi-auth" />
-                <data android:host="mangabaka-auth" />
-                <data android:host="myanimelist-auth" />
-                <data android:host="shikimori-auth" />
-                <data android:host="hikka-auth" />
-            </intent-filter>
-        </activity>
 
         <receiver
             android:name=".data.notification.NotificationReceiver"

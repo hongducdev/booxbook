@@ -14,8 +14,6 @@ import eu.kanade.domain.chapter.model.toDbChapter
 import eu.kanade.domain.manga.interactor.SetMangaViewerFlags
 import eu.kanade.domain.manga.model.readerOrientation
 import eu.kanade.domain.manga.model.toSManga
-import eu.kanade.domain.track.interactor.TrackChapter
-import eu.kanade.domain.track.service.TrackPreferences
 import eu.kanade.presentation.reader.appbars.BottomBarItemState
 import eu.kanade.presentation.reader.appbars.deserializeBottomBarItems
 import eu.kanade.presentation.reader.appbars.serialize
@@ -132,9 +130,6 @@ class ReaderViewModel @JvmOverloads constructor(
     val readerPreferences: ReaderPreferences = Injekt.get(),
     private val basePreferences: BasePreferences = Injekt.get(),
     private val novelDownloadPreferences: NovelDownloadPreferences = Injekt.get(),
-    private val trackPreferences: TrackPreferences = Injekt.get(),
-    private val trackChapter: TrackChapter = Injekt.get(),
-    private val sourceTrackerDispatcher: eu.kanade.tachiyomi.data.track.source.SourceTrackerDispatcher = Injekt.get(),
     private val getManga: GetManga = Injekt.get(),
     private val getChaptersByMangaId: GetChaptersByMangaId = Injekt.get(),
     private val getNextChapters: GetNextChapters = Injekt.get(),
@@ -955,9 +950,8 @@ class ReaderViewModel @JvmOverloads constructor(
     }
 
     /**
-     * Called every time a page changes on the reader. Used to mark the flag of chapters being
-     * read, update tracking services, enqueue downloaded chapter deletion, and updating the active chapter if this
-     * [page]'s chapter is different from the currently active.
+     * Called every time a page changes on the reader. Used to mark chapters read, enqueue downloaded
+     * chapter deletion, and update the active chapter when this [page]'s chapter differs from it.
      */
     fun onPageSelected(page: ReaderPage) {
         // InsertPage doesn't change page progress
@@ -1070,7 +1064,6 @@ class ReaderViewModel @JvmOverloads constructor(
                 val wasRead = selectedChapter.chapter.read
                 if (clampedProgress >= markAsReadThreshold && !wasRead) {
                     selectedChapter.chapter.read = true
-                    updateTrackChapterRead(selectedChapter)
                     deleteChapterIfNeeded(selectedChapter)
                 }
 
@@ -1241,7 +1234,6 @@ class ReaderViewModel @JvmOverloads constructor(
 
     private suspend fun updateChapterProgressOnComplete(readerChapter: ReaderChapter) {
         readerChapter.chapter.read = true
-        updateTrackChapterRead(readerChapter)
         deleteChapterIfNeeded(readerChapter)
 
         // Notify library of badge changes so unread counts update immediately
@@ -1712,33 +1704,6 @@ class ReaderViewModel @JvmOverloads constructor(
 
     fun setBrightnessOverlayValue(value: Int) {
         mutableState.update { it.copy(brightnessOverlayValue = value) }
-    }
-
-    /**
-     * Starts the service that updates the last chapter read in sync services. This operation
-     * will run in a background thread and errors are ignored.
-     */
-    private fun updateTrackChapterRead(readerChapter: ReaderChapter) {
-        if (sensitiveContentPolicy.isBlocked(SensitiveContentPolicy.Action.READING_PROGRESS, manga?.source)) return
-
-        val manga = manga ?: return
-        val chapterId = readerChapter.chapter.id ?: return
-        val context = Injekt.get<Application>()
-
-        viewModelScope.launchNonCancellable {
-            if (trackPreferences.autoUpdateTrack.get()) {
-                trackChapter.await(context, manga.id, readerChapter.chapter.chapter_number.toDouble())
-            }
-
-            try {
-                val chapter = getChaptersByMangaId.await(manga.id).find { it.id == chapterId }
-                if (chapter != null) {
-                    sourceTrackerDispatcher.notifyChaptersRead(manga, listOf(chapter))
-                }
-            } catch (e: Exception) {
-                logcat(LogPriority.WARN, e) { "Reader SourceTrackerDispatcher dispatch failed" }
-            }
-        }
     }
 
     /**

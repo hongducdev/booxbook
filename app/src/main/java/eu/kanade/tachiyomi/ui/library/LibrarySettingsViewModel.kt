@@ -7,13 +7,10 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.tachiyomi.data.cache.LibrarySettingsCache
-import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.source.isNovelSource
 import eu.kanade.tachiyomi.source.nameWithTypeTag
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.stateIn
 import logcat.LogPriority
 import tachiyomi.core.common.preference.Preference
 import tachiyomi.core.common.preference.TriState
@@ -32,7 +29,6 @@ import tachiyomi.domain.source.service.SourceManager
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * Data class representing extension info in the library settings
@@ -51,7 +47,6 @@ class LibrarySettingsViewModel(
     val libraryPreferences: LibraryPreferences = Injekt.get(),
     private val setDisplayMode: SetDisplayMode = Injekt.get(),
     private val setSortModeForCategory: SetSortModeForCategory = Injekt.get(),
-    trackerManager: TrackerManager = Injekt.get(),
     private val sourceManager: SourceManager = Injekt.get(),
     private val getLibraryManga: GetLibraryManga = Injekt.get(),
     private val librarySettingsCache: LibrarySettingsCache = Injekt.get(),
@@ -66,13 +61,6 @@ class LibrarySettingsViewModel(
             }
         }
     }
-
-    val trackersFlow = trackerManager.loggedInTrackersFlow()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5.seconds.inWholeMilliseconds),
-            initialValue = trackerManager.loggedInTrackers(),
-        )
 
     private val _extensionsFlow = MutableStateFlow<List<ExtensionInfo>>(emptyList())
     val extensionsFlow = _extensionsFlow.asStateFlow()
@@ -118,10 +106,6 @@ class LibrarySettingsViewModel(
         preference(libraryPreferences).getAndSet {
             it.next()
         }
-    }
-
-    fun toggleTracker(id: Int) {
-        toggleFilter { libraryPreferences.filterTracking(id) }
     }
 
     fun setDisplayMode(mode: LibraryDisplayMode) {
