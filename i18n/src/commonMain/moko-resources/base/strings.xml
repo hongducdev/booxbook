@@ -130,6 +130,7 @@
     <string name="action_display_show_number_of_items">Show number of items</string>
     <string name="action_display_show_continue_reading_button">Continue reading button</string>
     <string name="action_disable">Disable</string>
+    <string name="action_enable">Enable</string>
     <string name="action_pin">Pin</string>
     <string name="action_unpin">Unpin</string>
     <string name="action_apply">Apply</string>
@@ -531,6 +532,7 @@
     <string name="storage_failed_to_create_download_directory">Failed to create download directory</string>
     <string name="storage_failed_to_create_directory">Failed to create directory: %s</string>
     <string name="disabled">Disabled</string>
+    <string name="enabled">Enabled</string>
     <string name="last_read_chapter">Last read chapter</string>
     <string name="second_to_last">Second to last read chapter</string>
     <string name="third_to_last">Third to last read chapter</string>

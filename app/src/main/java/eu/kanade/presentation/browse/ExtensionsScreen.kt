@@ -44,6 +44,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.icerock.moko.resources.StringResource
 import eu.kanade.presentation.browse.components.BaseBrowseItem
+import eu.kanade.presentation.browse.components.BrowseItemAction
 import eu.kanade.presentation.browse.components.ExtensionIcon
 import eu.kanade.presentation.components.WarningBanner
 import eu.kanade.presentation.manga.components.DotSeparatorNoSpaceText
@@ -310,18 +311,20 @@ private fun ExtensionItem(
     modifier: Modifier = Modifier,
 ) {
     val (extension, installStep) = item
+    val swipeActions = extensionItemActions(
+        extension = extension,
+        installStep = installStep,
+        onClickItemCancel = onClickItemCancel,
+        onClickItemAction = onClickItemAction,
+        onClickItemSecondaryAction = onClickItemSecondaryAction,
+    )
     BaseBrowseItem(
-        modifier = modifier
-            .combinedClickable(
-                onClick = { onClickItem(extension) },
-                onLongClick = { onLongClickItem(extension) },
-            ),
+        modifier = modifier,
         onClickItem = { onClickItem(extension) },
         onLongClickItem = { onLongClickItem(extension) },
         icon = {
             Box(
-                modifier = Modifier
-                    .size(40.dp),
+                modifier = Modifier.size(40.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 val idle = installStep.isCompleted()
@@ -344,32 +347,13 @@ private fun ExtensionItem(
                 )
             }
         },
-        action = {
-            ExtensionItemActions(
+        swipeActions = swipeActions,
+        supportingContent = {
+            ExtensionItemSupportingContent(
                 extension = extension,
                 installStep = installStep,
-                onClickItemCancel = onClickItemCancel,
-                onClickItemAction = onClickItemAction,
-                onClickItemSecondaryAction = onClickItemSecondaryAction,
             )
         },
-    ) {
-        ExtensionItemContent(
-            extension = extension,
-            installStep = installStep,
-            modifier = Modifier.weight(1f),
-        )
-    }
-}
-
-@Composable
-private fun ExtensionItemContent(
-    extension: Extension,
-    installStep: InstallStep,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier.padding(start = MaterialTheme.padding.medium),
     ) {
         Text(
             text = extension.name,
@@ -377,204 +361,226 @@ private fun ExtensionItemContent(
             overflow = TextOverflow.Ellipsis,
             style = MaterialTheme.typography.bodyMedium,
         )
-        // Won't look good but it's not like we can ellipsize overflowing content
-        FlowRow(
-            modifier = Modifier.secondaryItemAlpha(),
-            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.extraSmall),
-        ) {
-            ProvideTextStyle(value = MaterialTheme.typography.bodySmall) {
-                var hasAlreadyShownAnElement by remember { mutableStateOf(false) }
-                if (extension is Extension.Installed && extension.lang.isNotEmpty()) {
-                    hasAlreadyShownAnElement = true
-                    Text(
-                        text = LocaleHelper.getSourceDisplayName(extension.lang, LocalContext.current),
-                    )
-                }
+    }
+}
 
-                if (extension.versionName.isNotEmpty()) {
-                    if (hasAlreadyShownAnElement) DotSeparatorNoSpaceText()
-                    hasAlreadyShownAnElement = true
-                    Text(
-                        text = extension.versionName,
-                    )
-                }
+@Composable
+private fun ExtensionItemSupportingContent(
+    extension: Extension,
+    installStep: InstallStep,
+) {
+    FlowRow(
+        modifier = Modifier.secondaryItemAlpha(),
+        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.extraSmall),
+    ) {
+        ProvideTextStyle(value = MaterialTheme.typography.bodySmall) {
+            var hasAlreadyShownAnElement by remember { mutableStateOf(false) }
+            if (extension is Extension.Installed && extension.lang.isNotEmpty()) {
+                hasAlreadyShownAnElement = true
+                Text(
+                    text = LocaleHelper.getSourceDisplayName(extension.lang, LocalContext.current),
+                )
+            }
 
-                val warning = when {
-                    extension is Extension.Untrusted -> MR.strings.ext_untrusted
-                    extension is Extension.Installed && extension.isObsolete -> MR.strings.ext_obsolete
-                    extension.isNsfw && extension is Extension.JsPlugin -> null
-                    extension.isNsfw -> MR.strings.ext_nsfw_short
-                    else -> null
-                }
-                if (warning != null) {
+            if (extension.versionName.isNotEmpty()) {
+                if (hasAlreadyShownAnElement) DotSeparatorNoSpaceText()
+                hasAlreadyShownAnElement = true
+                Text(text = extension.versionName)
+            }
+
+            val warning = when {
+                extension is Extension.Untrusted -> MR.strings.ext_untrusted
+                extension is Extension.Installed && extension.isObsolete -> MR.strings.ext_obsolete
+                extension.isNsfw && extension is Extension.JsPlugin -> null
+                extension.isNsfw -> MR.strings.ext_nsfw_short
+                else -> null
+            }
+            if (warning != null) {
+                if (hasAlreadyShownAnElement) DotSeparatorNoSpaceText()
+                hasAlreadyShownAnElement = true
+                Text(
+                    text = stringResource(warning).uppercase(),
+                    color = MaterialTheme.colorScheme.error,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (extension is Extension.Installed && !extension.isShared) {
+                if (hasAlreadyShownAnElement) DotSeparatorNoSpaceText()
+                Text(text = stringResource(MR.strings.ext_installer_private))
+            }
+
+            if (extension is Extension.JsPlugin) {
+                if (extension.isNsfw) {
                     if (hasAlreadyShownAnElement) DotSeparatorNoSpaceText()
-                    hasAlreadyShownAnElement = true
                     Text(
-                        text = stringResource(warning).uppercase(),
+                        text = "18+",
                         color = MaterialTheme.colorScheme.error,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
                     )
-                }
-                if (extension is Extension.Installed && !extension.isShared) {
-                    if (hasAlreadyShownAnElement) DotSeparatorNoSpaceText()
-                    Text(
-                        text = stringResource(MR.strings.ext_installer_private),
-                    )
-                }
-
-                if (extension is Extension.JsPlugin) {
-                    if (extension.isNsfw) {
-                        if (hasAlreadyShownAnElement) DotSeparatorNoSpaceText()
-                        Text(
-                            text = "18+",
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                        hasAlreadyShownAnElement = true
-                    }
-                    if (hasAlreadyShownAnElement) DotSeparatorNoSpaceText()
                     hasAlreadyShownAnElement = true
-                    Text(
-                        text = "JS",
-                        color = Color.Yellow,
-                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
-                    )
                 }
+                if (hasAlreadyShownAnElement) DotSeparatorNoSpaceText()
+                hasAlreadyShownAnElement = true
+                Text(
+                    text = "JS",
+                    color = Color.Yellow,
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                )
+            }
 
-                if (!installStep.isCompleted()) {
-                    DotSeparatorNoSpaceText()
-                    Text(
-                        text = when (installStep) {
-                            InstallStep.Pending -> stringResource(MR.strings.ext_pending)
-                            InstallStep.Downloading -> stringResource(MR.strings.ext_downloading)
-                            InstallStep.Installing -> stringResource(MR.strings.ext_installing)
-                            else -> error("Must not show non-install process text")
-                        },
-                    )
-                }
+            if (!installStep.isCompleted()) {
+                DotSeparatorNoSpaceText()
+                Text(
+                    text = when (installStep) {
+                        InstallStep.Pending -> stringResource(MR.strings.ext_pending)
+                        InstallStep.Downloading -> stringResource(MR.strings.ext_downloading)
+                        InstallStep.Installing -> stringResource(MR.strings.ext_installing)
+                        else -> error("Must not show non-install process text")
+                    },
+                )
             }
         }
     }
 }
 
 @Composable
-private fun ExtensionItemActions(
+private fun extensionItemActions(
     extension: Extension,
     installStep: InstallStep,
-    modifier: Modifier = Modifier,
     onClickItemCancel: (Extension) -> Unit = {},
     onClickItemAction: (Extension) -> Unit = {},
     onClickItemSecondaryAction: (Extension) -> Unit = {},
-) {
-    val isIdle = installStep.isCompleted()
+): List<BrowseItemAction> {
+    val primary = MaterialTheme.colorScheme.primaryContainer
+    val secondary = MaterialTheme.colorScheme.secondaryContainer
+    val tertiary = MaterialTheme.colorScheme.tertiaryContainer
 
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small),
-    ) {
-        when {
-            !isIdle -> {
-                if (extension !is Extension.JsPlugin) {
-                    IconButton(onClick = { onClickItemCancel(extension) }) {
-                        Icon(
-                            imageVector = Icons.Outlined.Close,
-                            contentDescription = stringResource(MR.strings.action_cancel),
-                        )
-                    }
-                }
+    fun action(
+        label: String,
+        icon: androidx.compose.ui.graphics.vector.ImageVector,
+        background: Color,
+        onClick: () -> Unit,
+    ) = BrowseItemAction(
+        label = label,
+        icon = icon,
+        background = background,
+        onClick = onClick,
+    )
+
+    if (!installStep.isCompleted()) {
+        return if (extension is Extension.JsPlugin) {
+            emptyList()
+        } else {
+            listOf(
+                action(
+                    label = stringResource(MR.strings.action_cancel),
+                    icon = Icons.Outlined.Close,
+                    background = secondary,
+                    onClick = { onClickItemCancel(extension) },
+                ),
+            )
+        }
+    }
+
+    if (installStep == InstallStep.Error) {
+        return listOf(
+            action(
+                label = stringResource(MR.strings.action_retry),
+                icon = Icons.Outlined.Refresh,
+                background = primary,
+                onClick = { onClickItemAction(extension) },
+            ),
+        )
+    }
+
+    return when (extension) {
+        is Extension.Installed -> buildList {
+            add(
+                action(
+                    label = stringResource(MR.strings.action_settings),
+                    icon = Icons.Outlined.Settings,
+                    background = secondary,
+                    onClick = { onClickItemSecondaryAction(extension) },
+                ),
+            )
+            if (extension.hasUpdate) {
+                add(
+                    action(
+                        label = stringResource(MR.strings.ext_update),
+                        icon = Icons.Outlined.GetApp,
+                        background = primary,
+                        onClick = { onClickItemAction(extension) },
+                    ),
+                )
             }
-            installStep == InstallStep.Error -> {
-                IconButton(onClick = { onClickItemAction(extension) }) {
-                    Icon(
-                        imageVector = Icons.Outlined.Refresh,
-                        contentDescription = stringResource(MR.strings.action_retry),
-                    )
-                }
+        }
+        is Extension.Untrusted -> listOf(
+            action(
+                label = stringResource(MR.strings.ext_trust),
+                icon = Icons.Outlined.VerifiedUser,
+                background = tertiary,
+                onClick = { onClickItemAction(extension) },
+            ),
+        )
+        is Extension.Available -> buildList {
+            if (extension.sources.isNotEmpty()) {
+                add(
+                    action(
+                        label = stringResource(MR.strings.action_open_in_web_view),
+                        icon = Icons.Outlined.Public,
+                        background = secondary,
+                        onClick = { onClickItemSecondaryAction(extension) },
+                    ),
+                )
             }
-            installStep == InstallStep.Idle -> {
-                when (extension) {
-                    is Extension.Installed -> {
-                        IconButton(onClick = { onClickItemSecondaryAction(extension) }) {
-                            Icon(
-                                imageVector = Icons.Outlined.Settings,
-                                contentDescription = stringResource(MR.strings.action_settings),
-                            )
-                        }
-
-                        if (extension.hasUpdate) {
-                            IconButton(onClick = { onClickItemAction(extension) }) {
-                                Icon(
-                                    imageVector = Icons.Outlined.GetApp,
-                                    contentDescription = stringResource(MR.strings.ext_update),
-                                )
-                            }
-                        }
-                    }
-                    is Extension.Untrusted -> {
-                        IconButton(onClick = { onClickItemAction(extension) }) {
-                            Icon(
-                                imageVector = Icons.Outlined.VerifiedUser,
-                                contentDescription = stringResource(MR.strings.ext_trust),
-                            )
-                        }
-                    }
-                    is Extension.Available -> {
-                        if (extension.sources.isNotEmpty()) {
-                            IconButton(
-                                onClick = { onClickItemSecondaryAction(extension) },
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Public,
-                                    contentDescription = stringResource(MR.strings.action_open_in_web_view),
-                                )
-                            }
-                        }
-
-                        IconButton(onClick = { onClickItemAction(extension) }) {
-                            Icon(
-                                imageVector = Icons.Outlined.GetApp,
-                                contentDescription = stringResource(MR.strings.ext_install),
-                            )
-                        }
-                    }
-                    is Extension.JsPlugin -> {
-                        if (extension.isInstalled) {
-                            IconButton(onClick = { onClickItemAction(extension) }) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Settings,
-                                    contentDescription = stringResource(MR.strings.action_settings),
-                                )
-                            }
-                        }
-                        if (extension.sources.isNotEmpty()) {
-                            IconButton(
-                                onClick = { onClickItemSecondaryAction(extension) },
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Public,
-                                    contentDescription = stringResource(MR.strings.action_open_in_web_view),
-                                )
-                            }
-                        }
-                        if (extension.isInstalled) {
-                            if (extension.hasUpdate) {
-                                IconButton(onClick = { onClickItemAction(extension) }) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.GetApp,
-                                        contentDescription = stringResource(MR.strings.ext_update),
-                                    )
-                                }
-                            }
-                        } else {
-                            IconButton(onClick = { onClickItemAction(extension) }) {
-                                Icon(
-                                    imageVector = Icons.Outlined.GetApp,
-                                    contentDescription = stringResource(MR.strings.ext_install),
-                                )
-                            }
-                        }
-                    }
-                }
+            add(
+                action(
+                    label = stringResource(MR.strings.ext_install),
+                    icon = Icons.Outlined.GetApp,
+                    background = primary,
+                    onClick = { onClickItemAction(extension) },
+                ),
+            )
+        }
+        is Extension.JsPlugin -> buildList {
+            if (extension.isInstalled) {
+                add(
+                    action(
+                        label = stringResource(MR.strings.action_settings),
+                        icon = Icons.Outlined.Settings,
+                        background = secondary,
+                        onClick = { onClickItemAction(extension) },
+                    ),
+                )
+            }
+            if (extension.sources.isNotEmpty()) {
+                add(
+                    action(
+                        label = stringResource(MR.strings.action_open_in_web_view),
+                        icon = Icons.Outlined.Public,
+                        background = tertiary,
+                        onClick = { onClickItemSecondaryAction(extension) },
+                    ),
+                )
+            }
+            if (extension.isInstalled && extension.hasUpdate) {
+                add(
+                    action(
+                        label = stringResource(MR.strings.ext_update),
+                        icon = Icons.Outlined.GetApp,
+                        background = primary,
+                        onClick = { onClickItemAction(extension) },
+                    ),
+                )
+            } else if (!extension.isInstalled) {
+                add(
+                    action(
+                        label = stringResource(MR.strings.ext_install),
+                        icon = Icons.Outlined.GetApp,
+                        background = primary,
+                        onClick = { onClickItemAction(extension) },
+                    ),
+                )
             }
         }
     }

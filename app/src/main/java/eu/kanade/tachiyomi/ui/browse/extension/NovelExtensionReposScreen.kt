@@ -17,6 +17,8 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.ToggleOff
+import androidx.compose.material.icons.outlined.ToggleOn
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FloatingActionButton
@@ -38,10 +40,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import eu.kanade.presentation.browse.components.BaseBrowseItem
+import eu.kanade.presentation.browse.components.BrowseItemAction
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.util.Screen
 import eu.kanade.tachiyomi.jsplugin.model.JsPluginRepository
@@ -100,10 +106,7 @@ class NovelExtensionReposScreen(
                             modifier = Modifier.padding(contentPadding),
                         )
                     } else {
-                        LazyColumn(
-                            contentPadding = contentPadding,
-                            verticalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small),
-                        ) {
+                        LazyColumn(contentPadding = contentPadding) {
                             items(current.repositories, key = { it.url }) { repo ->
                                 RepositoryItem(
                                     repo = repo,
@@ -147,55 +150,75 @@ private fun RepositoryItem(
     onDelete: () -> Unit,
 ) {
     val context = LocalContext.current
-    ElevatedCard(
-        modifier = Modifier.padding(horizontal = MaterialTheme.padding.medium),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(MaterialTheme.padding.medium),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(imageVector = Icons.AutoMirrored.Outlined.Label, contentDescription = null)
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = MaterialTheme.padding.medium),
-            ) {
-                Text(text = repo.name, style = MaterialTheme.typography.titleMedium)
+    val enableLabel = stringResource(
+        if (repo.enabled) MR.strings.action_disable else MR.strings.action_enable,
+    )
+    val openLabel = stringResource(MR.strings.action_open_in_browser)
+    val copyLabel = stringResource(MR.strings.action_copy_to_clipboard)
+    val deleteLabel = stringResource(MR.strings.action_delete)
+    val statusLabel = stringResource(if (repo.enabled) MR.strings.enabled else MR.strings.disabled)
+    val swipeActions = listOf(
+        BrowseItemAction(
+            label = enableLabel,
+            icon = if (repo.enabled) Icons.Outlined.ToggleOff else Icons.Outlined.ToggleOn,
+            background = MaterialTheme.colorScheme.primaryContainer,
+            onClick = { onSetEnabled(!repo.enabled) },
+        ),
+        BrowseItemAction(
+            label = openLabel,
+            icon = Icons.AutoMirrored.Outlined.OpenInNew,
+            background = MaterialTheme.colorScheme.secondaryContainer,
+            onClick = {
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(repo.url)))
+            },
+        ),
+        BrowseItemAction(
+            label = copyLabel,
+            icon = Icons.Outlined.ContentCopy,
+            background = MaterialTheme.colorScheme.tertiaryContainer,
+            onClick = { context.copyToClipboard(repo.url, repo.url) },
+        ),
+        BrowseItemAction(
+            label = deleteLabel,
+            icon = Icons.Outlined.Delete,
+            background = MaterialTheme.colorScheme.errorContainer,
+            onClick = onDelete,
+        ),
+    )
+
+    BaseBrowseItem(
+        modifier = Modifier.semantics {
+            stateDescription = statusLabel
+        },
+        onClickItem = { onSetEnabled(!repo.enabled) },
+        icon = {
+            Icon(
+                imageVector = if (repo.enabled) Icons.Outlined.ToggleOn else Icons.Outlined.ToggleOff,
+                contentDescription = null,
+                tint = if (repo.enabled) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+            )
+        },
+        swipeActions = swipeActions,
+        supportingContent = {
+            Column {
                 Text(
                     text = repo.url,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-            }
-            Switch(checked = repo.enabled, onCheckedChange = onSetEnabled)
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
-        ) {
-            IconButton(onClick = {
-                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(repo.url)))
-            }) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
-                    contentDescription = stringResource(MR.strings.action_open_in_browser),
+                Text(
+                    text = statusLabel,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
                 )
             }
-            IconButton(onClick = { context.copyToClipboard(repo.url, repo.url) }) {
-                Icon(
-                    imageVector = Icons.Outlined.ContentCopy,
-                    contentDescription = stringResource(MR.strings.action_copy_to_clipboard),
-                )
-            }
-            IconButton(onClick = onDelete) {
-                Icon(
-                    imageVector = Icons.Outlined.Delete,
-                    contentDescription = stringResource(MR.strings.action_delete),
-                )
-            }
-        }
+        },
+    ) {
+        Text(text = repo.name, style = MaterialTheme.typography.titleMedium)
     }
 }
 

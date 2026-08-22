@@ -71,6 +71,7 @@ data object BrowseTab : Tab {
             titleRes = MR.strings.browse,
             tabs = tabs,
             state = state,
+            userScrollEnabled = false,
             searchQuery = extensionsState.searchQuery.takeIf { state.currentPage == extensionsTabIndex },
             onChangeSearchQuery = { query ->
                 if (state.currentPage == extensionsTabIndex) {

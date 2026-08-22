@@ -15,6 +15,7 @@ import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.FilterList
+import androidx.compose.material.icons.outlined.NewReleases
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
@@ -39,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.browse.components.BaseSourceItem
+import eu.kanade.presentation.browse.components.BrowseItemAction
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.ui.browse.source.SourcesViewModel
 import eu.kanade.tachiyomi.ui.browse.source.browse.BrowseSourceViewModel.Listing
@@ -146,72 +148,76 @@ private fun SourceItem(
     onRemoveFromGroup: (Source, String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val pinActions = sourcePinActions(
+        source = source,
+        groupSection = groupSection,
+        onClickPin = onClickPin,
+        onLongClickPin = onLongClickPin,
+        onRemoveFromGroup = onRemoveFromGroup,
+    )
+    val filterLabel = stringResource(MR.strings.action_filter)
+    val latestLabel = stringResource(MR.strings.latest)
+    val swipeActions = buildList {
+        if (hasDefaultPreset) {
+            add(
+                BrowseItemAction(
+                    label = filterLabel,
+                    icon = Icons.Outlined.FilterList,
+                    background = MaterialTheme.colorScheme.primaryContainer,
+                    onClick = {
+                        onClickItem(source, Listing.Search(query = null, filters = FilterList()))
+                    },
+                ),
+            )
+        }
+        if (source.supportsLatest) {
+            add(
+                BrowseItemAction(
+                    label = latestLabel,
+                    icon = Icons.Outlined.NewReleases,
+                    background = MaterialTheme.colorScheme.secondaryContainer,
+                    onClick = { onClickItem(source, Listing.Latest) },
+                ),
+            )
+        }
+        addAll(pinActions)
+    }
+
     BaseSourceItem(
         modifier = modifier,
         source = source,
         onClickItem = { onClickItem(source, Listing.Popular) },
         onLongClickItem = { onLongClickItem(source) },
-        action = {
-            if (hasDefaultPreset) {
-                IconButton(onClick = { onClickItem(source, Listing.Search(query = null, filters = FilterList())) }) {
-                    Icon(
-                        imageVector = Icons.Outlined.FilterList,
-                        tint = MaterialTheme.colorScheme.primary,
-                        contentDescription = stringResource(MR.strings.action_filter),
-                    )
-                }
-            }
-            if (source.supportsLatest) {
-                TextButton(onClick = { onClickItem(source, Listing.Latest) }) {
-                    Text(
-                        text = stringResource(MR.strings.latest),
-                        style = LocalTextStyle.current.copy(
-                            color = MaterialTheme.colorScheme.primary,
-                        ),
-                    )
-                }
-            }
-            SourcePinButton(
-                source = source,
-                groupSection = groupSection,
-                onClickPin = onClickPin,
-                onLongClickPin = onLongClickPin,
-                onRemoveFromGroup = onRemoveFromGroup,
-            )
-        },
+        swipeActions = swipeActions,
     )
 }
 
 @Composable
-private fun SourcePinButton(
+private fun sourcePinActions(
     source: Source,
     groupSection: String?,
     onClickPin: (Source) -> Unit,
     onLongClickPin: (Source) -> Unit,
     onRemoveFromGroup: (Source, String) -> Unit,
-) {
+): List<BrowseItemAction> {
     val isPinned = Pin.Pinned in source.pin
     val isInGroup = source.pinnedGroups.isNotEmpty()
     val showGroupIcon = groupSection != null || (isInGroup && !isPinned)
 
-    val icon = when {
+    val pinIcon = when {
         showGroupIcon -> Icons.AutoMirrored.Filled.Label
         isPinned -> Icons.Filled.PushPin
         else -> Icons.Outlined.PushPin
     }
-    val tint = when {
-        showGroupIcon -> MaterialTheme.colorScheme.secondary
-        isPinned -> MaterialTheme.colorScheme.primary
-        else -> MaterialTheme.colorScheme.onBackground.copy(alpha = SECONDARY_ALPHA)
-    }
-    val description = when {
-        groupSection != null -> MR.strings.action_remove
-        showGroupIcon -> TDMR.strings.action_pin_groups
-        isPinned -> MR.strings.action_unpin
-        else -> MR.strings.action_pin
-    }
-    // In a group section: remove from that group; grouped elsewhere: open dialog; else: toggle pin.
-    val onClick: () -> Unit = when {
+    val pinLabel = stringResource(
+        when {
+            groupSection != null -> MR.strings.action_remove
+            showGroupIcon -> TDMR.strings.action_pin_groups
+            isPinned -> MR.strings.action_unpin
+            else -> MR.strings.action_pin
+        },
+    )
+    val pinAction = when {
         groupSection != null -> {
             { onRemoveFromGroup(source, groupSection) }
         }
@@ -223,23 +229,25 @@ private fun SourcePinButton(
         }
     }
 
-    Box(
-        modifier = Modifier
-            .minimumInteractiveComponentSize()
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = { onLongClickPin(source) },
-                role = androidx.compose.ui.semantics.Role.Button,
-                interactionSource = remember { MutableInteractionSource() },
-                indication = ripple(bounded = false, radius = 24.dp),
+    return buildList {
+        add(
+            BrowseItemAction(
+                label = pinLabel,
+                icon = pinIcon,
+                background = MaterialTheme.colorScheme.tertiaryContainer,
+                onClick = pinAction,
             ),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = icon,
-            tint = tint,
-            contentDescription = stringResource(description),
         )
+        if (groupSection != null || !showGroupIcon) {
+            add(
+                BrowseItemAction(
+                    label = stringResource(TDMR.strings.action_pin_groups),
+                    icon = Icons.AutoMirrored.Filled.Label,
+                    background = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    onClick = { onLongClickPin(source) },
+                ),
+            )
+        }
     }
 }
 

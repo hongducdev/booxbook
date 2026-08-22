@@ -1,9 +1,7 @@
 package eu.kanade.presentation.browse.components
 
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -24,8 +22,9 @@ fun BaseSourceItem(
     onClickItem: () -> Unit = {},
     onLongClickItem: () -> Unit = {},
     icon: @Composable RowScope.(Source) -> Unit = defaultIcon,
-    action: @Composable RowScope.(Source) -> Unit = {},
-    content: @Composable RowScope.(Source, String?) -> Unit = defaultContent,
+    action: (@Composable RowScope.(Source) -> Unit)? = null,
+    swipeActions: List<BrowseItemAction> = emptyList(),
+    content: (@Composable RowScope.(Source, String?) -> Unit)? = null,
 ) {
     val sourceLangString = LocaleHelper.getSourceDisplayName(source.lang, LocalContext.current).takeIf {
         showLanguageInContent
@@ -35,8 +34,30 @@ fun BaseSourceItem(
         onClickItem = onClickItem,
         onLongClickItem = onLongClickItem,
         icon = { icon.invoke(this, source) },
-        action = { action.invoke(this, source) },
-        content = { content.invoke(this, source, sourceLangString) },
+        action = action?.let {
+            { it.invoke(this, source) }
+        },
+        swipeActions = swipeActions,
+        supportingContent = if (content == null && sourceLangString != null) {
+            {
+                Text(
+                    modifier = Modifier.secondaryItemAlpha(),
+                    text = sourceLangString,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        } else {
+            null
+        },
+        content = {
+            if (content != null) {
+                content.invoke(this, source, sourceLangString)
+            } else {
+                defaultHeadline(source)
+            }
+        },
     )
 }
 
@@ -44,32 +65,14 @@ private val defaultIcon: @Composable RowScope.(Source) -> Unit = { source ->
     SourceIcon(source = source)
 }
 
-private val defaultContent: @Composable RowScope.(Source, String?) -> Unit = { source, sourceLangString ->
-    Column(
-        modifier = Modifier
-            .padding(horizontal = MaterialTheme.padding.medium)
-            .weight(1f),
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = source.name,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.weight(1f, fill = false),
-            )
-            SourceTypeBadge(source = source)
-        }
-        if (sourceLangString != null) {
-            Text(
-                modifier = Modifier.secondaryItemAlpha(),
-                text = sourceLangString,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodySmall,
-            )
-        }
-    }
+@Composable
+private fun RowScope.defaultHeadline(source: Source) {
+    Text(
+        text = source.name,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        style = MaterialTheme.typography.bodyMedium,
+        modifier = Modifier.weight(1f, fill = false),
+    )
+    SourceTypeBadge(source = source)
 }
