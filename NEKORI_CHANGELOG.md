@@ -49,6 +49,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Parallel chunk translation with a shared requests-per-minute ceiling.
 - Background pre-translation of the next chapter.
 - Chapter summaries, on a task-neutral LLM client with Settings → AI as the hub.
+- AI-generated EPUB metadata drafts, using representative book excerpts and a dedicated provider/guidelines task in Settings → AI.
 
 #### Statistics
 - Advanced novel reading insights, reading session tracking and a control to disable it.

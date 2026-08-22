@@ -85,6 +85,13 @@ object SettingsAiScreen : SearchableSettings {
                 guidelines = guidelines,
             ),
             taskGroup(
+                title = stringResource(TDMR.strings.pref_ai_purpose_epub_metadata),
+                providerPreference = prefs.epubMetadataProviderId(),
+                guidelinesPreference = prefs.epubMetadataGuidelinesId(),
+                providers = providers,
+                guidelines = guidelines,
+            ),
+            taskGroup(
                 title = stringResource(TDMR.strings.pref_ai_purpose_translation),
                 providerPreference = prefs.translationProviderId(),
                 guidelinesPreference = prefs.translationGuidelinesId(),

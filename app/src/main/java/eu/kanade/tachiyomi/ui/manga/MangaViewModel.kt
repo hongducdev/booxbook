@@ -37,10 +37,16 @@ import eu.kanade.tachiyomi.data.download.model.Download
 import eu.kanade.tachiyomi.data.epub.EpubExportJob
 import eu.kanade.tachiyomi.data.track.EnhancedTracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
+import eu.kanade.tachiyomi.data.translation.EpubContentExcerpt
+import eu.kanade.tachiyomi.data.translation.EpubMetadataDraft
+import eu.kanade.tachiyomi.data.translation.EpubMetadataGenerationResult
+import eu.kanade.tachiyomi.data.translation.EpubMetadataGenerationService
+import eu.kanade.tachiyomi.data.translation.TranslationHtmlUtils
 import eu.kanade.tachiyomi.data.translation.TranslationJob
 import eu.kanade.tachiyomi.data.translation.TranslationService
 import eu.kanade.tachiyomi.network.interceptor.InteractiveRateLimitBypass
 import eu.kanade.tachiyomi.source.Source
+import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.novel.PagedNovelSource
 import eu.kanade.tachiyomi.source.rateLimitHost
 import eu.kanade.tachiyomi.ui.reader.quote.QuoteManager
@@ -104,6 +110,7 @@ import tachiyomi.domain.translation.repository.TranslatedChapterRepository
 import tachiyomi.domain.translation.service.TranslationPreferences
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.novel.TDMR
+import tachiyomi.source.local.LocalNovelSource
 import tachiyomi.source.local.isLocal
 import tachiyomi.source.local.isLocalNovel
 import uy.kohesive.injekt.Injekt
@@ -146,6 +153,7 @@ class MangaViewModel(
     private val translatedChapterRepository: TranslatedChapterRepository = Injekt.get(),
     private val translationService: TranslationService = Injekt.get(),
     private val translationPreferences: TranslationPreferences = Injekt.get(),
+    private val epubMetadataGenerationService: EpubMetadataGenerationService = Injekt.get(),
     private val getLibraryManga: GetLibraryManga = Injekt.get(),
     private val updateMangaFromRemote: UpdateMangaFromRemote = Injekt.get(),
     private val syncChaptersWithSource: SyncChaptersWithSource = Injekt.get(),
@@ -157,6 +165,8 @@ class MangaViewModel(
         val MANGA_ID_KEY = CreationExtras.Key<Long>()
 
         val IS_FROM_SOURCE_KEY = CreationExtras.Key<Boolean>()
+        private const val MAX_METADATA_EXCERPTS = 5
+        private const val MAX_METADATA_EXCERPT_CHARS = 6_000
 
         val Factory = viewModelFactory {
             initializer {
@@ -195,6 +205,15 @@ class MangaViewModel(
 
     private val skipFiltered by readerPreferences.skipFiltered.asState(viewModelScope)
     val isTranslationEnabled by translationPreferences.translationEnabled().asState(viewModelScope)
+
+    val isEpubMetadataGenerationAvailable: Boolean
+        get() {
+            if (source !is LocalNovelSource) return false
+            if (manga?.url?.substringBefore('#')?.endsWith(".epub", ignoreCase = true) == true) return true
+            return allChapters.orEmpty().any {
+                it.chapter.url.substringBefore('#').endsWith(".epub", ignoreCase = true)
+            }
+        }
 
     val isUpdateIntervalEnabled =
         LibraryPreferences.MANGA_OUTSIDE_RELEASE_PERIOD in libraryPreferences.autoUpdateMangaRestrictions.get()
@@ -1613,6 +1632,51 @@ class MangaViewModel(
         updateSuccessState { it.copy(dialog = Dialog.Edit(manga)) }
     }
 
+    suspend fun generateEpubMetadata(current: EpubMetadataDraft): EpubMetadataGenerationResult {
+        if (!epubMetadataGenerationService.isConfigured()) {
+            return EpubMetadataGenerationResult.Failure(
+                context.stringResource(TDMR.strings.epub_metadata_unconfigured),
+            )
+        }
+        val localSource = source as? LocalNovelSource
+            ?: return EpubMetadataGenerationResult.Failure(
+                context.stringResource(TDMR.strings.epub_metadata_no_content),
+            )
+        val epubChapters = allChapters.orEmpty()
+            .map { it.chapter }
+            .filter { it.url.substringBefore('#').endsWith(".epub", ignoreCase = true) }
+            .representativeMetadataChapters()
+        val mangaUrl = manga?.url.orEmpty()
+        val excerpts = epubChapters.mapNotNull { chapter ->
+            try {
+                val pageUrl = resolveEpubMetadataPageUrl(mangaUrl, chapter.url)
+                val html = localSource.fetchPageText(Page(0, pageUrl))
+                val text = TranslationHtmlUtils.extractTextFromHtml(html).trim()
+                    .take(MAX_METADATA_EXCERPT_CHARS)
+                text.takeIf(String::isNotEmpty)?.let { EpubContentExcerpt(chapter.name, it) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                logcat(LogPriority.WARN, e) { "Failed to read EPUB excerpt for ${chapter.name}" }
+                null
+            }
+        }
+        if (excerpts.isEmpty()) {
+            return EpubMetadataGenerationResult.Failure(
+                context.stringResource(TDMR.strings.epub_metadata_no_content),
+            )
+        }
+        return epubMetadataGenerationService.generate(current, excerpts)
+    }
+
+    private fun List<Chapter>.representativeMetadataChapters(): List<Chapter> {
+        if (size <= MAX_METADATA_EXCERPTS) return this
+        val last = lastIndex
+        return List(MAX_METADATA_EXCERPTS) { index ->
+            this[index * last / (MAX_METADATA_EXCERPTS - 1)]
+        }.distinctBy(Chapter::url)
+    }
+
     fun showClearCustomInfoDialog() {
         updateSuccessState { it.copy(dialog = Dialog.ClearCustomInfo) }
     }
@@ -2000,4 +2064,12 @@ sealed class ChapterList {
         val id = chapter.id
         val isDownloaded = downloadState == Download.State.DOWNLOADED
     }
+}
+
+internal fun resolveEpubMetadataPageUrl(mangaUrl: String, chapterUrl: String): String {
+    if (!mangaUrl.endsWith(".epub", ignoreCase = true)) return chapterUrl
+    return chapterUrl.substringAfter('#', "")
+        .takeIf(String::isNotEmpty)
+        ?.let { "$mangaUrl#$it" }
+        ?: mangaUrl
 }

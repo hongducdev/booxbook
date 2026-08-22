@@ -23,6 +23,7 @@ import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.data.track.source.SourceTrackerDispatcher
 import eu.kanade.tachiyomi.data.translation.AiSettingsStore
 import eu.kanade.tachiyomi.data.translation.ChapterSummaryService
+import eu.kanade.tachiyomi.data.translation.EpubMetadataGenerationService
 import eu.kanade.tachiyomi.data.translation.LlmGenerator
 import eu.kanade.tachiyomi.data.translation.TranslationEngineManager
 import eu.kanade.tachiyomi.data.translation.TranslationService
@@ -163,6 +164,7 @@ class AppModule(val app: Application) : InjektModule {
         addSingletonFactory { AiSettingsStore(get(), get()) }
         addSingletonFactory { LlmGenerator(get(), get()) }
         addSingletonFactory { ChapterSummaryService(get(), get(), get()) }
+        addSingletonFactory { EpubMetadataGenerationService(get(), get(), get(), get()) }
         addSingletonFactory { TranslationEngineManager(get(), get()) }
         addSingletonFactory { TranslationService(app) }
 

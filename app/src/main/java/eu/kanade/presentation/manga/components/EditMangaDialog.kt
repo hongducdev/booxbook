@@ -21,6 +21,7 @@ import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -30,6 +31,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -37,6 +39,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,7 +51,11 @@ import eu.kanade.presentation.components.TabTitle
 import eu.kanade.presentation.components.TabbedDialog
 import eu.kanade.presentation.components.TabbedDialogPaddings
 import eu.kanade.presentation.components.imeAwareDialogProperties
+import eu.kanade.presentation.more.settings.screen.AiIcon
+import eu.kanade.tachiyomi.data.translation.EpubMetadataDraft
+import eu.kanade.tachiyomi.data.translation.EpubMetadataGenerationResult
 import eu.kanade.tachiyomi.source.model.SManga
+import kotlinx.coroutines.launch
 import tachiyomi.domain.manga.model.CustomMangaInfo
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.i18n.MR
@@ -71,6 +78,7 @@ fun EditMangaDialog(
         status: Long,
     ) -> Unit,
     onSwapMainTitle: ((newMainTitle: String, updatedAltTitles: List<String>) -> Unit)? = null,
+    onGenerateMetadata: (suspend (EpubMetadataDraft) -> EpubMetadataGenerationResult)? = null,
 ) {
     var title by remember { mutableStateOf(manga.title) }
     var description by remember { mutableStateOf(manga.description.orEmpty()) }
@@ -81,6 +89,9 @@ fun EditMangaDialog(
     var artist by remember { mutableStateOf(manga.artist.orEmpty()) }
     var status by remember { mutableStateOf(manga.status) }
     var didSwapMainTitle by remember { mutableStateOf(false) }
+    var isGeneratingMetadata by remember { mutableStateOf(false) }
+    var metadataGenerationError by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
 
     val tabTitles = listOf(
         TabTitle.Text(stringResource(MR.strings.pref_category_general)),
@@ -114,6 +125,73 @@ fun EditMangaDialog(
                 0 -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (sourceInfo != null) {
                         SourceValuesSection(sourceInfo, manga)
+                    }
+                    if (onGenerateMetadata != null) {
+                        OutlinedButton(
+                            onClick = {
+                                scope.launch {
+                                    isGeneratingMetadata = true
+                                    metadataGenerationError = null
+                                    val current = EpubMetadataDraft(
+                                        title = title,
+                                        alternativeTitles = altTitles,
+                                        description = description,
+                                        tags = tags,
+                                        author = author,
+                                        artist = artist,
+                                        status = status,
+                                    )
+                                    when (val result = onGenerateMetadata(current)) {
+                                        is EpubMetadataGenerationResult.Success -> {
+                                            val generated = result.metadata
+                                            title = generated.title.ifBlank { title }
+                                            altTitles = generated.alternativeTitles
+                                            description = generated.description
+                                            tags = generated.tags
+                                            author = generated.author
+                                            artist = generated.artist
+                                            status = generated.status
+                                        }
+                                        is EpubMetadataGenerationResult.Failure -> {
+                                            metadataGenerationError = result.message
+                                        }
+                                    }
+                                    isGeneratingMetadata = false
+                                }
+                            },
+                            enabled = !isGeneratingMetadata,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            if (isGeneratingMetadata) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = AiIcon,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
+                            Text(
+                                text = stringResource(
+                                    if (isGeneratingMetadata) {
+                                        TDMR.strings.epub_metadata_generating
+                                    } else {
+                                        TDMR.strings.action_generate_epub_metadata
+                                    },
+                                ),
+                                modifier = Modifier.padding(start = 8.dp),
+                            )
+                        }
+                        metadataGenerationError?.let { message ->
+                            Text(
+                                text = message,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
                     }
                     EditTextField(
                         label = stringResource(MR.strings.title),

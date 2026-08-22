@@ -38,6 +38,10 @@ class TranslationPreferences(
 
     fun chapterSummaryGuidelinesId() = preferenceStore.getString("chapter_summary_ai_guidelines", "")
 
+    fun epubMetadataProviderId() = preferenceStore.getString("epub_metadata_ai_provider", "")
+
+    fun epubMetadataGuidelinesId() = preferenceStore.getString("epub_metadata_ai_guidelines", "")
+
     fun aiProvidersJson() = preferenceStore.getString("translation_ai_providers", "[]")
 
     fun aiProviderApiKey(providerId: String) = preferenceStore.getString(

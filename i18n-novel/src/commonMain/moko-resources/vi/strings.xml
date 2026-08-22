@@ -430,6 +430,7 @@
     <string name="pref_category_ai">Cài đặt AI</string>
     <string name="pref_ai_summary">Nhà cung cấp và chỉ dẫn dùng chung cho mọi tác vụ AI</string>
     <string name="pref_ai_purpose_chapter_summary">Tóm tắt chương</string>
+    <string name="pref_ai_purpose_epub_metadata">Tạo metadata EPUB</string>
     <string name="pref_ai_purpose_translation">Dịch AI</string>
     <string name="pref_ai_provider">Nhà cung cấp</string>
     <string name="action_summarize_chapter">Tóm tắt chương</string>
@@ -439,6 +440,10 @@
     <string name="chapter_summary_cancelled">Đã hủy tóm tắt</string>
     <string name="chapter_summary_unavailable">Không thể tóm tắt ở trang hiện tại</string>
     <string name="action_regenerate">Tạo lại</string>
+    <string name="action_generate_epub_metadata">Tạo bằng AI</string>
+    <string name="epub_metadata_generating">Đang tạo metadata từ nội dung EPUB…</string>
+    <string name="epub_metadata_unconfigured">Hãy cấu hình nhà cung cấp cho metadata EPUB trong Cài đặt > AI trước</string>
+    <string name="epub_metadata_no_content">Không tìm thấy nội dung EPUB có thể đọc</string>
     <string name="chapter_summary_unconfigured">Hãy cấu hình nhà cung cấp AI trong Cài đặt > AI trước</string>
     <string name="pref_ai_resources">Tài nguyên</string>
     <string name="pref_ai_providers">Nhà cung cấp</string>

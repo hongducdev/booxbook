@@ -404,6 +404,8 @@ class MangaScreen(
                     onSwapMainTitle = { newMain, updatedAlts ->
                         viewModel.swapMainTitle(newMain, updatedAlts)
                     },
+                    onGenerateMetadata = viewModel::generateEpubMetadata
+                        .takeIf { viewModel.isEpubMetadataGenerationAvailable },
                 )
             }
             MangaViewModel.Dialog.ClearCustomInfo -> {

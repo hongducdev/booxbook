@@ -439,6 +439,7 @@
     <string name="pref_category_ai">AI Settings</string>
     <string name="pref_ai_summary">Providers and guidelines shared by every AI task</string>
     <string name="pref_ai_purpose_chapter_summary">Chapter summary</string>
+    <string name="pref_ai_purpose_epub_metadata">EPUB metadata generation</string>
     <string name="pref_ai_purpose_translation">AI translation</string>
     <string name="pref_ai_provider">Provider</string>
     <string name="action_summarize_chapter">Summarize chapter</string>
@@ -448,6 +449,10 @@
     <string name="chapter_summary_cancelled">Summary cancelled</string>
     <string name="chapter_summary_unavailable">Chapter summary is unavailable on this page</string>
     <string name="action_regenerate">Regenerate</string>
+    <string name="action_generate_epub_metadata">Generate with AI</string>
+    <string name="epub_metadata_generating">Generating metadata from EPUB content…</string>
+    <string name="epub_metadata_unconfigured">Configure an AI provider for EPUB metadata in Settings > AI first</string>
+    <string name="epub_metadata_no_content">No readable EPUB content was found</string>
     <string name="chapter_summary_unconfigured">Configure an AI provider in Settings > AI first</string>
     <string name="pref_ai_resources">Resources</string>
     <string name="pref_ai_providers">Providers</string>
