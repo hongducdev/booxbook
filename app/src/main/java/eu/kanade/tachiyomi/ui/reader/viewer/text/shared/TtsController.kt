@@ -26,6 +26,7 @@ class TtsController(
     interface Callbacks {
         fun onInitialized(pendingRequest: StartRequest?)
         fun onChunkStarted(chunkIndex: Int, chunk: String, startOffset: Int, paragraphIndex: Int)
+        fun onChunkRange(chunkIndex: Int, focusOffset: Int, paragraphIndex: Int)
         fun onClearHighlights()
         fun onLastChunkDone()
         fun onError(error: Throwable)
@@ -115,6 +116,15 @@ class TtsController(
 
             override fun onDone(utteranceId: String?) {
                 utteranceId?.let(::handleUtteranceDone)
+            }
+
+            override fun onRangeStart(utteranceId: String?, start: Int, end: Int, frame: Int) {
+                val chunkIndex = utteranceId?.chunkIndex() ?: return
+                val paragraphIndex = ttsChunkParagraphIndexes.getOrElse(chunkIndex) { chunkIndex }
+                val focusOffset = ttsChunkStartOffsets.getOrElse(chunkIndex) { 0 } + start
+                callbacks.runOnUiThread {
+                    callbacks.onChunkRange(chunkIndex, focusOffset, paragraphIndex)
+                }
             }
 
             @Deprecated("Deprecated in Java")
@@ -223,19 +233,11 @@ class TtsController(
         ttsChunks = chunks
         ttsChunkParagraphIndexes = chunkParagraphIndexes
 
-        // Compute char offset per chunk so Spannable-based highlight can locate the right occurrence.
-        val offsets = mutableListOf<Int>()
-        var searchFrom = 0
-        for (chunk in ttsChunks) {
-            val idx = text.indexOf(chunk, searchFrom)
-            if (idx >= 0) {
-                offsets.add(idx)
-                searchFrom = idx + chunk.length
-            } else {
-                offsets.add(searchFrom)
-            }
-        }
-        ttsChunkStartOffsets = offsets
+        ttsChunkStartOffsets = TtsTextUtils.computeParagraphChunkOffsets(
+            paragraphs,
+            ttsChunks,
+            ttsChunkParagraphIndexes,
+        )
 
         ttsCurrentChunkIndex = 0
         val startIndex = if (hasViewportStartOverride) {

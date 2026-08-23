@@ -52,6 +52,24 @@ object TtsTextUtils {
         return chunks
     }
 
+    fun computeParagraphChunkOffsets(
+        paragraphs: List<String>,
+        chunks: List<String>,
+        paragraphIndexes: List<Int>,
+    ): List<Int> {
+        val searchOffsets = IntArray(paragraphs.size)
+        return chunks.mapIndexed { chunkIndex, chunk ->
+            val paragraphIndex = paragraphIndexes.getOrElse(chunkIndex) { 0 }
+            val paragraph = paragraphs.getOrElse(paragraphIndex) { "" }
+            val searchFrom = searchOffsets.getOrElse(paragraphIndex) { 0 }
+            val offset = paragraph.indexOf(chunk, searchFrom).takeIf { it >= 0 } ?: searchFrom
+            if (paragraphIndex in searchOffsets.indices) {
+                searchOffsets[paragraphIndex] = (offset + chunk.length).coerceAtMost(paragraph.length)
+            }
+            offset
+        }
+    }
+
     fun getChunkIndexFromOffset(charOffset: Int, ttsChunks: List<String>): Int {
         var currentOffset = 0
         for ((index, chunk) in ttsChunks.withIndex()) {

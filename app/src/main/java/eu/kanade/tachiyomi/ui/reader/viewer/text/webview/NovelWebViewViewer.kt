@@ -541,8 +541,12 @@ class NovelWebViewViewer(val activity: ReaderActivity) : Viewer {
                 }
 
                 override fun onChunkStarted(chunkIndex: Int, chunk: String, startOffset: Int, paragraphIndex: Int) {
-                    applyTtsHighlight(chunkIndex, paragraphIndex, startOffset + chunk.length / 2)
+                    applyTtsHighlight(chunkIndex, paragraphIndex, startOffset)
                     saveTtsProgressForChunk(chunkIndex)
+                }
+
+                override fun onChunkRange(chunkIndex: Int, focusOffset: Int, paragraphIndex: Int) {
+                    applyTtsHighlight(chunkIndex, paragraphIndex, focusOffset)
                 }
 
                 override fun onClearHighlights() {
@@ -654,14 +658,47 @@ class NovelWebViewViewer(val activity: ReaderActivity) : Viewer {
                 state.currentEl = $highlightEnabled ? target : null;
                 if ($keepInView) {
                     var runtime = window.$TSUNDOKU_OBJECT_NAME && window.$TSUNDOKU_OBJECT_NAME.runtime;
-                    var rect = target.getBoundingClientRect();
-                    var targetText = ttsNormalizeText(target.innerText);
-                    // ponytail: offset ratio avoids a second normalized-text-to-DOM walker; use a
-                    // DOM Range mapper if inline-heavy paragraphs prove inaccurate in practice.
-                    var ratio = targetText.length ? Math.min($focusOffset / targetText.length, 1) : 0;
+                    function rectAtNormalizedOffset(element, normalizedOffset) {
+                        var walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+                        var nodes = [];
+                        var rawText = '';
+                        for (var node = walker.nextNode(); node; node = walker.nextNode()) {
+                            if (node.nodeValue) {
+                                nodes.push({ node: node, start: rawText.length });
+                                rawText += node.nodeValue;
+                            }
+                        }
+                        if (!rawText.length) return null;
+
+                        var low = 0;
+                        var high = rawText.length;
+                        while (low < high) {
+                            var middle = Math.floor((low + high) / 2);
+                            if (ttsNormalizeText(rawText.slice(0, middle)).length < normalizedOffset) {
+                                low = middle + 1;
+                            } else {
+                                high = middle;
+                            }
+                        }
+
+                        var rawOffset = Math.min(low, rawText.length - 1);
+                        for (var i = nodes.length - 1; i >= 0; i--) {
+                            if (rawOffset >= nodes[i].start) {
+                                var textNode = nodes[i].node;
+                                var localOffset = Math.min(rawOffset - nodes[i].start, textNode.nodeValue.length - 1);
+                                var range = document.createRange();
+                                range.setStart(textNode, localOffset);
+                                range.setEnd(textNode, localOffset + 1);
+                                var rects = range.getClientRects();
+                                return rects.length ? rects[0] : null;
+                            }
+                        }
+                        return null;
+                    }
+                    var rect = rectAtNormalizedOffset(target, $focusOffset) || target.getBoundingClientRect();
                     var absolutePosition = runtime && runtime.paginated
-                        ? rect.left + window.scrollX + rect.width * ratio
-                        : rect.top + window.scrollY + rect.height * ratio;
+                        ? rect.left + window.scrollX
+                        : rect.top + window.scrollY;
                     if (!runtime || !runtime.revealPageAt || !runtime.revealPageAt(absolutePosition)) {
                         target.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
                     }

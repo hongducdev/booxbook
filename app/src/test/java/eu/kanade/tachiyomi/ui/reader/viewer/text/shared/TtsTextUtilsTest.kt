@@ -7,6 +7,17 @@ import org.junit.jupiter.api.Test
 class TtsTextUtilsTest {
 
     @Test
+    fun `chunk offsets are local to their paragraph`() {
+        val paragraphs = listOf("First paragraph", "Second paragraph split here")
+        val chunks = listOf("First paragraph", "Second paragraph", "split here")
+
+        assertEquals(
+            listOf(0, 0, 17),
+            TtsTextUtils.computeParagraphChunkOffsets(paragraphs, chunks, listOf(0, 1, 1)),
+        )
+    }
+
+    @Test
     fun `normalizeText matches LNReader punctuation and whitespace handling`() {
         assertEquals(
             "Hello, world! Next",
