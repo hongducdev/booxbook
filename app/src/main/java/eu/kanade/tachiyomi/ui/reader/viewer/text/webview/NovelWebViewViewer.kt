@@ -396,8 +396,13 @@ class NovelWebViewViewer(val activity: ReaderActivity) : Viewer {
     // Current DOM is an error placeholder, so there is no valid base to append the next chapter onto.
     private val webChapterIsError get() = docState == DocState.ERROR
 
+    private fun isPaginatedReadingEnabled(): Boolean = preferences.novelPagedReading.get() && !isVideoChapter()
+
     internal fun isInfiniteScrollEnabled(): Boolean =
-        preferences.novelInfiniteScroll.get() && pluginAllowsInfiniteScroll && !currentDocumentNoPrefetch
+        !isPaginatedReadingEnabled() &&
+            preferences.novelInfiniteScroll.get() &&
+            pluginAllowsInfiniteScroll &&
+            !currentDocumentNoPrefetch
 
     private fun isVideoChapter(): Boolean = currentDocumentIsVideo
 
@@ -535,8 +540,8 @@ class NovelWebViewViewer(val activity: ReaderActivity) : Viewer {
                     }
                 }
 
-                override fun onHighlightChunk(chunkIndex: Int, chunk: String, startOffset: Int, paragraphIndex: Int) {
-                    applyTtsHighlight(chunkIndex, paragraphIndex)
+                override fun onChunkStarted(chunkIndex: Int, chunk: String, startOffset: Int, paragraphIndex: Int) {
+                    applyTtsHighlight(chunkIndex, paragraphIndex, startOffset + chunk.length / 2)
                     saveTtsProgressForChunk(chunkIndex)
                 }
 
@@ -592,19 +597,20 @@ class NovelWebViewViewer(val activity: ReaderActivity) : Viewer {
         }
     }
 
-    private fun applyTtsHighlight(chunkIndex: Int, paragraphIndex: Int) {
+    private fun applyTtsHighlight(chunkIndex: Int, paragraphIndex: Int, focusOffset: Int) {
         if (chunkIndex < 0 || chunkIndex >= ttsController.ttsChunks.size) return
 
         val highlightColor = ThemeUtils.colorToHex(preferences.novelTtsHighlightColor.get())
         val highlightTextColor = ThemeUtils.colorToHex(preferences.novelTtsHighlightTextColor.get())
         val highlightStyle = quoteForJson(preferences.novelTtsHighlightStyle.get())
+        val highlightEnabled = preferences.novelTtsEnableHighlight.get()
         val keepInView = preferences.novelTtsKeepHighlightInView.get()
         val chapterId = ttsController.ttsPlaybackChapterId
 
         val jsCode = """
             (function() {
                 var state = window.__tdTtsState || (window.__tdTtsState = {});
-                if (!state.styleEl) {
+                if ($highlightEnabled && !state.styleEl) {
                     state.styleEl = document.createElement('style');
                     state.styleEl.id = 'td-tts-highlight-style';
                     state.styleEl.textContent =
@@ -634,18 +640,31 @@ class NovelWebViewViewer(val activity: ReaderActivity) : Viewer {
                     return;
                 }
 
-                var style = $highlightStyle;
-                if (style === 'underline') {
-                    target.classList.add('td-tts-highlight-underline');
-                } else if (style === 'outline') {
-                    target.classList.add('td-tts-highlight-outline');
-                } else {
-                    target.classList.add('td-tts-highlight-bg');
+                if ($highlightEnabled) {
+                    var style = $highlightStyle;
+                    if (style === 'underline') {
+                        target.classList.add('td-tts-highlight-underline');
+                    } else if (style === 'outline') {
+                        target.classList.add('td-tts-highlight-outline');
+                    } else {
+                        target.classList.add('td-tts-highlight-bg');
+                    }
                 }
 
-                state.currentEl = target;
+                state.currentEl = $highlightEnabled ? target : null;
                 if ($keepInView) {
-                    target.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+                    var runtime = window.$TSUNDOKU_OBJECT_NAME && window.$TSUNDOKU_OBJECT_NAME.runtime;
+                    var rect = target.getBoundingClientRect();
+                    var targetText = ttsNormalizeText(target.innerText);
+                    // ponytail: offset ratio avoids a second normalized-text-to-DOM walker; use a
+                    // DOM Range mapper if inline-heavy paragraphs prove inaccurate in practice.
+                    var ratio = targetText.length ? Math.min($focusOffset / targetText.length, 1) : 0;
+                    var absolutePosition = runtime && runtime.paginated
+                        ? rect.left + window.scrollX + rect.width * ratio
+                        : rect.top + window.scrollY + rect.height * ratio;
+                    if (!runtime || !runtime.revealPageAt || !runtime.revealPageAt(absolutePosition)) {
+                        target.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
+                    }
                 }
             })();
         """.trimIndent()
@@ -1150,13 +1169,23 @@ class NovelWebViewViewer(val activity: ReaderActivity) : Viewer {
                 (function() {
                     var target = $progress;
                     var token = $token;
+                    function paginated() {
+                        var runtime = window.$TSUNDOKU_OBJECT_NAME && window.$TSUNDOKU_OBJECT_NAME.runtime;
+                        return !!(runtime && runtime.paginated);
+                    }
                     function range() {
+                        if (paginated()) {
+                            var docWidth = Math.max(
+                                document.documentElement.scrollWidth,
+                                document.body ? document.body.scrollWidth : 0
+                            );
+                            return docWidth - (window.innerWidth || document.documentElement.clientWidth);
+                        }
                         var docHeight = Math.max(
                             document.documentElement.scrollHeight,
                             document.body ? document.body.scrollHeight : 0
                         );
-                        var viewport = window.innerHeight || document.documentElement.clientHeight;
-                        return docHeight - viewport;
+                        return docHeight - (window.innerHeight || document.documentElement.clientHeight);
                     }
                     function done() {
                         if (window.Android && window.Android.onScrollRestoreComplete) {
@@ -1165,7 +1194,15 @@ class NovelWebViewViewer(val activity: ReaderActivity) : Viewer {
                     }
                     function apply() {
                         var r = range();
-                        if (r > 0) { window.scrollTo(0, r * target); return true; }
+                        if (r > 0) {
+                            if (paginated()) {
+                                var pageWidth = window.innerWidth || document.documentElement.clientWidth;
+                                window.scrollTo(Math.min(Math.round(r * target / pageWidth) * pageWidth, r), 0);
+                            } else {
+                                window.scrollTo(0, r * target);
+                            }
+                            return true;
+                        }
                         return false;
                     }
                     if (apply()) {
@@ -1324,7 +1361,7 @@ class NovelWebViewViewer(val activity: ReaderActivity) : Viewer {
             activity.onNovelProgressChanged(lastSavedProgress)
         } else {
             if (isInfiniteScrollEnabled()) styler.injectScopedChapterAnchors()
-            styler.injectScrollTracking(isInfiniteScrollEnabled())
+            styler.injectScrollTracking(isInfiniteScrollEnabled(), isPaginatedReadingEnabled())
             styler.injectReaderUi()
             restoreScrollPosition()
             syncShortChapterProgressIfNeeded()
@@ -1419,12 +1456,19 @@ class NovelWebViewViewer(val activity: ReaderActivity) : Viewer {
             """
             (function() {
                 function checkIfShortChapter() {
+                    var runtime = window.$TSUNDOKU_OBJECT_NAME && window.$TSUNDOKU_OBJECT_NAME.runtime;
+                    if (runtime && runtime.paginated) {
+                        var docWidth = Math.max(
+                            document.documentElement.scrollWidth,
+                            document.body ? document.body.scrollWidth : 0
+                        );
+                        return docWidth - (window.innerWidth || document.documentElement.clientWidth) <= 0;
+                    }
                     var docHeight = Math.max(
                         document.documentElement.scrollHeight,
                         document.body ? document.body.scrollHeight : 0
                     );
-                    var viewport = window.innerHeight || document.documentElement.clientHeight;
-                    return docHeight - viewport <= 0;
+                    return docHeight - (window.innerHeight || document.documentElement.clientHeight) <= 0;
                 }
                 var called = false;
                 function tryMarkShort() {
@@ -1843,6 +1887,7 @@ class NovelWebViewViewer(val activity: ReaderActivity) : Viewer {
             tsundokuScript = buildTsundokuScript(),
             pluginJavaScript = styler.initialPluginJavaScript(),
             infiniteScrollEnabled = isInfiniteScrollEnabled(),
+            paginated = isPaginatedReadingEnabled(),
             blockMedia = preferences.novelBlockMedia.get(),
             compatConfigJson = buildCompatConfig(chapter).encode(),
             chapterDirectives = directives,
@@ -2380,20 +2425,16 @@ class NovelWebViewViewer(val activity: ReaderActivity) : Viewer {
             }
             KeyEvent.KEYCODE_SPACE -> {
                 if (!isUp) {
-                    if (event.isShiftPressed) {
-                        webView.pageUp(false)
-                    } else {
-                        webView.pageDown(false)
-                    }
+                    pageScrollBy(if (event.isShiftPressed) -1 else 1)
                 }
                 return true
             }
             KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_PAGE_UP -> {
-                if (!isUp) webView.pageUp(false)
+                if (!isUp) pageScrollBy(-1)
                 return true
             }
             KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_PAGE_DOWN -> {
-                if (!isUp) webView.pageDown(false)
+                if (!isUp) pageScrollBy(1)
                 return true
             }
         }
@@ -2448,6 +2489,21 @@ class NovelWebViewViewer(val activity: ReaderActivity) : Viewer {
                     """
                     (function() {
                         var target = $restoreRatio;
+                        var runtime = window.$TSUNDOKU_OBJECT_NAME && window.$TSUNDOKU_OBJECT_NAME.runtime;
+                        if (runtime && runtime.paginated) {
+                            var viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+                            var docWidth = Math.max(
+                                document.documentElement.scrollWidth,
+                                document.body ? document.body.scrollWidth : 0
+                            );
+                            var horizontalRange = Math.max(docWidth - viewportWidth, 0);
+                            var page = Math.min(
+                                Math.round(horizontalRange * target / viewportWidth) * viewportWidth,
+                                horizontalRange
+                            );
+                            window.scrollTo(page, 0);
+                            return;
+                        }
                         var docHeight = Math.max(
                             document.documentElement.scrollHeight,
                             document.body ? document.body.scrollHeight : 0
@@ -3180,23 +3236,28 @@ class NovelWebViewViewer(val activity: ReaderActivity) : Viewer {
         webView.scrollTo(0, 0)
     }
 
-    /**
-     * Scroll by [fraction] of the viewport in [direction] (+1 down, -1 up). Uses window.innerHeight
-     * (CSS pixels) rather than container.height (device pixels): window.scrollBy expects CSS pixels,
-     * so passing device pixels overshoots by devicePixelRatio and skips content between taps.
-     */
-    private fun pageScrollBy(direction: Int, fraction: Double = 0.75) {
-        val sign = if (direction < 0) "-" else ""
+    /** Turns a viewport-aligned page, falling through to chapter navigation at the document edge. */
+    private fun pageScrollBy(direction: Int, fraction: Double = 1.0) {
+        val effectiveFraction = if (isPaginatedReadingEnabled()) 1.0 else fraction
         evaluateJavascriptSafe(
-            "window.scrollBy({ top: $sign(window.innerHeight * $fraction), behavior: 'smooth' });",
-        )
+            "(function(){var r=window.$TSUNDOKU_OBJECT_NAME&&window.$TSUNDOKU_OBJECT_NAME.runtime;" +
+                "return !r||!r.turnPage?true:r.turnPage($direction,$effectiveFraction);})();",
+        ) { moved ->
+            if (moved != "false") return@evaluateJavascriptSafe
+            if (direction < 0) activity.loadPreviousChapter() else activity.loadNextChapter()
+        }
     }
 
     fun toggleAutoScroll() {
+        if (isPaginatedReadingEnabled()) {
+            stopAutoScroll()
+            return
+        }
         if (isAutoScrolling) stopAutoScroll() else startAutoScroll()
     }
 
     private fun startAutoScroll() {
+        if (isPaginatedReadingEnabled()) return
         isAutoScrolling = true
         autoScrollStartAttempt = 0
         issueAutoScrollStart(++autoScrollSession)
@@ -3301,6 +3362,19 @@ class NovelWebViewViewer(val activity: ReaderActivity) : Viewer {
             """
             (function() {
                 var frac = $progress / 100;
+                var runtime = window.$TSUNDOKU_OBJECT_NAME && window.$TSUNDOKU_OBJECT_NAME.runtime;
+                if (runtime && runtime.paginated) {
+                    var viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+                    var docWidth = Math.max(
+                        document.documentElement.scrollWidth,
+                        document.body ? document.body.scrollWidth : 0
+                    );
+                    var range = Math.max(docWidth - viewportWidth, 0);
+                    var target = Math.min(Math.round(range * frac / viewportWidth) * viewportWidth, range);
+                    window.scrollTo({ left: target, top: 0, behavior: 'instant' });
+                    window.dispatchEvent(new Event('scroll'));
+                    return;
+                }
                 var viewport = window.innerHeight || document.documentElement.clientHeight;
                 var boundaries = window.chapterBoundaries || [];
                 if (boundaries.length > 1) {
@@ -3519,10 +3593,14 @@ class NovelWebViewViewer(val activity: ReaderActivity) : Viewer {
                 var elements = root ? ttsReadableElements(root).filter(function(element) {
                     return !!ttsNormalizeText(element.innerText);
                 }) : [];
-                var viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+                var runtime = window.$TSUNDOKU_OBJECT_NAME && window.$TSUNDOKU_OBJECT_NAME.runtime;
+                var paginated = !!(runtime && runtime.paginated);
+                var viewport = paginated
+                    ? (window.innerWidth || document.documentElement.clientWidth)
+                    : (window.innerHeight || document.documentElement.clientHeight);
                 for (var i = 0; i < elements.length; i++) {
                     var rect = elements[i].getBoundingClientRect();
-                    if (rect.bottom > 0 && rect.top < viewportHeight) {
+                    if (paginated ? (rect.right > 0 && rect.left < viewport) : (rect.bottom > 0 && rect.top < viewport)) {
                         return i;
                     }
                 }

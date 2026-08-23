@@ -199,6 +199,8 @@ class ReaderPreferences(
     // Applied to chapter HTML content before rendering in both WebView and TextView modes
     val novelRegexReplacements: Preference<String> = preferenceStore.getString("pref_novel_regex_replacements", "[]")
 
+    val novelPagedReading: Preference<Boolean> = preferenceStore.getBoolean("pref_novel_paged_reading", true)
+
     // Infinite scroll - automatically load next/previous chapters
     val novelInfiniteScroll: Preference<Boolean> = preferenceStore.getBoolean("pref_novel_infinite_scroll", false)
 

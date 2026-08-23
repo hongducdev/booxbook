@@ -677,17 +677,25 @@ internal fun ColumnScope.NovelControlsTab(screenModel: ReaderSettingsViewModel) 
         }
     }
 
-    // Infinite Scroll
-    val infiniteScrollEnabled by screenModel.preferences.novelInfiniteScroll.collectAsState()
+    val pagedReadingEnabled by screenModel.preferences.novelPagedReading.collectAsState()
     ReaderSwitchItem(
-        label = stringResource(TDMR.strings.pref_novel_infinite_scroll),
-        checked = infiniteScrollEnabled,
-        onCheckedChange = screenModel.preferences.novelInfiniteScroll::set,
+        label = stringResource(TDMR.strings.pref_novel_paged_reading),
+        pref = screenModel.preferences.novelPagedReading,
     )
+
+    // Infinite scroll and pagination require opposite document layouts.
+    val infiniteScrollEnabled by screenModel.preferences.novelInfiniteScroll.collectAsState()
+    if (!pagedReadingEnabled) {
+        ReaderSwitchItem(
+            label = stringResource(TDMR.strings.pref_novel_infinite_scroll),
+            checked = infiniteScrollEnabled,
+            onCheckedChange = screenModel.preferences.novelInfiniteScroll::set,
+        )
+    }
 
     // Auto-load next chapter at percentage (only relevant when infinite scroll is enabled)
     val autoLoadAt by screenModel.preferences.novelAutoLoadNextChapterAt.collectAsState()
-    if (infiniteScrollEnabled) {
+    if (!pagedReadingEnabled && infiniteScrollEnabled) {
         SliderItem(
             label = stringResource(TDMR.strings.pref_novel_auto_load_next_at),
             value = autoLoadAt,

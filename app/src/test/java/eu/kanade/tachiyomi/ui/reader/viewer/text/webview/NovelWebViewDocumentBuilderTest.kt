@@ -20,6 +20,7 @@ class NovelWebViewDocumentBuilderTest {
         css: String = "body { color: black; }",
         infiniteScrollEnabled: Boolean = false,
         blockMedia: Boolean = false,
+        paginated: Boolean = false,
     ) = NovelWebViewDocumentBuilder.DocumentInput(
         processed = ProcessedContent(text = text, isPlainText = isPlainText, chapterUrl = null),
         chapter = null,
@@ -33,6 +34,7 @@ class NovelWebViewDocumentBuilderTest {
         pluginJavaScript = "",
         infiniteScrollEnabled = infiniteScrollEnabled,
         blockMedia = blockMedia,
+        paginated = paginated,
     )
 
     // ── escapeForStyleTag ──────────────────────────────────────────────────
@@ -100,6 +102,14 @@ class NovelWebViewDocumentBuilderTest {
         assertTrue(html.contains("<body"))
         assertTrue(html.contains("</body>"))
         assertTrue(html.contains("</html>"))
+    }
+
+    @Test
+    fun `assemble marks document for paginated layout`() {
+        val document = Jsoup.parse(NovelWebViewDocumentBuilder.assemble(minimalInput(paginated = true)))
+
+        assertTrue(document.selectFirst("html")!!.hasClass(NovelWebViewDocumentBuilder.PAGINATED_CLASS))
+        assertTrue(document.body().hasClass(NovelWebViewDocumentBuilder.PAGINATED_CLASS))
     }
 
     @Test

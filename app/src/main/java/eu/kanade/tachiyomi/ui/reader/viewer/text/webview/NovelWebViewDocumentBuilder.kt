@@ -30,6 +30,7 @@ internal object NovelWebViewDocumentBuilder {
         val pluginJavaScript: String,
         val infiniteScrollEnabled: Boolean,
         val blockMedia: Boolean,
+        val paginated: Boolean = false,
         val compatConfigJson: String = "{}",
         val chapterDirectives: NovelWebViewChapterDirectives = NovelWebViewChapterDirectives(),
     )
@@ -137,7 +138,7 @@ internal object NovelWebViewDocumentBuilder {
         }
         return """
             <!DOCTYPE html>
-            <html lang="${readerLanguageTag().htmlAttributeEscape()}">
+            <html lang="${readerLanguageTag().htmlAttributeEscape()}" class="${if (input.paginated) PAGINATED_CLASS else ""}">
             <head>
                 <meta charset="UTF-8">
                 <meta id="tsundoku-viewport" name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
@@ -154,7 +155,10 @@ internal object NovelWebViewDocumentBuilder {
                 <script src="$ASSET_ROOT/reader-gestures.js"></script>
                 ${input.chapterDirectives.metadataHtml}
             </head>
-            <body class="${input.style.bodyClasses}">
+            <body class="${listOf(
+            input.style.bodyClasses,
+            if (input.paginated) PAGINATED_CLASS else "",
+        ).filter(String::isNotBlank).joinToString(" ")}">
                 <div id="LNReader-chapter">
                     $chapterContent
                 </div>
@@ -237,6 +241,7 @@ internal object NovelWebViewDocumentBuilder {
         replace(Regex("</script>", RegexOption.IGNORE_CASE)) { "<\\/" + it.value.substring(2) }
 
     const val PLAIN_TEXT_CLASS = "tsundoku-plain-text"
+    const val PAGINATED_CLASS = "tsundoku-paginated"
     const val ATTR_DATA_PLAIN_TEXT = "data-tsundoku-plain-text"
     private const val ASSET_ROOT = "https://tsundoku.reader/assets"
 }

@@ -41,11 +41,9 @@ internal class NovelWebViewStyler(
     )
 
     fun applyScrollbarSettings(target: WebView = webView) {
-        target.isVerticalScrollBarEnabled = preferences.novelShowProgressSlider.get()
+        target.isVerticalScrollBarEnabled = false
         target.isHorizontalScrollBarEnabled = false
-        target.scrollBarStyle = View.SCROLLBARS_INSIDE_OVERLAY
-        target.isScrollbarFadingEnabled = true
-        target.overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
+        target.overScrollMode = View.OVER_SCROLL_NEVER
         target.layoutDirection = View.LAYOUT_DIRECTION_LTR
     }
 
@@ -320,7 +318,7 @@ internal class NovelWebViewStyler(
         )
     }
 
-    fun injectScrollTracking(infiniteScrollEnabled: Boolean) {
+    fun injectScrollTracking(infiniteScrollEnabled: Boolean, paginated: Boolean) {
         // 0 is a real setting, not "unset": it appends the next chapter the moment the current one
         // becomes the last loaded, keeping exactly one chapter ready ahead of the reader.
         val effectiveThreshold = preferences.novelAutoLoadNextChapterAt.get().coerceIn(0, 100) / 100.0
@@ -332,6 +330,7 @@ internal class NovelWebViewStyler(
                 "CHAPTER_DIVIDER_CLASS" to CHAPTER_DIVIDER_CLASS,
                 "CHAPTER_ID_ATTR" to CHAPTER_ID_ATTR,
                 "INFINITE_SCROLL_ENABLED" to infiniteScrollEnabled.toString(),
+                "PAGINATED_ENABLED" to paginated.toString(),
                 "LOAD_THRESHOLD" to effectiveThreshold.toString(),
                 "DONE_THRESHOLD" to NovelProgress.DONE_THRESHOLD.toString(),
                 "PROGRESS_EVENT" to NovelWebViewChapterMeta.EVENT_PROGRESS,
