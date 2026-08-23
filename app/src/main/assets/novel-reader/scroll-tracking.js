@@ -81,15 +81,16 @@
     var pageEndSpacer = null;
     function updatePageEndSpacer() {
         if (!paginated || !document.body) return;
+        var chapter = document.getElementById('LNReader-chapter');
+        if (!chapter) return;
         if (!pageEndSpacer) {
             pageEndSpacer = document.createElement('div');
             pageEndSpacer.setAttribute('aria-hidden', 'true');
             pageEndSpacer.style.cssText = 'position:absolute;top:0;height:1px;width:var(--reader-margin-right);pointer-events:none;';
             document.body.appendChild(pageEndSpacer);
         }
-        pageEndSpacer.style.display = 'none';
-        pageEndSpacer.style.left = documentExtent() + 'px';
-        pageEndSpacer.style.display = 'block';
+        var left = chapter.scrollWidth + 'px';
+        if (pageEndSpacer.style.left !== left) pageEndSpacer.style.left = left;
     }
 
     function scrollToPosition(value, behavior) {
