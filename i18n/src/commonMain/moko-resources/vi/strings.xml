@@ -493,6 +493,7 @@
     <string name="theme_greenapple">Táo Xanh</string>
     <string name="theme_monet">Động</string>
     <string name="pref_app_theme">Chủ đề ứng dụng</string>
+    <string name="pref_catppuccin_primary_color">Màu chính Catppuccin</string>
     <string name="action_start_downloading_now">Bắt đầu tải xuống ngay</string>
     <string name="theme_midnightdusk">Hoàng Hôn Giữa Đêm</string>
     <string name="theme_strawberrydaiquiri">Daiquiri Dâu Tây</string>

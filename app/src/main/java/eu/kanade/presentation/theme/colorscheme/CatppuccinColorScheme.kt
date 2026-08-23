@@ -3,6 +3,8 @@ package eu.kanade.presentation.theme.colorscheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import eu.kanade.domain.ui.CatppuccinColor
 
 /**
  * Colors for Catppuccin theme
@@ -24,6 +26,39 @@ import androidx.compose.ui.graphics.Color
  * Neutral #E6E9EF
  */
 internal object CatppuccinColorScheme : BaseColorScheme() {
+
+    fun getColorScheme(
+        isDark: Boolean,
+        isAmoled: Boolean,
+        primaryColor: CatppuccinColor,
+    ) = super.getColorScheme(
+        isDark = isDark,
+        isAmoled = isAmoled,
+        overrideDarkSurfaceContainers = true,
+    ).let { scheme ->
+        val primary = Color(if (isDark) primaryColor.mocha else primaryColor.latte)
+        val onPrimary = maxContrastForeground(primary)
+        scheme.copy(
+            primary = primary,
+            onPrimary = onPrimary,
+            primaryContainer = primary,
+            onPrimaryContainer = onPrimary,
+            secondaryContainer = primary,
+            onSecondaryContainer = onPrimary,
+        )
+    }
+
+    private fun maxContrastForeground(background: Color): Color {
+        val dark = Color.Black
+        val light = Color.White
+        return if (contrastRatio(background, dark) >= contrastRatio(background, light)) dark else light
+    }
+
+    private fun contrastRatio(first: Color, second: Color): Float {
+        val lighter = maxOf(first.luminance(), second.luminance())
+        val darker = minOf(first.luminance(), second.luminance())
+        return (lighter + 0.05f) / (darker + 0.05f)
+    }
 
     override val darkScheme = darkColorScheme(
         primary = Color(0xFFCBA6F7),

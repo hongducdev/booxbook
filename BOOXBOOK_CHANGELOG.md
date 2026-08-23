@@ -16,6 +16,14 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ## [Unreleased]
 
+### Added
+
+#### Appearance
+- Catppuccin themes can use any accent color from the Latte palette in light mode and the matching Mocha color in dark mode.
+
+#### Navigation
+- Mobile navigation uses a centered floating toolbar over a bounded surface gradient.
+
 ## [0.0.2] - 2026-08-23
 
 ### Added
