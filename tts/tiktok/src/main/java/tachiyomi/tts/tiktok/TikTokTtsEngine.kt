@@ -30,6 +30,7 @@ class TikTokTtsEngine internal constructor(
 
     interface Listener {
         fun onStart(utteranceId: String)
+        fun onProgress(utteranceId: String, progress: Float)
         fun onDone(utteranceId: String)
         fun onError(utteranceId: String, error: Throwable)
     }
@@ -363,9 +364,13 @@ class TikTokTtsEngine internal constructor(
 
     private fun playAudio(pending: PendingPlayback, audio: ByteArray) {
         val created = runCatching {
-            playerFactory.create(audio, pending.rate, pending.pitch) {
-                callbackExecutor.execute { finishPlayback(pending) }
-            }
+            playerFactory.create(
+                audio,
+                pending.rate,
+                pending.pitch,
+                { progress -> callbackExecutor.execute { notifyPlaybackProgress(pending, progress) } },
+                { callbackExecutor.execute { finishPlayback(pending) } },
+            )
         }.getOrElse { error ->
             val active = synchronized(lock) {
                 (pendingPlayback?.serial == pending.serial).also { current ->
@@ -404,6 +409,13 @@ class TikTokTtsEngine internal constructor(
         if (error !is TransportException) {
             pending.listener.onDone(pending.utteranceId)
         }
+    }
+
+    private fun notifyPlaybackProgress(pending: PendingPlayback, progress: Float) {
+        val active = synchronized(lock) {
+            pendingPlayback?.serial == pending.serial && !paused && !closed
+        }
+        if (active) pending.listener.onProgress(pending.utteranceId, progress.coerceIn(0f, 1f))
     }
 
     private fun finishPlayback(pending: PendingPlayback) {

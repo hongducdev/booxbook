@@ -33,7 +33,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Paged and volume novel navigation.
 - Novel chapters can be fragmented into fixed-height horizontal pages; tap zones turn those pages continuously across chapter boundaries, and TTS follows its active page.
 - Paginated reader page turns use a stable fade transition, keep their text layout unchanged under reader overlays, and hide native scrollbars.
-- TTS page following tracks the spoken character range, so a paragraph split across pages stays on the first page until speech reaches the second.
+- TTS page following tracks Android word ranges and TikTok audio progress, so split paragraphs change page only when speech reaches the next page.
 - Native find in page, chapter drawer, and a font preview in settings.
 - LNReader web interactions and loading skeleton.
 - Fullscreen embedded video, later moved onto a bundled Video.js v10 with DASH and Widevine support.

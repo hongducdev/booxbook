@@ -40,6 +40,17 @@ class TtsController(
     private val tikTokListener = object : TikTokTtsEngine.Listener {
         override fun onStart(utteranceId: String) = handleUtteranceStart(utteranceId)
 
+        override fun onProgress(utteranceId: String, progress: Float) {
+            val chunkIndex = utteranceId.chunkIndex() ?: return
+            val chunk = ttsChunks.getOrNull(chunkIndex) ?: return
+            val paragraphIndex = ttsChunkParagraphIndexes.getOrElse(chunkIndex) { chunkIndex }
+            val chunkOffset = (chunk.length * progress).roundToInt().coerceIn(0, chunk.lastIndex.coerceAtLeast(0))
+            val focusOffset = ttsChunkStartOffsets.getOrElse(chunkIndex) { 0 } + chunkOffset
+            callbacks.runOnUiThread {
+                callbacks.onChunkRange(chunkIndex, focusOffset, paragraphIndex)
+            }
+        }
+
         override fun onDone(utteranceId: String) = handleUtteranceDone(utteranceId)
 
         override fun onError(utteranceId: String, error: Throwable) {

@@ -7,7 +7,7 @@ import android.media.PlaybackParams
 import kotlin.math.max
 
 internal fun interface PcmPlayerFactory {
-    fun create(data: ByteArray, rate: Float, pitch: Float, onDone: () -> Unit): PcmPlayer
+    fun create(data: ByteArray, rate: Float, pitch: Float, onProgress: (Float) -> Unit, onDone: () -> Unit): PcmPlayer
 }
 
 internal interface PcmPlayer {
@@ -22,9 +22,11 @@ internal class AudioTrackPcmPlayer(
     data: ByteArray,
     rate: Float,
     pitch: Float,
+    private val onProgress: (Float) -> Unit,
     private val onDone: () -> Unit,
 ) : PcmPlayer {
     private var released = false
+    private val totalFrames = data.size / PCM_BYTES_PER_FRAME
     private val track = AudioTrack.Builder()
         .setAudioAttributes(
             AudioAttributes.Builder()
@@ -52,13 +54,18 @@ internal class AudioTrackPcmPlayer(
                     .setPitch(pitch.coerceIn(MIN_PLAYBACK_VALUE, MAX_PLAYBACK_VALUE))
             }
             track.setNotificationMarkerPosition(data.size / PCM_BYTES_PER_FRAME)
+            track.positionNotificationPeriod = TikTokProtocol.SAMPLE_RATE / PROGRESS_UPDATES_PER_SECOND
             track.setPlaybackPositionUpdateListener(object : AudioTrack.OnPlaybackPositionUpdateListener {
                 override fun onMarkerReached(track: AudioTrack) {
                     release()
                     onDone()
                 }
 
-                override fun onPeriodicNotification(track: AudioTrack) = Unit
+                override fun onPeriodicNotification(track: AudioTrack) {
+                    if (!released && totalFrames > 0) {
+                        onProgress((track.playbackHeadPosition.toFloat() / totalFrames).coerceIn(0f, 1f))
+                    }
+                }
             })
         } catch (error: Throwable) {
             track.release()
@@ -89,6 +96,7 @@ internal class AudioTrackPcmPlayer(
 
     companion object {
         private const val PCM_BYTES_PER_FRAME = 2
+        private const val PROGRESS_UPDATES_PER_SECOND = 4
         private const val MIN_PLAYBACK_VALUE = 0.5f
         private const val MAX_PLAYBACK_VALUE = 6f
 

@@ -25,6 +25,8 @@ class TikTokTtsEngineTest {
 
         assertEquals(listOf("u1"), fixture.started)
         assertEquals(byteArrayOf(1, 2, 3, 4).toList(), fixture.players.single().data.toList())
+        fixture.players.single().progress(0.5f)
+        assertEquals(listOf("u1" to 0.5f), fixture.progress)
         fixture.players.single().finish()
         assertEquals(listOf("u1"), fixture.done)
         fixture.close()
@@ -121,6 +123,7 @@ class TikTokTtsEngineTest {
         val players = CopyOnWriteArrayList<FakePlayer>()
         val started = CopyOnWriteArrayList<String>()
         val done = CopyOnWriteArrayList<String>()
+        val progress = CopyOnWriteArrayList<Pair<String, Float>>()
         val errors = CopyOnWriteArrayList<Pair<String, Throwable>>()
         val listener = object : TikTokTtsEngine.Listener {
             override fun onStart(utteranceId: String) {
@@ -129,6 +132,10 @@ class TikTokTtsEngineTest {
 
             override fun onDone(utteranceId: String) {
                 done += utteranceId
+            }
+
+            override fun onProgress(utteranceId: String, progress: Float) {
+                this@Fixture.progress += utteranceId to progress
             }
 
             override fun onError(utteranceId: String, error: Throwable) {
@@ -141,8 +148,8 @@ class TikTokTtsEngineTest {
             },
             endpoint = "wss://example.invalid/tts",
             callbackExecutor = Executor(Runnable::run),
-            playerFactory = PcmPlayerFactory { data, _, _, onDone ->
-                FakePlayer(data, onDone).also(players::add)
+            playerFactory = PcmPlayerFactory { data, _, _, onProgress, onDone ->
+                FakePlayer(data, onProgress, onDone).also(players::add)
             },
             retryDelayMs = 0,
         )
@@ -184,7 +191,11 @@ class TikTokTtsEngineTest {
         }
     }
 
-    private class FakePlayer(val data: ByteArray, private val onDone: () -> Unit) : PcmPlayer {
+    private class FakePlayer(
+        val data: ByteArray,
+        private val onProgress: (Float) -> Unit,
+        private val onDone: () -> Unit,
+    ) : PcmPlayer {
         var playing = false
         var pauseCount = 0
         var resumeCount = 0
@@ -207,6 +218,7 @@ class TikTokTtsEngineTest {
             playing = false
             onDone()
         }
+        fun progress(value: Float) = onProgress(value)
     }
 
     companion object {
