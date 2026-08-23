@@ -76,6 +76,22 @@
             : Math.max(document.documentElement.scrollHeight, document.body ? document.body.scrollHeight : 0);
     }
 
+    // Overflow columns end at their content edge in Chromium, excluding the container's trailing
+    // padding. Extend only the scroll area so the last page keeps the same right margin.
+    var pageEndSpacer = null;
+    function updatePageEndSpacer() {
+        if (!paginated || !document.body) return;
+        if (!pageEndSpacer) {
+            pageEndSpacer = document.createElement('div');
+            pageEndSpacer.setAttribute('aria-hidden', 'true');
+            pageEndSpacer.style.cssText = 'position:absolute;top:0;height:1px;width:var(--reader-margin-right);pointer-events:none;';
+            document.body.appendChild(pageEndSpacer);
+        }
+        pageEndSpacer.style.display = 'none';
+        pageEndSpacer.style.left = documentExtent() + 'px';
+        pageEndSpacer.style.display = 'block';
+    }
+
     function scrollToPosition(value, behavior) {
         window.scrollTo(paginated
             ? { left: value, top: 0, behavior: behavior }
@@ -130,6 +146,7 @@
     }
 
     function maxScrollPosition() {
+        updatePageEndSpacer();
         return documentExtent() - viewportExtent();
     }
 
@@ -286,6 +303,7 @@
     if (typeof ResizeObserver === 'function' && document.body) {
         var bodyResizeObserver = new ResizeObserver(function () {
             lastBodyResizeAt = Date.now();
+            updatePageEndSpacer();
         });
         bodyResizeObserver.observe(document.body);
     }
@@ -351,6 +369,7 @@
 
     requestAnimationFrame(function () {
         if (typeof window.updateChapterBoundaries === 'function') window.updateChapterBoundaries();
+        updatePageEndSpacer();
         var s0 = computeState();
         publishProgress(s0);
         dispatchProgress(s0);
