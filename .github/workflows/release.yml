@@ -137,13 +137,15 @@ jobs:
           tag_name: ${{ needs.get_tag.outputs.tag }}
           name: Boox Book ${{ needs.get_tag.outputs.tag }}
           body: |
-            Initial Boox Book release with the LNReader plugin runtime, native novel reader,
-            local content support, downloads, translation, AI tools, backups, and statistics.
+            ### Added
+            - Stable paginated reading with continuous chapter-boundary navigation and fade transitions.
 
-            See [BOOXBOOK_CHANGELOG.md](https://github.com/hongducdev/booxbook/blob/v0.0.1/BOOXBOOK_CHANGELOG.md)
+            ### Fixed
+            - TTS page following now tracks the exact spoken text range.
+            - TikTok TTS page progress now follows audio playback.
+
+            See [BOOXBOOK_CHANGELOG.md](https://github.com/hongducdev/booxbook/blob/${{ needs.get_tag.outputs.tag }}/BOOXBOOK_CHANGELOG.md)
             for the complete release notes.
-
-
             <!-->
 
             > [!TIP]

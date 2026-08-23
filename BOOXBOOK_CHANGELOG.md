@@ -16,6 +16,20 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ## [Unreleased]
 
+## [0.0.2] - 2026-08-23
+
+### Added
+
+#### Reader
+- Stable paginated reading fragments novel chapters into fixed-height horizontal pages and turns pages continuously across chapter boundaries.
+- Paginated page turns use a stable fade transition, keep text layout unchanged under reader overlays, and hide native scrollbars.
+
+### Fixed
+
+#### Reader
+- TTS page following now tracks the exact Android word range instead of advancing at paragraph boundaries.
+- TikTok TTS page progress now follows audio playback so split paragraphs turn only when speech reaches the next page.
+
 ## [0.0.1] - 2026-08-23
 
 ### Added
@@ -31,9 +45,6 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 #### Reader
 - Paged and volume novel navigation.
-- Novel chapters can be fragmented into fixed-height horizontal pages; tap zones turn those pages continuously across chapter boundaries, and TTS follows its active page.
-- Paginated reader page turns use a stable fade transition, keep their text layout unchanged under reader overlays, and hide native scrollbars.
-- TTS page following tracks Android word ranges and TikTok audio progress, so split paragraphs change page only when speech reaches the next page.
 - Native find in page, chapter drawer, and a font preview in settings.
 - LNReader web interactions and loading skeleton.
 - Fullscreen embedded video, later moved onto a bundled Video.js v10 with DASH and Widevine support.
