@@ -20,6 +20,7 @@ import eu.kanade.presentation.more.settings.widget.EditTextPreferenceWidget
 import eu.kanade.presentation.more.settings.widget.InfoWidget
 import eu.kanade.presentation.more.settings.widget.ListPreferenceWidget
 import eu.kanade.presentation.more.settings.widget.MultiSelectListPreferenceWidget
+import eu.kanade.presentation.more.settings.widget.PreferenceItemPosition
 import eu.kanade.presentation.more.settings.widget.PrefsHorizontalPadding
 import eu.kanade.presentation.more.settings.widget.PrefsVerticalPadding
 import eu.kanade.presentation.more.settings.widget.SwitchPreferenceWidget
@@ -30,12 +31,14 @@ import tachiyomi.presentation.core.components.BaseSliderItem
 import tachiyomi.presentation.core.util.collectAsState
 
 val LocalPreferenceHighlighted = compositionLocalOf(structuralEqualityPolicy()) { false }
+val LocalPreferenceItemPosition = compositionLocalOf<PreferenceItemPosition?> { null }
 val LocalPreferenceMinHeight = compositionLocalOf(structuralEqualityPolicy()) { 56.dp }
 
 @Composable
 fun StatusWrapper(
     item: Preference.PreferenceItem<*, *>,
     highlightKey: String?,
+    position: PreferenceItemPosition?,
     content: @Composable () -> Unit,
 ) {
     val enabled = item.enabled
@@ -47,6 +50,7 @@ fun StatusWrapper(
         content = {
             CompositionLocalProvider(
                 LocalPreferenceHighlighted provides highlighted,
+                LocalPreferenceItemPosition provides position,
                 content = content,
             )
         },
@@ -57,11 +61,13 @@ fun StatusWrapper(
 internal fun PreferenceItem(
     item: Preference.PreferenceItem<*, *>,
     highlightKey: String?,
+    position: PreferenceItemPosition? = null,
 ) {
     val scope = rememberCoroutineScope()
     StatusWrapper(
         item = item,
         highlightKey = highlightKey,
+        position = position,
     ) {
         when (item) {
             is Preference.PreferenceItem.SwitchPreference -> {

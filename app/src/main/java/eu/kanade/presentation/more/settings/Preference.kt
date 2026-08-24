@@ -173,7 +173,7 @@ sealed class Preference {
     data class PreferenceGroup(
         override val title: String,
         override val enabled: Boolean = true,
-
         val preferenceItems: List<PreferenceItem<out Any, out Any>>,
+        val groupedStyle: Boolean = false,
     ) : Preference()
 }

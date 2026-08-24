@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEachIndexed
 import eu.kanade.presentation.more.settings.screen.SearchableSettings
 import eu.kanade.presentation.more.settings.widget.PreferenceGroupHeader
+import eu.kanade.presentation.more.settings.widget.PreferenceItemPosition
 import kotlinx.coroutines.delay
 import tachiyomi.presentation.core.components.ScrollbarLazyColumn
 import kotlin.time.Duration.Companion.seconds
@@ -61,6 +62,7 @@ fun PreferenceScreen(
                         PreferenceItem(
                             item = item,
                             highlightKey = highlightKey,
+                            position = preference.positionOf(item),
                         )
                     }
                     item {
@@ -79,6 +81,21 @@ fun PreferenceScreen(
                 }
             }
         }
+    }
+}
+
+internal fun Preference.PreferenceGroup.positionOf(
+    item: Preference.PreferenceItem<out Any, out Any>,
+): PreferenceItemPosition? {
+    if (!groupedStyle || !item.enabled || item is Preference.PreferenceItem.CustomPreference) return null
+    val groupedItems = preferenceItems.filter {
+        it.enabled && it !is Preference.PreferenceItem.CustomPreference
+    }
+    return when (groupedItems.indexOfFirst { it === item }) {
+        -1 -> null
+        0 -> if (groupedItems.size == 1) PreferenceItemPosition.Standalone else PreferenceItemPosition.First
+        groupedItems.lastIndex -> PreferenceItemPosition.Last
+        else -> PreferenceItemPosition.Middle
     }
 }
 

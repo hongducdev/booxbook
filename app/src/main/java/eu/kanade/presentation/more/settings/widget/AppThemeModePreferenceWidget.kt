@@ -6,6 +6,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.outlined.DarkMode
+import androidx.compose.material.icons.outlined.LightMode
+import androidx.compose.material.icons.outlined.SettingsBrightness
 import androidx.compose.material3.ButtonGroup
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.DropdownMenuItem
@@ -33,6 +36,7 @@ private val options = mapOf(
 internal fun AppThemeModePreferenceWidget(
     value: ThemeMode,
     onItemClick: (ThemeMode) -> Unit,
+    expanded: Boolean = false,
 ) {
     val localizedOptions = options.map { (mode, labelRes) ->
         mode to stringResource(labelRes)
@@ -77,6 +81,16 @@ internal fun AppThemeModePreferenceWidget(
                                 },
                                 interactionSource = interactionSources[index],
                             ) {
+                                if (expanded) {
+                                    Icon(
+                                        imageVector = when (mode) {
+                                            ThemeMode.SYSTEM -> Icons.Outlined.SettingsBrightness
+                                            ThemeMode.LIGHT -> Icons.Outlined.LightMode
+                                            ThemeMode.DARK -> Icons.Outlined.DarkMode
+                                        },
+                                        contentDescription = null,
+                                    )
+                                }
                                 Text(label)
                             }
                         },

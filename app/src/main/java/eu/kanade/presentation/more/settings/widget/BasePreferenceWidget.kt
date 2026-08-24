@@ -36,6 +36,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import eu.kanade.presentation.more.settings.LocalPreferenceHighlighted
+import eu.kanade.presentation.more.settings.LocalPreferenceItemPosition
 import eu.kanade.presentation.more.settings.LocalPreferenceMinHeight
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.seconds
@@ -58,6 +59,7 @@ internal fun BasePreferenceWidget(
     position: PreferenceItemPosition? = null,
 ) {
     val highlighted = LocalPreferenceHighlighted.current
+    val itemPosition = position ?: LocalPreferenceItemPosition.current
     val minHeight = LocalPreferenceMinHeight.current
     if (title.isNullOrBlank()) {
         CustomPreferenceContent(
@@ -76,7 +78,7 @@ internal fun BasePreferenceWidget(
         highlighted = highlighted,
         baseColor = MaterialTheme.colorScheme.surfaceBright,
     )
-    val essentialStyle = position != null
+    val essentialStyle = itemPosition != null
     val itemModifier = modifier
         .padding(
             horizontal = if (essentialStyle) EssentialItemHorizontalInset else PreferenceItemHorizontalInset,
@@ -121,7 +123,7 @@ internal fun BasePreferenceWidget(
     }
     val colors = ListItemDefaults.colors(containerColor = containerColor)
     val shapes = ListItemDefaults.shapes(
-        shape = position?.let(::essentialItemShape) ?: MaterialTheme.shapes.extraSmall,
+        shape = itemPosition?.let(::essentialItemShape) ?: MaterialTheme.shapes.extraSmall,
     )
     val contentPadding = PaddingValues(
         horizontal = PrefsHorizontalPadding,

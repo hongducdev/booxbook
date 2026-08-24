@@ -117,8 +117,10 @@ private fun SwipeToRevealBrowseItem(
         AnchoredDraggableState(initialValue = BrowseItemRevealState.Closed)
     }
     val actionWidth = 64.dp
+    val actionSpacing = 2.dp
+    val revealWidth = actionWidth * actions.size + actionSpacing * (actions.size - 1)
     val revealOffset = with(LocalDensity.current) {
-        -actionWidth.toPx() * actions.size
+        -revealWidth.toPx()
     }
     val animationSpec = spring<Float>()
     val flingBehavior = AnchoredDraggableDefaults.flingBehavior(
@@ -141,7 +143,6 @@ private fun SwipeToRevealBrowseItem(
     Box(
         modifier = modifier
             .padding(horizontal = BrowseItemHorizontalInset, vertical = BrowseItemVerticalInset)
-            .clip(shape)
             .anchoredDraggable(
                 state = state,
                 orientation = Orientation.Horizontal,
@@ -150,13 +151,14 @@ private fun SwipeToRevealBrowseItem(
     ) {
         Row(
             modifier = Modifier.matchParentSize(),
-            horizontalArrangement = Arrangement.End,
+            horizontalArrangement = Arrangement.spacedBy(actionSpacing, Alignment.End),
         ) {
             actions.asReversed().forEach { itemAction ->
                 Box(
                     modifier = Modifier
                         .width(actionWidth)
                         .fillMaxHeight()
+                        .clip(RoundedCornerShape(50))
                         .background(itemAction.background)
                         .clickable(
                             role = Role.Button,

@@ -20,6 +20,7 @@ import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.presentation.more.settings.screen.appearance.AppLanguageScreen
 import eu.kanade.presentation.more.settings.widget.AppThemeModePreferenceWidget
 import eu.kanade.presentation.more.settings.widget.AppThemePreferenceWidget
+import eu.kanade.presentation.more.settings.widget.AppThemePreviewWidget
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toJavaLocalDateTime
@@ -69,23 +70,31 @@ object SettingsAppearanceScreen : SearchableSettings {
 
         return Preference.PreferenceGroup(
             title = stringResource(MR.strings.pref_category_theme),
+            groupedStyle = true,
             preferenceItems = listOf(
                 Preference.PreferenceItem.CustomPreference(
                     title = stringResource(MR.strings.pref_app_theme),
                 ) {
                     Column {
+                        AppThemePreviewWidget(
+                            value = appTheme,
+                            amoled = amoled,
+                        )
+
                         AppThemeModePreferenceWidget(
                             value = themeMode,
                             onItemClick = {
                                 themeModePref.set(it)
                                 setAppCompatDelegateThemeMode(it)
                             },
+                            expanded = true,
                         )
 
                         AppThemePreferenceWidget(
                             value = appTheme,
                             amoled = amoled,
                             onItemClick = { appThemePref.set(it) },
+                            expanded = true,
                         )
                     }
                 },
@@ -130,6 +139,7 @@ object SettingsAppearanceScreen : SearchableSettings {
 
         return Preference.PreferenceGroup(
             title = stringResource(MR.strings.pref_category_display),
+            groupedStyle = true,
             preferenceItems = listOf(
                 Preference.PreferenceItem.TextPreference(
                     title = stringResource(MR.strings.pref_app_language),
