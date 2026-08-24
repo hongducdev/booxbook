@@ -16,6 +16,8 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ## [Unreleased]
 
+## [0.0.3] - 2026-08-24
+
 ### Added
 
 #### Appearance
@@ -36,6 +38,12 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 #### Appearance
 - The Compose theme now reacts to preference changes directly, so switching the Catppuccin accent recolors switches, toggle buttons, and theme previews immediately instead of relying on an activity restart.
 - Catppuccin unchecked-switch outline and snackbar accent follow the chosen accent color, falling back to the built-in Mauve role where a pale accent would be unreadable.
+
+#### Navigation
+- Settings stay inside the More tab, preserve nested back navigation, and keep their final content clear of the floating toolbar.
+
+#### Reader
+- Stabilized the final paginated chapter so its right-side padding remains visible instead of collapsing at the last page.
 
 ## [0.0.2] - 2026-08-23
 

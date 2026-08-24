@@ -138,11 +138,14 @@ jobs:
           name: Boox Book ${{ needs.get_tag.outputs.tag }}
           body: |
             ### Added
-            - Stable paginated reading with continuous chapter-boundary navigation and fade transitions.
+            - Essentials-inspired fixed floating navigation, settings screens, About screen, appearance controls, and Browse actions.
+            - Catppuccin accent selection with matching Latte and Mocha colors.
+            - Refreshed Boox Book mascot artwork across the launcher, splash screen, README, and About screen.
 
             ### Fixed
-            - TTS page following now tracks the exact spoken text range.
-            - TikTok TTS page progress now follows audio playback.
+            - Settings remain inside the More tab with correct nested back navigation and unobstructed bottom content.
+            - Theme changes now recolor controls and previews immediately.
+            - Final paginated chapters preserve stable right-side padding.
 
             See [BOOXBOOK_CHANGELOG.md](https://github.com/hongducdev/booxbook/blob/${{ needs.get_tag.outputs.tag }}/BOOXBOOK_CHANGELOG.md)
             for the complete release notes.
