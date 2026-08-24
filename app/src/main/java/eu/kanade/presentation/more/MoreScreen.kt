@@ -1,5 +1,7 @@
 package eu.kanade.presentation.more
 
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.add
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.automirrored.outlined.Label
@@ -10,13 +12,16 @@ import androidx.compose.material.icons.outlined.QueryStats
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.more.settings.widget.SwitchPreferenceWidget
 import eu.kanade.presentation.more.settings.widget.TextPreferenceWidget
 import eu.kanade.tachiyomi.R
+import eu.kanade.tachiyomi.ui.home.LocalBottomNavPadding
 import eu.kanade.tachiyomi.ui.more.DownloadQueueState
 import tachiyomi.core.common.Constants
 import tachiyomi.i18n.MR
@@ -42,7 +47,11 @@ fun MoreScreen(
 ) {
     val uriHandler = LocalUriHandler.current
 
-    Scaffold { contentPadding ->
+    Scaffold(
+        contentWindowInsets = ScaffoldDefaults.contentWindowInsets.add(
+            WindowInsets(0.dp, 0.dp, 0.dp, LocalBottomNavPadding.current),
+        ),
+    ) { contentPadding ->
         ScrollbarLazyColumn(contentPadding = contentPadding) {
             item {
                 SwitchPreferenceWidget(

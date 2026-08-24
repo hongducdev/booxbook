@@ -22,7 +22,19 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Catppuccin themes can use any accent color from the Latte palette in light mode and the matching Mocha color in dark mode.
 
 #### Navigation
-- Mobile navigation uses a centered floating toolbar over a bounded surface gradient.
+- Mobile navigation uses a centered fixed floating toolbar styled like Essentials: a muted surface-container-highest pill with a primary selected-tab pill, over full-screen content with no navigation backdrop and enough terminal scroll clearance to reveal every item.
+
+### Changed
+
+#### Appearance
+- Replaced the launcher and splash-screen logo with the Boox Book mascot.
+- Updated the README and About screen with the new rounded mascot logo.
+
+### Fixed
+
+#### Appearance
+- The Compose theme now reacts to preference changes directly, so switching the Catppuccin accent recolors switches, toggle buttons, and theme previews immediately instead of relying on an activity restart.
+- Catppuccin unchecked-switch outline and snackbar accent follow the chosen accent color, falling back to the built-in Mauve role where a pale accent would be unreadable.
 
 ## [0.0.2] - 2026-08-23
 

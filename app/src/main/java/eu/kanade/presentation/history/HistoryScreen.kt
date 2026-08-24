@@ -1,12 +1,15 @@
 package eu.kanade.presentation.history
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.add
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.ViewList
+import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
@@ -14,6 +17,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.tooling.preview.PreviewParameter
+import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.AppBarActions
 import eu.kanade.presentation.components.AppBarTitle
@@ -22,6 +26,7 @@ import eu.kanade.presentation.components.relativeDateText
 import eu.kanade.presentation.history.components.HistoryItem
 import eu.kanade.presentation.theme.TachiyomiPreviewTheme
 import eu.kanade.tachiyomi.ui.history.HistoryViewModel
+import eu.kanade.tachiyomi.ui.home.LocalBottomNavPadding
 import kotlinx.datetime.LocalDate
 import tachiyomi.domain.history.model.HistoryWithRelations
 import tachiyomi.i18n.MR
@@ -46,6 +51,9 @@ fun HistoryScreen(
     onLoadNextPage: () -> Unit,
 ) {
     Scaffold(
+        contentWindowInsets = ScaffoldDefaults.contentWindowInsets.add(
+            WindowInsets(0.dp, 0.dp, 0.dp, LocalBottomNavPadding.current),
+        ),
         topBar = { scrollBehavior ->
             SearchToolbar(
                 titleContent = { AppBarTitle(stringResource(MR.strings.history)) },

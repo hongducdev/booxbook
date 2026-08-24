@@ -6,7 +6,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
@@ -20,7 +19,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Button
+import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -30,14 +30,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -105,73 +104,57 @@ object HomeScreen : Screen() {
 
             // Provide usable navigator to content screen
             CompositionLocalProvider(LocalNavigator provides navigator) {
-                Scaffold(
-                    startBar = {
-                        if (isTabletUi()) {
-                            NavigationRail {
-                                TABS.fastForEach {
-                                    NavigationRailItem(it)
-                                }
-                            }
-                        }
+                val bottomNavVisible by produceState(initialValue = true) {
+                    showBottomNavEvent.receiveAsFlow().collectLatest { value = it }
+                }
+
+                // Tabs reserve this much scroll clearance below their content so items can rest
+                // above the fixed overlay toolbar instead of hiding behind it.
+                CompositionLocalProvider(
+                    LocalBottomNavPadding provides if (!isTabletUi() && bottomNavVisible) {
+                        BottomNavBlockHeight
+                    } else {
+                        0.dp
                     },
-                    bottomBar = {
-                        if (!isTabletUi()) {
-                            val bottomNavVisible by produceState(initialValue = true) {
-                                showBottomNavEvent.receiveAsFlow().collectLatest { value = it }
-                            }
-                            AnimatedVisibility(
-                                visible = bottomNavVisible,
-                                enter = expandVertically(),
-                                exit = shrinkVertically(),
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .navigationBarsPadding()
-                                        .padding(vertical = 8.dp),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Spacer(
-                                        modifier = Modifier
-                                            .matchParentSize()
-                                            .background(
-                                                Brush.verticalGradient(
-                                                    0f to Color.Transparent,
-                                                    0.55f to MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
-                                                    1f to MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
-                                                ),
-                                            ),
-                                    )
-                                    HorizontalFloatingToolbar(
-                                        expanded = true,
-                                        contentPadding = PaddingValues(horizontal = 4.dp),
-                                    ) {
-                                        TABS.fastForEach {
-                                            HomeFloatingToolbarItem(it)
-                                        }
+                ) {
+                    Scaffold(
+                        startBar = {
+                            if (isTabletUi()) {
+                                NavigationRail {
+                                    TABS.fastForEach {
+                                        NavigationRailItem(it)
                                     }
                                 }
                             }
-                        }
-                    },
-                    contentWindowInsets = WindowInsets(0),
-                ) { contentPadding ->
-                    Box(
-                        modifier = Modifier
-                            .padding(contentPadding)
-                            .consumeWindowInsets(contentPadding),
-                    ) {
-                        AnimatedContent(
-                            targetState = tabNavigator.current,
-                            transitionSpec = {
-                                materialFadeThroughIn(initialScale = 1f, durationMillis = TabFadeDuration) togetherWith
-                                    materialFadeThroughOut(durationMillis = TabFadeDuration)
-                            },
-                            label = "tabContent",
+                        },
+                        contentWindowInsets = WindowInsets(0),
+                    ) { contentPadding ->
+                        Box(
+                            modifier = Modifier
+                                .padding(contentPadding)
+                                .consumeWindowInsets(contentPadding),
                         ) {
-                            tabNavigator.saveableState(key = "currentTab", it) {
-                                it.Content()
+                            AnimatedContent(
+                                targetState = tabNavigator.current,
+                                transitionSpec = {
+                                    materialFadeThroughIn(
+                                        initialScale = 1f,
+                                        durationMillis = TabFadeDuration,
+                                    ) togetherWith
+                                        materialFadeThroughOut(durationMillis = TabFadeDuration)
+                                },
+                                label = "tabContent",
+                            ) {
+                                tabNavigator.saveableState(key = "currentTab", it) {
+                                    it.Content()
+                                }
+                            }
+
+                            if (!isTabletUi()) {
+                                HomeBottomNavBar(
+                                    visible = bottomNavVisible,
+                                    modifier = Modifier.align(Alignment.BottomCenter),
+                                )
                             }
                         }
                     }
@@ -217,6 +200,40 @@ object HomeScreen : Screen() {
     }
 
     @Composable
+    private fun HomeBottomNavBar(
+        visible: Boolean,
+        modifier: Modifier = Modifier,
+    ) {
+        AnimatedVisibility(
+            visible = visible,
+            enter = expandVertically(),
+            exit = shrinkVertically(),
+            modifier = modifier,
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(vertical = 8.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                HorizontalFloatingToolbar(
+                    expanded = true,
+                    colors = FloatingToolbarDefaults.standardFloatingToolbarColors(
+                        toolbarContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        toolbarContentColor = MaterialTheme.colorScheme.onSurface,
+                    ),
+                    contentPadding = PaddingValues(horizontal = 4.dp),
+                ) {
+                    TABS.fastForEach {
+                        HomeFloatingToolbarItem(it)
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
     private fun HomeFloatingToolbarItem(tab: eu.kanade.presentation.util.Tab) {
         val tabNavigator = LocalTabNavigator.current
         val navigator = LocalNavigator.currentOrThrow
@@ -235,12 +252,12 @@ object HomeScreen : Screen() {
         }
 
         if (selected) {
-            FilledTonalButton(
+            Button(
                 onClick = onClick,
                 modifier = itemModifier
                     .widthIn(max = 112.dp)
                     .heightIn(min = 48.dp),
-                contentPadding = PaddingValues(horizontal = 12.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp),
             ) {
                 NavigationIconItem(tab, hasVisibleLabel = true)
                 Spacer(modifier = Modifier.width(8.dp))
@@ -369,3 +386,8 @@ object HomeScreen : Screen() {
         data class More(val toDownloads: Boolean = false) : Tab
     }
 }
+
+/** Bottom scroll clearance the home tabs must reserve for the fixed overlay navigation toolbar. */
+val LocalBottomNavPadding = compositionLocalOf { 0.dp }
+
+private val BottomNavBlockHeight = 64.dp // toolbar (48dp) + vertical padding (8dp x2)
