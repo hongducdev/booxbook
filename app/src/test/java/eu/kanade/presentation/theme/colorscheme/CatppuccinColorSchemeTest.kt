@@ -37,6 +37,28 @@ class CatppuccinColorSchemeTest {
     }
 
     @Test
+    fun `outline and inversePrimary follow the accent when it stays readable`() {
+        val light = CatppuccinColorScheme.getColorScheme(false, false, CatppuccinColor.RED)
+        val dark = CatppuccinColorScheme.getColorScheme(true, false, CatppuccinColor.RED)
+
+        assertEquals(Color(CatppuccinColor.RED.latte), light.outline)
+        assertEquals(Color(CatppuccinColor.RED.mocha), dark.outline)
+        assertEquals(Color(CatppuccinColor.RED.mocha), light.inversePrimary)
+        assertEquals(Color(CatppuccinColor.RED.latte), dark.inversePrimary)
+    }
+
+    @Test
+    fun `pale accents fall back to the built-in outline and inversePrimary roles`() {
+        val light = CatppuccinColorScheme.getColorScheme(false, false, CatppuccinColor.ROSEWATER)
+        val dark = CatppuccinColorScheme.getColorScheme(true, false, CatppuccinColor.ROSEWATER)
+
+        assertEquals(Color(0xFF8839EF), light.outline)
+        assertEquals(Color(CatppuccinColor.ROSEWATER.mocha), dark.outline)
+        assertEquals(Color(CatppuccinColor.ROSEWATER.mocha), light.inversePrimary)
+        assertEquals(Color(0xFF8839EF), dark.inversePrimary)
+    }
+
+    @Test
     fun `only the fourteen accent colors are selectable`() {
         assertEquals(
             listOf(

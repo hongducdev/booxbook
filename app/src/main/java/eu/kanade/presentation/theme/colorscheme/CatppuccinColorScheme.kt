@@ -45,7 +45,23 @@ internal object CatppuccinColorScheme : BaseColorScheme() {
             onPrimaryContainer = onPrimary,
             secondaryContainer = primary,
             onSecondaryContainer = onPrimary,
+            // Unchecked switch handle and track outline
+            outline = accentOrFallback(primary, scheme.surface, scheme.outline),
+            // Snackbar accent
+            inversePrimary = accentOrFallback(
+                Color(if (isDark) primaryColor.latte else primaryColor.mocha),
+                scheme.inverseSurface,
+                scheme.inversePrimary,
+            ), // Snackbar accent
         )
+    }
+
+    /**
+     * Follows the chosen accent only where it stays readable on the surrounding surface;
+     * pale accents otherwise keep the built-in Mauve role.
+     */
+    private fun accentOrFallback(accent: Color, background: Color, fallback: Color): Color {
+        return if (contrastRatio(accent, background) >= 3f) accent else fallback
     }
 
     private fun maxContrastForeground(background: Color): Color {

@@ -5,6 +5,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import eu.kanade.domain.ui.CatppuccinColor
@@ -26,6 +27,7 @@ import eu.kanade.presentation.theme.colorscheme.TidalWaveColorScheme
 import eu.kanade.presentation.theme.colorscheme.TokyoNightColorScheme
 import eu.kanade.presentation.theme.colorscheme.YinYangColorScheme
 import eu.kanade.presentation.theme.colorscheme.YotsubaColorScheme
+import tachiyomi.presentation.core.util.collectAsState
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 
@@ -36,10 +38,13 @@ fun TachiyomiTheme(
     content: @Composable () -> Unit,
 ) {
     val uiPreferences = Injekt.get<UiPreferences>()
+    val currentAppTheme by uiPreferences.appTheme.collectAsState()
+    val currentAmoled by uiPreferences.themeDarkAmoled.collectAsState()
+    val currentCatppuccinPrimaryColor by uiPreferences.catppuccinPrimaryColor.collectAsState()
     BaseTachiyomiTheme(
-        appTheme = appTheme ?: uiPreferences.appTheme.get(),
-        isAmoled = amoled ?: uiPreferences.themeDarkAmoled.get(),
-        catppuccinPrimaryColor = uiPreferences.catppuccinPrimaryColor.get(),
+        appTheme = appTheme ?: currentAppTheme,
+        isAmoled = amoled ?: currentAmoled,
+        catppuccinPrimaryColor = currentCatppuccinPrimaryColor,
         content = content,
     )
 }
