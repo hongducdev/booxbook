@@ -34,7 +34,6 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import eu.kanade.presentation.more.settings.LocalPreferenceHighlighted
 import eu.kanade.presentation.more.settings.LocalPreferenceItemPosition
 import eu.kanade.presentation.more.settings.LocalPreferenceMinHeight
@@ -118,7 +117,7 @@ internal fun BasePreferenceWidget(
             text = title,
             overflow = TextOverflow.Ellipsis,
             maxLines = 2,
-            style = MaterialTheme.typography.bodyLarge,
+            style = if (essentialStyle) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
         )
     }
     val colors = ListItemDefaults.colors(containerColor = containerColor)
@@ -127,7 +126,7 @@ internal fun BasePreferenceWidget(
     )
     val contentPadding = PaddingValues(
         horizontal = PrefsHorizontalPadding,
-        vertical = if (essentialStyle) 16.dp else 8.dp,
+        vertical = 8.dp,
     )
 
     if (onClick != null) {
@@ -237,7 +236,7 @@ private fun preferenceContainerColor(
     return color
 }
 
-private fun essentialItemShape(position: PreferenceItemPosition): Shape {
+internal fun essentialItemShape(position: PreferenceItemPosition): Shape {
     val outerCorner = 24.dp
     val innerCorner = 2.dp
     return when (position) {
@@ -259,10 +258,9 @@ private fun essentialItemShape(position: PreferenceItemPosition): Shape {
 }
 
 internal val TrailingWidgetBuffer = 16.dp
-private val EssentialItemHorizontalInset = 16.dp
-private val EssentialItemVerticalInset = 1.dp
+internal val EssentialItemHorizontalInset = 16.dp
+internal val EssentialItemVerticalInset = 1.dp
 internal val PreferenceItemHorizontalInset = 8.dp
 internal val PreferenceItemVerticalInset = 2.dp
 internal val PrefsHorizontalPadding = 16.dp
 internal val PrefsVerticalPadding = 16.dp
-internal val TitleFontSize = 16.sp

@@ -112,19 +112,22 @@ object HomeScreen : Screen() {
                 val bottomNavVisible by produceState(initialValue = true) {
                     showBottomNavEvent.receiveAsFlow().collectLatest { value = it }
                 }
+                val tabletUi = isTabletUi()
+                val settingsOpen = tabNavigator.current == MoreTab && MoreTab.isSettingsOpen
+                val showBottomNav = shouldShowBottomNavigation(
+                    isTabletUi = tabletUi,
+                    requestedVisible = bottomNavVisible,
+                    settingsOpen = settingsOpen,
+                )
 
                 // Tabs reserve this much scroll clearance below their content so items can rest
                 // above the fixed overlay toolbar instead of hiding behind it.
                 CompositionLocalProvider(
-                    LocalBottomNavPadding provides if (!isTabletUi() && bottomNavVisible) {
-                        BottomNavBlockHeight
-                    } else {
-                        0.dp
-                    },
+                    LocalBottomNavPadding provides if (showBottomNav) BottomNavBlockHeight else 0.dp,
                 ) {
                     Scaffold(
                         startBar = {
-                            if (isTabletUi()) {
+                            if (tabletUi) {
                                 NavigationRail {
                                     TABS.fastForEach {
                                         NavigationRailItem(it)
@@ -155,9 +158,9 @@ object HomeScreen : Screen() {
                                 }
                             }
 
-                            if (!isTabletUi()) {
+                            if (!tabletUi) {
                                 HomeBottomNavBar(
-                                    visible = bottomNavVisible,
+                                    visible = showBottomNav,
                                     modifier = Modifier.align(Alignment.BottomCenter),
                                 )
                             }
@@ -168,7 +171,11 @@ object HomeScreen : Screen() {
 
             val goToNovelsTab = { tabNavigator.current = NovelsTab }
 
-            BackHandler(enabled = tabNavigator.current != NovelsTab, onBack = goToNovelsTab)
+            BackHandler(
+                enabled = tabNavigator.current != NovelsTab &&
+                    !(tabNavigator.current == MoreTab && MoreTab.isSettingsOpen),
+                onBack = goToNovelsTab,
+            )
 
             LaunchedEffect(Unit) {
                 launch {
@@ -225,7 +232,7 @@ object HomeScreen : Screen() {
                 HorizontalFloatingToolbar(
                     expanded = true,
                     colors = FloatingToolbarDefaults.standardFloatingToolbarColors(
-                        toolbarContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        toolbarContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                         toolbarContentColor = MaterialTheme.colorScheme.onSurface,
                     ),
                     contentPadding = PaddingValues(horizontal = 4.dp),
@@ -402,7 +409,13 @@ object HomeScreen : Screen() {
 /** Bottom scroll clearance the home tabs must reserve for the fixed overlay navigation toolbar. */
 val LocalBottomNavPadding = compositionLocalOf { 0.dp }
 
-private val BottomNavBlockHeight = 64.dp // toolbar (48dp) + vertical padding (8dp x2)
+private val BottomNavBlockHeight = 80.dp // toolbar (48dp) + vertical padding (8dp x2) + 16dp clearance
+
+internal fun shouldShowBottomNavigation(
+    isTabletUi: Boolean,
+    requestedVisible: Boolean,
+    settingsOpen: Boolean,
+): Boolean = !isTabletUi && requestedVisible && !settingsOpen
 
 private val BottomNavItemWidthAnimation = spring<Dp>(
     dampingRatio = Spring.DampingRatioMediumBouncy,

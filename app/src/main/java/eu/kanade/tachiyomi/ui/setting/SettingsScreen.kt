@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.ui.setting
 
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -37,26 +38,40 @@ class SettingsScreen(
     override fun Content() {
         val parentNavigator = LocalNavigator.currentOrThrow
         val activity = LocalActivity.current
+        SettingsScreenContent(
+            destination = destination,
+            onExit = {
+                if (finishActivityOnExit) activity?.finish() else parentNavigator.pop()
+            },
+        )
+    }
+
+    sealed class Destination(internal val id: Int) {
+        data object About : Destination(0)
+        data object DataAndStorage : Destination(1)
+        data object Translation : Destination(3)
+    }
+}
+
+@Composable
+internal fun SettingsScreenContent(
+    destination: Int? = null,
+    onExit: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier = modifier) {
         if (!isTabletUi()) {
             Navigator(
                 screen = when (destination) {
-                    Destination.About.id -> AboutScreen
-                    Destination.DataAndStorage.id -> SettingsDataScreen
-                    Destination.Translation.id -> SettingsTranslationScreen
+                    SettingsScreen.Destination.About.id -> AboutScreen
+                    SettingsScreen.Destination.DataAndStorage.id -> SettingsDataScreen
+                    SettingsScreen.Destination.Translation.id -> SettingsTranslationScreen
                     else -> SettingsMainScreen
                 },
                 onBackPressed = null,
             ) {
-                val pop: () -> Unit = {
-                    if (it.canPop) {
-                        it.pop()
-                    } else if (finishActivityOnExit) {
-                        activity?.finish()
-                    } else {
-                        parentNavigator.pop()
-                    }
-                }
-                BackHandler(enabled = finishActivityOnExit && !it.canPop) { activity?.finish() }
+                val pop: () -> Unit = { if (it.canPop) it.pop() else onExit() }
+                BackHandler(onBack = pop)
                 CompositionLocalProvider(LocalBackPress provides pop) {
                     DefaultNavigatorScreenTransition(navigator = it)
                 }
@@ -64,25 +79,22 @@ class SettingsScreen(
         } else {
             Navigator(
                 screen = when (destination) {
-                    Destination.About.id -> AboutScreen
-                    Destination.DataAndStorage.id -> SettingsDataScreen
-                    Destination.Translation.id -> SettingsTranslationScreen
+                    SettingsScreen.Destination.About.id -> AboutScreen
+                    SettingsScreen.Destination.DataAndStorage.id -> SettingsDataScreen
+                    SettingsScreen.Destination.Translation.id -> SettingsTranslationScreen
                     else -> SettingsAppearanceScreen
                 },
                 onBackPressed = null,
             ) {
-                val exit: () -> Unit = {
-                    if (finishActivityOnExit) activity?.finish() else parentNavigator.pop()
-                }
-                val pop: () -> Unit = { if (it.canPop) it.pop() else exit() }
-                BackHandler(enabled = finishActivityOnExit && !it.canPop) { activity?.finish() }
+                val pop: () -> Unit = { if (it.canPop) it.pop() else onExit() }
+                BackHandler(onBack = pop)
                 val insets = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)
                 TwoPanelBox(
                     modifier = Modifier
                         .windowInsetsPadding(insets)
                         .consumeWindowInsets(insets),
                     startContent = {
-                        CompositionLocalProvider(LocalBackPress provides exit) {
+                        CompositionLocalProvider(LocalBackPress provides onExit) {
                             SettingsMainScreen.Content(twoPane = true)
                         }
                     },
@@ -94,11 +106,5 @@ class SettingsScreen(
                 )
             }
         }
-    }
-
-    sealed class Destination(val id: Int) {
-        data object About : Destination(0)
-        data object DataAndStorage : Destination(1)
-        data object Translation : Destination(3)
     }
 }

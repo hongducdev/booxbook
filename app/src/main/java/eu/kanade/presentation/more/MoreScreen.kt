@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.dp
 import eu.kanade.domain.ui.CatppuccinColor
+import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.more.settings.widget.PreferenceItemPosition
 import eu.kanade.presentation.more.settings.widget.SwitchPreferenceWidget
 import eu.kanade.presentation.more.settings.widget.TextPreferenceWidget
@@ -52,6 +53,12 @@ fun MoreScreen(
     val uriHandler = LocalUriHandler.current
 
     Scaffold(
+        topBar = { scrollBehavior ->
+            AppBar(
+                title = stringResource(MR.strings.label_more),
+                scrollBehavior = scrollBehavior,
+            )
+        },
         contentWindowInsets = ScaffoldDefaults.contentWindowInsets.add(
             WindowInsets(0.dp, 0.dp, 0.dp, LocalBottomNavPadding.current),
         ),

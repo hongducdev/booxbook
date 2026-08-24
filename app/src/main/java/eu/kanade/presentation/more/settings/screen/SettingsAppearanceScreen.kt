@@ -1,13 +1,11 @@
 package eu.kanade.presentation.more.settings.screen
 
-import android.app.Activity
 import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
-import androidx.core.app.ActivityCompat
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.domain.ui.CatppuccinColor
@@ -55,8 +53,6 @@ object SettingsAppearanceScreen : SearchableSettings {
     private fun getThemeGroup(
         uiPreferences: UiPreferences,
     ): Preference.PreferenceGroup {
-        val context = LocalContext.current
-
         val themeModePref = uiPreferences.themeMode
         val themeMode by themeModePref.collectAsState()
 
@@ -70,7 +66,6 @@ object SettingsAppearanceScreen : SearchableSettings {
 
         return Preference.PreferenceGroup(
             title = stringResource(MR.strings.pref_category_theme),
-            groupedStyle = true,
             preferenceItems = listOf(
                 Preference.PreferenceItem.CustomPreference(
                     title = stringResource(MR.strings.pref_app_theme),
@@ -102,10 +97,6 @@ object SettingsAppearanceScreen : SearchableSettings {
                     preference = amoledPref,
                     title = stringResource(MR.strings.pref_dark_theme_pure_black),
                     enabled = themeMode != ThemeMode.LIGHT,
-                    onValueChanged = {
-                        (context as? Activity)?.let { ActivityCompat.recreate(it) }
-                        true
-                    },
                 ),
                 Preference.PreferenceItem.ListPreference(
                     preference = catppuccinPrimaryColorPref,
@@ -114,10 +105,6 @@ object SettingsAppearanceScreen : SearchableSettings {
                     },
                     title = stringResource(MR.strings.pref_catppuccin_primary_color),
                     enabled = appTheme == AppTheme.CATPPUCCIN,
-                    onValueChanged = {
-                        (context as? Activity)?.let { ActivityCompat.recreate(it) }
-                        true
-                    },
                 ),
             ),
         )
@@ -139,7 +126,6 @@ object SettingsAppearanceScreen : SearchableSettings {
 
         return Preference.PreferenceGroup(
             title = stringResource(MR.strings.pref_category_display),
-            groupedStyle = true,
             preferenceItems = listOf(
                 Preference.PreferenceItem.TextPreference(
                     title = stringResource(MR.strings.pref_app_language),

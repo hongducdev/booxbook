@@ -14,6 +14,7 @@ import androidx.compose.ui.util.fastForEachIndexed
 import eu.kanade.presentation.more.settings.screen.SearchableSettings
 import eu.kanade.presentation.more.settings.widget.PreferenceGroupHeader
 import eu.kanade.presentation.more.settings.widget.PreferenceItemPosition
+import eu.kanade.tachiyomi.ui.home.LocalBottomNavPadding
 import kotlinx.coroutines.delay
 import tachiyomi.presentation.core.components.ScrollbarLazyColumn
 import kotlin.time.Duration.Companion.seconds
@@ -30,6 +31,7 @@ fun PreferenceScreen(
     contentPadding: PaddingValues = PaddingValues(0.dp),
 ) {
     val state = rememberLazyListState()
+    val bottomNavPadding = LocalBottomNavPadding.current
     val highlightKey = SearchableSettings.highlightKey
     if (highlightKey != null) {
         LaunchedEffect(Unit) {
@@ -77,19 +79,21 @@ fun PreferenceScreen(
                     PreferenceItem(
                         item = preference,
                         highlightKey = highlightKey,
+                        position = PreferenceItemPosition.Standalone,
                     )
                 }
             }
         }
+        item { Spacer(modifier = Modifier.height(bottomNavPadding)) }
     }
 }
 
 internal fun Preference.PreferenceGroup.positionOf(
     item: Preference.PreferenceItem<out Any, out Any>,
 ): PreferenceItemPosition? {
-    if (!groupedStyle || !item.enabled || item is Preference.PreferenceItem.CustomPreference) return null
+    if (!item.enabled || (item is Preference.PreferenceItem.CustomPreference && !item.isListItem)) return null
     val groupedItems = preferenceItems.filter {
-        it.enabled && it !is Preference.PreferenceItem.CustomPreference
+        it.enabled && (it !is Preference.PreferenceItem.CustomPreference || it.isListItem)
     }
     return when (groupedItems.indexOfFirst { it === item }) {
         -1 -> null

@@ -5,6 +5,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -17,6 +18,8 @@ import androidx.compose.runtime.structuralEqualityPolicy
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.more.settings.widget.EditTextPreferenceWidget
+import eu.kanade.presentation.more.settings.widget.EssentialItemHorizontalInset
+import eu.kanade.presentation.more.settings.widget.EssentialItemVerticalInset
 import eu.kanade.presentation.more.settings.widget.InfoWidget
 import eu.kanade.presentation.more.settings.widget.ListPreferenceWidget
 import eu.kanade.presentation.more.settings.widget.MultiSelectListPreferenceWidget
@@ -25,7 +28,7 @@ import eu.kanade.presentation.more.settings.widget.PrefsHorizontalPadding
 import eu.kanade.presentation.more.settings.widget.PrefsVerticalPadding
 import eu.kanade.presentation.more.settings.widget.SwitchPreferenceWidget
 import eu.kanade.presentation.more.settings.widget.TextPreferenceWidget
-import eu.kanade.presentation.more.settings.widget.TitleFontSize
+import eu.kanade.presentation.more.settings.widget.essentialItemShape
 import kotlinx.coroutines.launch
 import tachiyomi.presentation.core.components.BaseSliderItem
 import tachiyomi.presentation.core.util.collectAsState
@@ -87,6 +90,7 @@ internal fun PreferenceItem(
                 )
             }
             is Preference.PreferenceItem.SliderPreference -> {
+                val itemPosition = LocalPreferenceItemPosition.current
                 BaseSliderItem(
                     value = item.value,
                     valueRange = item.valueRange,
@@ -99,11 +103,22 @@ internal fun PreferenceItem(
                             item.onValueChanged(it)
                         }
                     },
-                    titleStyle = MaterialTheme.typography.titleLarge.copy(fontSize = TitleFontSize),
-                    modifier = Modifier.padding(
-                        horizontal = PrefsHorizontalPadding,
-                        vertical = PrefsVerticalPadding,
-                    ),
+                    titleStyle = MaterialTheme.typography.bodyMedium,
+                    subtitleStyle = MaterialTheme.typography.labelMedium,
+                    modifier = if (itemPosition != null) {
+                        Modifier
+                            .padding(
+                                horizontal = EssentialItemHorizontalInset,
+                                vertical = EssentialItemVerticalInset,
+                            )
+                            .background(MaterialTheme.colorScheme.surfaceBright, essentialItemShape(itemPosition))
+                            .padding(horizontal = PrefsHorizontalPadding, vertical = 8.dp)
+                    } else {
+                        Modifier.padding(
+                            horizontal = PrefsHorizontalPadding,
+                            vertical = PrefsVerticalPadding,
+                        )
+                    },
                 )
             }
             is Preference.PreferenceItem.ListPreference<*> -> {

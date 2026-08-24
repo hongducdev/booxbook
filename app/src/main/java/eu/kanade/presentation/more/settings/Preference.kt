@@ -161,6 +161,7 @@ sealed class Preference {
 
         data class CustomPreference(
             override val title: String,
+            val isListItem: Boolean = false,
             val content: @Composable () -> Unit,
         ) : PreferenceItem<Unit, Unit>() {
             override val enabled: Boolean = true
@@ -174,6 +175,5 @@ sealed class Preference {
         override val title: String,
         override val enabled: Boolean = true,
         val preferenceItems: List<PreferenceItem<out Any, out Any>>,
-        val groupedStyle: Boolean = false,
     ) : Preference()
 }

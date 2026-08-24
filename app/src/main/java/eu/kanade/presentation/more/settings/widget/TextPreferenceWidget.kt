@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
 import eu.kanade.domain.ui.CatppuccinColor
+import eu.kanade.presentation.more.settings.LocalPreferenceItemPosition
 import eu.kanade.presentation.theme.TachiyomiPreviewTheme
 
 @Composable
@@ -33,6 +34,7 @@ fun TextPreferenceWidget(
     position: PreferenceItemPosition? = null,
     catppuccinColor: CatppuccinColor? = null,
 ) {
+    val essentialStyle = position != null || LocalPreferenceItemPosition.current != null
     BasePreferenceWidget(
         modifier = modifier,
         title = title,
@@ -40,7 +42,11 @@ fun TextPreferenceWidget(
             {
                 Text(
                     text = subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = if (essentialStyle) {
+                        MaterialTheme.typography.labelMedium
+                    } else {
+                        MaterialTheme.typography.bodyMedium
+                    },
                     maxLines = 10,
                 )
             }

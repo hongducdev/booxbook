@@ -4,8 +4,13 @@ import androidx.compose.animation.graphics.res.animatedVectorResource
 import androidx.compose.animation.graphics.res.rememberAnimatedVectorPainter
 import androidx.compose.animation.graphics.vector.AnimatedImageVector
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -24,12 +29,15 @@ import eu.kanade.tachiyomi.data.download.DownloadManager
 import eu.kanade.tachiyomi.ui.category.CategoryScreen
 import eu.kanade.tachiyomi.ui.download.DownloadQueueScreen
 import eu.kanade.tachiyomi.ui.setting.SettingsScreen
+import eu.kanade.tachiyomi.ui.setting.SettingsScreenContent
 import eu.kanade.tachiyomi.ui.stats.StatsScreen
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.receiveAsFlow
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.i18n.stringResource
@@ -37,6 +45,11 @@ import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 
 data object MoreTab : Tab {
+
+    private val openSettingsEvent = Channel<SettingsScreen.Destination?>()
+
+    internal var isSettingsOpen by mutableStateOf(false)
+        private set
 
     override val options: TabOptions
         @Composable
@@ -51,7 +64,7 @@ data object MoreTab : Tab {
         }
 
     override suspend fun onReselect(navigator: Navigator) {
-        navigator.push(SettingsScreen())
+        openSettingsEvent.send(null)
     }
 
     @Composable
@@ -59,20 +72,42 @@ data object MoreTab : Tab {
         val navigator = LocalNavigator.currentOrThrow
         val viewModel = viewModel<MoreViewModel>()
         val downloadQueueState by viewModel.downloadQueueState.collectAsState()
-        MoreScreen(
-            downloadQueueStateProvider = { downloadQueueState },
-            downloadedOnly = viewModel.downloadedOnly,
-            onDownloadedOnlyChange = { viewModel.downloadedOnly = it },
-            incognitoMode = viewModel.incognitoMode,
-            onIncognitoModeChange = { viewModel.incognitoMode = it },
-            onClickDownloadQueue = { navigator.push(DownloadQueueScreen()) },
-            onClickCategories = { navigator.push(CategoryScreen()) },
-            onClickStats = { navigator.push(StatsScreen()) },
-            onClickDataAndStorage = { navigator.push(SettingsScreen(SettingsScreen.Destination.DataAndStorage)) },
-            onClickSettings = { navigator.push(SettingsScreen()) },
-            onClickSupport = { navigator.push(SettingsScreen()) },
-            onClickAbout = { navigator.push(SettingsScreen(SettingsScreen.Destination.About)) },
-        )
+        var settingsOpen by rememberSaveable { mutableStateOf(false) }
+        var settingsDestination by rememberSaveable { mutableStateOf<Int?>(null) }
+        val openSettings: (SettingsScreen.Destination?) -> Unit = {
+            settingsDestination = it?.id
+            settingsOpen = true
+        }
+
+        SideEffect { isSettingsOpen = settingsOpen }
+        DisposableEffect(Unit) {
+            onDispose { isSettingsOpen = false }
+        }
+        LaunchedEffect(Unit) {
+            openSettingsEvent.receiveAsFlow().collectLatest { openSettings(it) }
+        }
+
+        if (settingsOpen) {
+            SettingsScreenContent(
+                destination = settingsDestination,
+                onExit = { settingsOpen = false },
+            )
+        } else {
+            MoreScreen(
+                downloadQueueStateProvider = { downloadQueueState },
+                downloadedOnly = viewModel.downloadedOnly,
+                onDownloadedOnlyChange = { viewModel.downloadedOnly = it },
+                incognitoMode = viewModel.incognitoMode,
+                onIncognitoModeChange = { viewModel.incognitoMode = it },
+                onClickDownloadQueue = { navigator.push(DownloadQueueScreen()) },
+                onClickCategories = { navigator.push(CategoryScreen()) },
+                onClickStats = { navigator.push(StatsScreen()) },
+                onClickDataAndStorage = { openSettings(SettingsScreen.Destination.DataAndStorage) },
+                onClickSettings = { openSettings(null) },
+                onClickSupport = { openSettings(null) },
+                onClickAbout = { openSettings(SettingsScreen.Destination.About) },
+            )
+        }
     }
 }
 

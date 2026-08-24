@@ -1,6 +1,5 @@
 package eu.kanade.presentation.more.settings.widget
 
-import android.app.Activity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -42,12 +41,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
-import androidx.core.app.ActivityCompat
 import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.domain.ui.model.AppTheme
 import eu.kanade.presentation.manga.components.MangaCover
@@ -94,16 +91,12 @@ internal fun AppThemePreferenceWidget(
     onItemClick: (AppTheme) -> Unit,
     expanded: Boolean = false,
 ) {
-    val context = LocalContext.current
     val appThemes = remember {
         AppTheme.entries.filterNot {
             it.titleRes == null || (it == AppTheme.MONET && !DeviceUtil.isDynamicColorAvailable)
         }
     }
-    val selectTheme: (AppTheme) -> Unit = {
-        onItemClick(it)
-        (context as? Activity)?.let(ActivityCompat::recreate)
-    }
+    val selectTheme = onItemClick
 
     BasePreferenceWidget(
         subcomponent = {

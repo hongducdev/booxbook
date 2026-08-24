@@ -201,6 +201,7 @@ object SettingsNovelReaderScreen : SearchableSettings {
                 ),
                 Preference.PreferenceItem.CustomPreference(
                     title = stringResource(TDMR.strings.pref_font_family),
+                    isListItem = true,
                 ) {
                     val title = stringResource(TDMR.strings.pref_font_family)
                     val selected by readerPreferences.novelFontFamily.collectAsState()
