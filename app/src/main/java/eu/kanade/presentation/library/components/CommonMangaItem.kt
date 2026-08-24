@@ -340,6 +340,8 @@ fun MangaListItem(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     badge: @Composable (RowScope.() -> Unit),
+    modifier: Modifier = Modifier,
+    minHeight: Dp = 56.dp,
     isSelected: Boolean = false,
     coverAlpha: Float = 1f,
     onClickContinueReading: (() -> Unit)? = null,
@@ -352,10 +354,10 @@ fun MangaListItem(
     val height = if (showUrl && !url.isNullOrEmpty()) {
         (56 + (urlMaxLines * 14)).dp // ~14dp per line of URL text
     } else {
-        56.dp
+        minHeight
     }
     Row(
-        modifier = Modifier
+        modifier = modifier
             .selectedBackground(isSelected)
             .height(height)
             .combinedClickable(

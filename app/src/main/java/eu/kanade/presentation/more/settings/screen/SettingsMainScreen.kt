@@ -40,9 +40,11 @@ import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.Navigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import dev.icerock.moko.resources.StringResource
+import eu.kanade.domain.ui.CatppuccinColor
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.AppBarActions
 import eu.kanade.presentation.more.settings.screen.about.AboutScreen
+import eu.kanade.presentation.more.settings.widget.PreferenceItemPosition
 import eu.kanade.presentation.more.settings.widget.TextPreferenceWidget
 import eu.kanade.presentation.util.LocalBackPress
 import eu.kanade.presentation.util.Screen
@@ -155,6 +157,13 @@ object SettingsMainScreen : Screen() {
                                 subtitle = item.formatSubtitle(),
                                 icon = item.icon,
                                 onPreferenceClick = { navigator.navigate(item.screen, twoPane) },
+                                position = when {
+                                    items.size == 1 -> PreferenceItemPosition.Standalone
+                                    index == 0 -> PreferenceItemPosition.First
+                                    index == items.lastIndex -> PreferenceItemPosition.Last
+                                    else -> PreferenceItemPosition.Middle
+                                },
+                                catppuccinColor = item.catppuccinColor,
                             )
                         }
                     }
@@ -172,6 +181,7 @@ object SettingsMainScreen : Screen() {
         val subtitleRes: StringResource? = null,
         val formatSubtitle: @Composable () -> String? = { subtitleRes?.let { stringResource(it) } },
         val icon: ImageVector,
+        val catppuccinColor: CatppuccinColor,
         val screen: VoyagerScreen,
     )
 
@@ -180,66 +190,77 @@ object SettingsMainScreen : Screen() {
             titleRes = MR.strings.pref_category_appearance,
             subtitleRes = MR.strings.pref_appearance_summary,
             icon = Icons.Outlined.Palette,
+            catppuccinColor = CatppuccinColor.MAUVE,
             screen = SettingsAppearanceScreen,
         ),
         Item(
             titleRes = MR.strings.pref_category_library,
             subtitleRes = MR.strings.pref_library_summary,
             icon = Icons.Outlined.CollectionsBookmark,
+            catppuccinColor = CatppuccinColor.GREEN,
             screen = SettingsLibraryScreen,
         ),
         Item(
             titleRes = TDMR.strings.pref_category_novel_reader,
             subtitleRes = TDMR.strings.pref_novel_reader_summary,
             icon = Icons.AutoMirrored.Outlined.ChromeReaderMode,
+            catppuccinColor = CatppuccinColor.SAPPHIRE,
             screen = SettingsNovelReaderScreen,
         ),
         Item(
             titleRes = MR.strings.pref_category_downloads,
             subtitleRes = TDMR.strings.pref_novel_request_throttling_summary,
             icon = Icons.Outlined.GetApp,
+            catppuccinColor = CatppuccinColor.BLUE,
             screen = SettingsNovelDownloadScreen,
         ),
         Item(
             titleRes = TDMR.strings.pref_category_ai,
             subtitleRes = TDMR.strings.pref_ai_summary,
             icon = AiIcon,
+            catppuccinColor = CatppuccinColor.YELLOW,
             screen = SettingsAiScreen,
         ),
         Item(
             titleRes = TDMR.strings.pref_category_translation,
             subtitleRes = TDMR.strings.pref_translation_enabled_summary,
             icon = Icons.Outlined.Translate,
+            catppuccinColor = CatppuccinColor.PINK,
             screen = SettingsTranslationScreen,
         ),
         Item(
             titleRes = TDMR.strings.pref_novel_read_tracking_group,
             subtitleRes = TDMR.strings.pref_novel_read_tracking_summary,
             icon = Icons.Outlined.QueryStats,
+            catppuccinColor = CatppuccinColor.TEAL,
             screen = SettingsReadingStatisticsScreen,
         ),
         Item(
             titleRes = MR.strings.browse,
             subtitleRes = MR.strings.pref_browse_summary,
             icon = Icons.Outlined.Explore,
+            catppuccinColor = CatppuccinColor.LAVENDER,
             screen = SettingsBrowseScreen,
         ),
         Item(
             titleRes = MR.strings.pref_category_security,
             subtitleRes = MR.strings.pref_security_summary,
             icon = Icons.Outlined.Security,
+            catppuccinColor = CatppuccinColor.RED,
             screen = SettingsSecurityScreen,
         ),
         Item(
             titleRes = MR.strings.label_data_storage,
             subtitleRes = MR.strings.pref_backup_summary,
             icon = Icons.Outlined.Storage,
+            catppuccinColor = CatppuccinColor.TEAL,
             screen = SettingsDataScreen,
         ),
         Item(
             titleRes = MR.strings.pref_category_advanced,
             subtitleRes = MR.strings.pref_advanced_summary,
             icon = Icons.Outlined.Code,
+            catppuccinColor = CatppuccinColor.PEACH,
             screen = SettingsAdvancedScreen,
         ),
         Item(
@@ -248,6 +269,7 @@ object SettingsMainScreen : Screen() {
                 "${stringResource(MR.strings.app_name)} ${AboutScreen.getVersionName(withBuildDate = false)}"
             },
             icon = Icons.Outlined.Info,
+            catppuccinColor = CatppuccinColor.ROSEWATER,
             screen = AboutScreen,
         ),
     )

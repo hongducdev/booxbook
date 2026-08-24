@@ -11,8 +11,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import eu.kanade.tachiyomi.util.system.LocaleHelper
 import tachiyomi.domain.source.model.Source
-import tachiyomi.presentation.core.components.material.padding
-import tachiyomi.presentation.core.util.secondaryItemAlpha
 
 @Composable
 fun BaseSourceItem(
@@ -24,6 +22,7 @@ fun BaseSourceItem(
     icon: @Composable RowScope.(Source) -> Unit = defaultIcon,
     action: (@Composable RowScope.(Source) -> Unit)? = null,
     swipeActions: List<BrowseItemAction> = emptyList(),
+    position: BrowseItemPosition = BrowseItemPosition.Standalone,
     content: (@Composable RowScope.(Source, String?) -> Unit)? = null,
 ) {
     val sourceLangString = LocaleHelper.getSourceDisplayName(source.lang, LocalContext.current).takeIf {
@@ -38,14 +37,14 @@ fun BaseSourceItem(
             { it.invoke(this, source) }
         },
         swipeActions = swipeActions,
+        position = position,
         supportingContent = if (content == null && sourceLangString != null) {
             {
                 Text(
-                    modifier = Modifier.secondaryItemAlpha(),
                     text = sourceLangString,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium,
                 )
             }
         } else {
@@ -71,7 +70,7 @@ private fun RowScope.defaultHeadline(source: Source) {
         text = source.name,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
-        style = MaterialTheme.typography.bodyMedium,
+        style = MaterialTheme.typography.bodyLarge,
         modifier = Modifier.weight(1f, fill = false),
     )
     SourceTypeBadge(source = source)

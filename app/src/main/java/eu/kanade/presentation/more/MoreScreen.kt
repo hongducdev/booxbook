@@ -1,7 +1,9 @@
 package eu.kanade.presentation.more
 
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.add
+import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.automirrored.outlined.Label
@@ -11,13 +13,15 @@ import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.QueryStats
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Storage
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.dp
+import eu.kanade.domain.ui.CatppuccinColor
+import eu.kanade.presentation.more.settings.widget.PreferenceItemPosition
 import eu.kanade.presentation.more.settings.widget.SwitchPreferenceWidget
 import eu.kanade.presentation.more.settings.widget.TextPreferenceWidget
 import eu.kanade.tachiyomi.R
@@ -60,6 +64,8 @@ fun MoreScreen(
                     icon = Icons.Outlined.CloudOff,
                     checked = downloadedOnly,
                     onCheckedChanged = onDownloadedOnlyChange,
+                    position = PreferenceItemPosition.First,
+                    catppuccinColor = CatppuccinColor.SKY,
                 )
             }
             item {
@@ -69,10 +75,12 @@ fun MoreScreen(
                     icon = ImageVector.vectorResource(R.drawable.ic_glasses_24dp),
                     checked = incognitoMode,
                     onCheckedChanged = onIncognitoModeChange,
+                    position = PreferenceItemPosition.Last,
+                    catppuccinColor = CatppuccinColor.LAVENDER,
                 )
             }
 
-            item { HorizontalDivider() }
+            item { Spacer(modifier = Modifier.height(10.dp)) }
 
             item {
                 val downloadQueueState = downloadQueueStateProvider()
@@ -101,6 +109,8 @@ fun MoreScreen(
                     },
                     icon = Icons.Outlined.GetApp,
                     onPreferenceClick = onClickDownloadQueue,
+                    position = PreferenceItemPosition.First,
+                    catppuccinColor = CatppuccinColor.SAPPHIRE,
                 )
             }
             item {
@@ -108,6 +118,8 @@ fun MoreScreen(
                     title = stringResource(MR.strings.categories),
                     icon = Icons.AutoMirrored.Outlined.Label,
                     onPreferenceClick = onClickCategories,
+                    position = PreferenceItemPosition.Middle,
+                    catppuccinColor = CatppuccinColor.PINK,
                 )
             }
             item {
@@ -115,6 +127,8 @@ fun MoreScreen(
                     title = stringResource(MR.strings.label_stats),
                     icon = Icons.Outlined.QueryStats,
                     onPreferenceClick = onClickStats,
+                    position = PreferenceItemPosition.Middle,
+                    catppuccinColor = CatppuccinColor.YELLOW,
                 )
             }
             item {
@@ -122,16 +136,20 @@ fun MoreScreen(
                     title = stringResource(MR.strings.label_data_storage),
                     icon = Icons.Outlined.Storage,
                     onPreferenceClick = onClickDataAndStorage,
+                    position = PreferenceItemPosition.Last,
+                    catppuccinColor = CatppuccinColor.TEAL,
                 )
             }
 
-            item { HorizontalDivider() }
+            item { Spacer(modifier = Modifier.height(10.dp)) }
 
             item {
                 TextPreferenceWidget(
                     title = stringResource(MR.strings.label_settings),
                     icon = Icons.Outlined.Settings,
                     onPreferenceClick = onClickSettings,
+                    position = PreferenceItemPosition.First,
+                    catppuccinColor = CatppuccinColor.MAUVE,
                 )
             }
             // item {
@@ -146,6 +164,8 @@ fun MoreScreen(
                     title = stringResource(MR.strings.pref_category_about),
                     icon = Icons.Outlined.Info,
                     onPreferenceClick = onClickAbout,
+                    position = PreferenceItemPosition.Middle,
+                    catppuccinColor = CatppuccinColor.ROSEWATER,
                 )
             }
             item {
@@ -153,6 +173,8 @@ fun MoreScreen(
                     title = stringResource(MR.strings.label_help),
                     icon = Icons.AutoMirrored.Outlined.HelpOutline,
                     onPreferenceClick = { uriHandler.openUri(Constants.URL_HELP) },
+                    position = PreferenceItemPosition.Last,
+                    catppuccinColor = CatppuccinColor.YELLOW,
                 )
             }
         }

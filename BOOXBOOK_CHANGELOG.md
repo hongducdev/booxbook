@@ -22,11 +22,12 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Catppuccin themes can use any accent color from the Latte palette in light mode and the matching Mocha color in dark mode.
 
 #### Navigation
-- Mobile navigation uses a centered fixed floating toolbar styled like Essentials: a muted surface-container-highest pill with a primary selected-tab pill, over full-screen content with no navigation backdrop and enough terminal scroll clearance to reveal every item.
+- Mobile navigation uses a centered fixed floating toolbar styled like Essentials: its selected tab expands with a spring transition, the muted pill overlays full-screen content without a navigation backdrop, and terminal scroll clearance keeps every item reachable.
 
 ### Changed
 
 #### Appearance
+- Restyled Browse, More, and the main Settings list with the grouped cards and pastel icon treatments used by Essentials; list icons use semantic Latte/Mocha pairs from the Catppuccin palette.
 - Replaced the launcher and splash-screen logo with the Boox Book mascot.
 - Updated the README and About screen with the new rounded mascot logo.
 

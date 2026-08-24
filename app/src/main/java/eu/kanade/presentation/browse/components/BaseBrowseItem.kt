@@ -3,7 +3,6 @@ package eu.kanade.presentation.browse.components
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.AnchoredDraggableDefaults
 import androidx.compose.foundation.gestures.AnchoredDraggableState
 import androidx.compose.foundation.gestures.DraggableAnchors
@@ -12,14 +11,19 @@ import androidx.compose.foundation.gestures.anchoredDraggable
 import androidx.compose.foundation.gestures.animateTo
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -27,8 +31,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.CustomAccessibilityAction
@@ -48,6 +53,13 @@ data class BrowseItemAction(
     val onClick: () -> Unit,
 )
 
+enum class BrowseItemPosition {
+    Standalone,
+    First,
+    Middle,
+    Last,
+}
+
 @Composable
 fun BaseBrowseItem(
     modifier: Modifier = Modifier,
@@ -57,11 +69,17 @@ fun BaseBrowseItem(
     action: (@Composable RowScope.() -> Unit)? = null,
     swipeActions: List<BrowseItemAction> = emptyList(),
     supportingContent: (@Composable () -> Unit)? = null,
+    position: BrowseItemPosition = BrowseItemPosition.Standalone,
     content: @Composable RowScope.() -> Unit = {},
 ) {
+    val shape = browseItemShape(position)
     if (swipeActions.isEmpty()) {
         BrowseListItem(
-            modifier = modifier,
+            modifier = modifier.padding(
+                horizontal = BrowseItemHorizontalInset,
+                vertical = BrowseItemVerticalInset,
+            ),
+            shape = shape,
             onClickItem = onClickItem,
             onLongClickItem = onLongClickItem,
             icon = icon,
@@ -79,6 +97,7 @@ fun BaseBrowseItem(
         onLongClickItem = onLongClickItem,
         icon = icon,
         supportingContent = supportingContent,
+        shape = shape,
         content = content,
     )
 }
@@ -90,6 +109,7 @@ private fun SwipeToRevealBrowseItem(
     onLongClickItem: () -> Unit,
     icon: (@Composable RowScope.() -> Unit)?,
     supportingContent: (@Composable () -> Unit)?,
+    shape: Shape,
     content: @Composable RowScope.() -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -120,7 +140,8 @@ private fun SwipeToRevealBrowseItem(
 
     Box(
         modifier = modifier
-            .clipToBounds()
+            .padding(horizontal = BrowseItemHorizontalInset, vertical = BrowseItemVerticalInset)
+            .clip(shape)
             .anchoredDraggable(
                 state = state,
                 orientation = Orientation.Horizontal,
@@ -175,6 +196,7 @@ private fun SwipeToRevealBrowseItem(
             onLongClickItem = onLongClickItem,
             icon = icon,
             supportingContent = supportingContent,
+            shape = shape,
             customActions = actions.map { itemAction ->
                 itemAction.copy(
                     onClick = {
@@ -197,9 +219,12 @@ private fun BrowseListItem(
     content: @Composable RowScope.() -> Unit,
     modifier: Modifier = Modifier,
     action: (@Composable RowScope.() -> Unit)? = null,
+    shape: Shape,
     customActions: List<BrowseItemAction> = emptyList(),
 ) {
     ListItem(
+        onClick = onClickItem,
+        onLongClick = onLongClickItem,
         modifier = modifier
             .semantics {
                 this.customActions = customActions.map { itemAction ->
@@ -208,11 +233,7 @@ private fun BrowseListItem(
                         true
                     }
                 }
-            }
-            .combinedClickable(
-                onClick = onClickItem,
-                onLongClick = onLongClickItem,
-            ),
+            },
         leadingContent = icon?.let {
             {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -228,6 +249,9 @@ private fun BrowseListItem(
                 }
             }
         },
+        shapes = ListItemDefaults.shapes(shape = shape),
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceBright),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -235,6 +259,31 @@ private fun BrowseListItem(
         )
     }
 }
+
+@Composable
+private fun browseItemShape(position: BrowseItemPosition): Shape {
+    val outerCorner = 24.dp
+    val innerCorner = 2.dp
+    return when (position) {
+        BrowseItemPosition.Standalone -> RoundedCornerShape(outerCorner)
+        BrowseItemPosition.First -> RoundedCornerShape(
+            topStart = outerCorner,
+            topEnd = outerCorner,
+            bottomStart = innerCorner,
+            bottomEnd = innerCorner,
+        )
+        BrowseItemPosition.Middle -> RoundedCornerShape(innerCorner)
+        BrowseItemPosition.Last -> RoundedCornerShape(
+            topStart = innerCorner,
+            topEnd = innerCorner,
+            bottomStart = outerCorner,
+            bottomEnd = outerCorner,
+        )
+    }
+}
+
+private val BrowseItemHorizontalInset = 16.dp
+private val BrowseItemVerticalInset = 1.dp
 
 private enum class BrowseItemRevealState {
     Closed,

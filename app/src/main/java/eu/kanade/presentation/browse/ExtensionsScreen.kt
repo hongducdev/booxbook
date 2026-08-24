@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.GetApp
@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import dev.icerock.moko.resources.StringResource
 import eu.kanade.presentation.browse.components.BaseBrowseItem
 import eu.kanade.presentation.browse.components.BrowseItemAction
+import eu.kanade.presentation.browse.components.BrowseItemPosition
 import eu.kanade.presentation.browse.components.ExtensionIcon
 import eu.kanade.presentation.components.WarningBanner
 import eu.kanade.presentation.manga.components.DotSeparatorNoSpaceText
@@ -66,7 +67,6 @@ import tachiyomi.presentation.core.screens.EmptyScreenAction
 import tachiyomi.presentation.core.screens.LoadingScreen
 import tachiyomi.presentation.core.theme.header
 import tachiyomi.presentation.core.util.plus
-import tachiyomi.presentation.core.util.secondaryItemAlpha
 
 @Composable
 fun ExtensionScreen(
@@ -205,10 +205,10 @@ private fun ExtensionContent(
                 }
             }
 
-            items(
+            itemsIndexed(
                 items = items,
-                contentType = { "item" },
-                key = { item ->
+                contentType = { _, _ -> "item" },
+                key = { _, item ->
                     when (val extension = item.extension) {
                         is Extension.Untrusted -> {
                             "extension-untrusted-${extension.pkgName}-${extension.versionCode}-${extension.signatureHash}"
@@ -224,10 +224,16 @@ private fun ExtensionContent(
                         }
                     }
                 },
-            ) { item ->
+            ) { index, item ->
                 ExtensionItem(
                     modifier = Modifier.animateItem(),
                     item = item,
+                    position = when {
+                        items.size == 1 -> BrowseItemPosition.Standalone
+                        index == 0 -> BrowseItemPosition.First
+                        index == items.lastIndex -> BrowseItemPosition.Last
+                        else -> BrowseItemPosition.Middle
+                    },
                     onClickItem = {
                         when (it) {
                             is Extension.Available -> onInstallExtension(it)
@@ -303,6 +309,7 @@ private fun ExtensionContent(
 @Composable
 private fun ExtensionItem(
     item: ExtensionUiModel.Item,
+    position: BrowseItemPosition,
     onClickItem: (Extension) -> Unit,
     onLongClickItem: (Extension) -> Unit,
     onClickItemCancel: (Extension) -> Unit,
@@ -348,6 +355,7 @@ private fun ExtensionItem(
             }
         },
         swipeActions = swipeActions,
+        position = position,
         supportingContent = {
             ExtensionItemSupportingContent(
                 extension = extension,
@@ -359,7 +367,7 @@ private fun ExtensionItem(
             text = extension.name,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.bodyLarge,
         )
     }
 }
@@ -370,10 +378,9 @@ private fun ExtensionItemSupportingContent(
     installStep: InstallStep,
 ) {
     FlowRow(
-        modifier = Modifier.secondaryItemAlpha(),
         horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.extraSmall),
     ) {
-        ProvideTextStyle(value = MaterialTheme.typography.bodySmall) {
+        ProvideTextStyle(value = MaterialTheme.typography.bodyMedium) {
             var hasAlreadyShownAnElement by remember { mutableStateOf(false) }
             if (extension is Extension.Installed && extension.lang.isNotEmpty()) {
                 hasAlreadyShownAnElement = true

@@ -3,27 +3,31 @@ package eu.kanade.tachiyomi.ui.home
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.Button
 import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Text
@@ -43,6 +47,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
 import cafe.adriel.voyager.navigator.LocalNavigator
@@ -251,29 +256,36 @@ object HomeScreen : Screen() {
             this.selected = selected
         }
 
-        if (selected) {
-            Button(
-                onClick = onClick,
-                modifier = itemModifier
-                    .widthIn(max = 112.dp)
-                    .heightIn(min = 48.dp),
-                contentPadding = PaddingValues(horizontal = 16.dp),
+        val itemWidth by animateDpAsState(
+            targetValue = if (selected) 112.dp else 48.dp,
+            animationSpec = BottomNavItemWidthAnimation,
+            label = "bottomNavItemWidth",
+        )
+        IconButton(
+            onClick = onClick,
+            modifier = itemModifier
+                .width(itemWidth)
+                .height(48.dp),
+            colors = if (selected) {
+                IconButtonDefaults.filledIconButtonColors()
+            } else {
+                IconButtonDefaults.iconButtonColors()
+            },
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                NavigationIconItem(tab, hasVisibleLabel = true)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = tab.options.title,
-                    modifier = Modifier.weight(1f, fill = false),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        } else {
-            IconButton(
-                onClick = onClick,
-                modifier = itemModifier,
-            ) {
-                NavigationIconItem(tab, hasVisibleLabel = false)
+                NavigationIconItem(tab, hasVisibleLabel = selected)
+                if (selected) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = tab.options.title,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
         }
     }
@@ -391,3 +403,8 @@ object HomeScreen : Screen() {
 val LocalBottomNavPadding = compositionLocalOf { 0.dp }
 
 private val BottomNavBlockHeight = 64.dp // toolbar (48dp) + vertical padding (8dp x2)
+
+private val BottomNavItemWidthAnimation = spring<Dp>(
+    dampingRatio = Spring.DampingRatioMediumBouncy,
+    stiffness = Spring.StiffnessLow,
+)

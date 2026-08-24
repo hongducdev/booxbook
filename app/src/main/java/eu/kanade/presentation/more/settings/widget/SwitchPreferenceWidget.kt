@@ -1,7 +1,6 @@
 package eu.kanade.presentation.more.settings.widget
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Preview
 import androidx.compose.material3.Surface
@@ -10,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.PreviewLightDark
+import eu.kanade.domain.ui.CatppuccinColor
 import eu.kanade.presentation.theme.TachiyomiPreviewTheme
 
 @Composable
@@ -20,6 +20,8 @@ fun SwitchPreferenceWidget(
     icon: ImageVector? = null,
     checked: Boolean = false,
     onCheckedChanged: (Boolean) -> Unit,
+    position: PreferenceItemPosition? = null,
+    catppuccinColor: CatppuccinColor? = null,
 ) {
     TextPreferenceWidget(
         modifier = modifier,
@@ -30,10 +32,11 @@ fun SwitchPreferenceWidget(
             Switch(
                 checked = checked,
                 onCheckedChange = null,
-                modifier = Modifier.padding(start = TrailingWidgetBuffer),
             )
         },
         onPreferenceClick = { onCheckedChanged(!checked) },
+        position = position,
+        catppuccinColor = catppuccinColor,
     )
 }
 

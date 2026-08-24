@@ -1,7 +1,10 @@
 package eu.kanade.presentation.more.settings.widget
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Preview
 import androidx.compose.material3.Icon
@@ -9,12 +12,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.PreviewLightDark
+import androidx.compose.ui.unit.dp
+import eu.kanade.domain.ui.CatppuccinColor
 import eu.kanade.presentation.theme.TachiyomiPreviewTheme
-import tachiyomi.presentation.core.util.secondaryItemAlpha
 
 @Composable
 fun TextPreferenceWidget(
@@ -25,6 +30,8 @@ fun TextPreferenceWidget(
     iconTint: Color = MaterialTheme.colorScheme.primary,
     widget: @Composable (() -> Unit)? = null,
     onPreferenceClick: (() -> Unit)? = null,
+    position: PreferenceItemPosition? = null,
+    catppuccinColor: CatppuccinColor? = null,
 ) {
     BasePreferenceWidget(
         modifier = modifier,
@@ -33,10 +40,7 @@ fun TextPreferenceWidget(
             {
                 Text(
                     text = subtitle,
-                    modifier = Modifier
-                        .padding(horizontal = PrefsHorizontalPadding)
-                        .secondaryItemAlpha(),
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     maxLines = 10,
                 )
             }
@@ -45,18 +49,48 @@ fun TextPreferenceWidget(
         },
         icon = if (icon != null) {
             {
-                Icon(
-                    imageVector = icon,
-                    tint = iconTint,
-                    contentDescription = null,
-                )
+                if (position != null) {
+                    val (containerColor, contentColor) = catppuccinColorsFor(
+                        key = title.orEmpty(),
+                        preferredColor = catppuccinColor,
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .background(containerColor, CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            tint = contentColor,
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
+                } else {
+                    Icon(
+                        imageVector = icon,
+                        tint = iconTint,
+                        contentDescription = null,
+                    )
+                }
             }
         } else {
             null
         },
         onClick = onPreferenceClick,
         widget = widget,
+        position = position,
     )
+}
+
+private fun catppuccinColorsFor(
+    key: String,
+    preferredColor: CatppuccinColor?,
+): Pair<Color, Color> {
+    val paletteColor = preferredColor
+        ?: CatppuccinColor.entries[(key.hashCode() and Int.MAX_VALUE) % CatppuccinColor.entries.size]
+    return Color(paletteColor.mocha) to Color(paletteColor.latte)
 }
 
 @PreviewLightDark

@@ -1,10 +1,16 @@
 package eu.kanade.presentation.browse.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
@@ -59,6 +65,12 @@ fun BrowseSourceList(
                 isSelected = isSelected,
                 titleMaxLines = titleMaxLines,
                 skipCoverLoading = skipCoverLoading,
+                position = when {
+                    mangaList.itemCount == 1 -> BrowseItemPosition.Standalone
+                    index == 0 -> BrowseItemPosition.First
+                    index == mangaList.itemCount - 1 -> BrowseItemPosition.Last
+                    else -> BrowseItemPosition.Middle
+                },
             )
         }
 
@@ -79,8 +91,30 @@ private fun BrowseSourceListItem(
     isSelected: Boolean = false,
     titleMaxLines: Int = 2,
     skipCoverLoading: Boolean = false,
+    position: BrowseItemPosition = BrowseItemPosition.Standalone,
 ) {
+    val shape = when (position) {
+        BrowseItemPosition.Standalone -> RoundedCornerShape(24.dp)
+        BrowseItemPosition.First -> RoundedCornerShape(
+            topStart = 24.dp,
+            topEnd = 24.dp,
+            bottomStart = 2.dp,
+            bottomEnd = 2.dp,
+        )
+        BrowseItemPosition.Middle -> RoundedCornerShape(2.dp)
+        BrowseItemPosition.Last -> RoundedCornerShape(
+            topStart = 2.dp,
+            topEnd = 2.dp,
+            bottomStart = 24.dp,
+            bottomEnd = 24.dp,
+        )
+    }
     MangaListItem(
+        modifier = Modifier
+            .padding(horizontal = 16.dp, vertical = 1.dp)
+            .clip(shape)
+            .background(MaterialTheme.colorScheme.surfaceBright),
+        minHeight = 72.dp,
         isSelected = isSelected,
         title = displayTitle,
         titleMaxLines = titleMaxLines,

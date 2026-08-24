@@ -9,7 +9,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.PushPin
@@ -41,6 +41,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.browse.components.BaseSourceItem
 import eu.kanade.presentation.browse.components.BrowseItemAction
+import eu.kanade.presentation.browse.components.BrowseItemPosition
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.ui.browse.source.SourcesViewModel
 import eu.kanade.tachiyomi.ui.browse.source.browse.BrowseSourceViewModel.Listing
@@ -80,21 +81,21 @@ fun SourcesScreen(
             ScrollbarLazyColumn(
                 contentPadding = contentPadding + topSmallPaddingValues,
             ) {
-                items(
+                itemsIndexed(
                     items = state.items,
-                    contentType = {
-                        when (it) {
+                    contentType = { _, model ->
+                        when (model) {
                             is SourceUiModel.Header -> "header"
                             is SourceUiModel.Item -> "item"
                         }
                     },
-                    key = {
-                        when (it) {
-                            is SourceUiModel.Header -> it.hashCode()
-                            is SourceUiModel.Item -> "source-${it.sectionKey}-${it.source.key()}"
+                    key = { _, model ->
+                        when (model) {
+                            is SourceUiModel.Header -> model.hashCode()
+                            is SourceUiModel.Item -> "source-${model.sectionKey}-${model.source.key()}"
                         }
                     },
-                ) { model ->
+                ) { index, model ->
                     when (model) {
                         is SourceUiModel.Header -> {
                             SourceHeader(
@@ -108,6 +109,7 @@ fun SourcesScreen(
                             source = model.source,
                             hasDefaultPreset = model.hasDefaultPreset,
                             groupSection = model.sectionKey.ifEmpty { null },
+                            position = browseItemPosition(state.items, index),
                             onClickItem = onClickItem,
                             onLongClickItem = onLongClickItem,
                             onClickPin = onClickPin,
@@ -141,6 +143,7 @@ private fun SourceItem(
     source: Source,
     hasDefaultPreset: Boolean,
     groupSection: String?,
+    position: BrowseItemPosition,
     onClickItem: (Source, Listing) -> Unit,
     onLongClickItem: (Source) -> Unit,
     onClickPin: (Source) -> Unit,
@@ -189,7 +192,19 @@ private fun SourceItem(
         onClickItem = { onClickItem(source, Listing.Popular) },
         onLongClickItem = { onLongClickItem(source) },
         swipeActions = swipeActions,
+        position = position,
     )
+}
+
+private fun browseItemPosition(items: List<SourceUiModel>, index: Int): BrowseItemPosition {
+    val isFirst = index == 0 || items[index - 1] is SourceUiModel.Header
+    val isLast = index == items.lastIndex || items[index + 1] is SourceUiModel.Header
+    return when {
+        isFirst && isLast -> BrowseItemPosition.Standalone
+        isFirst -> BrowseItemPosition.First
+        isLast -> BrowseItemPosition.Last
+        else -> BrowseItemPosition.Middle
+    }
 }
 
 @Composable

@@ -49,7 +49,6 @@ import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.AppBarActions
 import eu.kanade.presentation.components.WarningBanner
 import eu.kanade.presentation.more.settings.widget.TextPreferenceWidget
-import eu.kanade.presentation.more.settings.widget.TrailingWidgetBuffer
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.extension.model.Extension
 import eu.kanade.tachiyomi.ui.browse.extension.details.ExtensionDetailsViewModel
@@ -372,7 +371,6 @@ private fun DetailsHeader(
                     Switch(
                         checked = extIncognitoMode,
                         onCheckedChange = onExtIncognitoChange,
-                        modifier = Modifier.padding(start = TrailingWidgetBuffer),
                     )
                 }
             },
@@ -456,7 +454,6 @@ private fun SourceSwitchPreference(
                 Switch(
                     checked = source.enabled,
                     onCheckedChange = null,
-                    modifier = Modifier.padding(start = TrailingWidgetBuffer),
                 )
             }
         },
