@@ -47,7 +47,7 @@ BooxBook là ứng dụng đọc sách native hiện đại trên nền tảng A
 | Phase | Name | Status |
 |-------|------|--------|
 | 1 | [Architecture & Project Scaffolding](./phase-01-architecture-project-scaffolding.md) | Completed |
-| 2 | [Core Database & Storage Layer](./phase-02-core-database-storage-layer.md) | Pending |
+| 2 | [Core Database & Storage Layer](./phase-02-core-database-storage-layer.md) | Completed |
 | 3 | [Readium EPUB & Compose CBZ Engines](./phase-03-readium-epub-compose-cbz-engines.md) | Pending |
 | 4 | [Libmobi NDK Bridge for AZW3](./phase-04-libmobi-ndk-bridge-for-azw3.md) | Pending |
 | 5 | [Expressive UI & Library Feature](./phase-05-expressive-ui-library-feature.md) | Pending |

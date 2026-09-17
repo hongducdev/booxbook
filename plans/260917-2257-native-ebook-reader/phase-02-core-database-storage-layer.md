@@ -1,7 +1,7 @@
 ---
 phase: 2
 title: "Core Database & Storage Layer"
-status: pending
+status: completed
 priority: P1
 effort: "1d"
 dependencies: ["1"]
@@ -53,6 +53,6 @@ Xây dựng tầng lưu trữ cục bộ sử dụng Room Database để quản 
 5. Viết Unit Test cho DAO và Repository sử dụng In-Memory Database.
 
 ## Success Criteria
-- [ ] Lưu và đọc được thông tin sách vào Room Database.
-- [ ] Cập nhật tiến độ đọc (CFI / PageIndex) chính xác khi chuyển trang.
-- [ ] Unit test Room Database pass 100%.
+- [x] Lưu và đọc được thông tin sách vào Room Database.
+- [x] Cập nhật tiến độ đọc (CFI / PageIndex) chính xác khi chuyển trang.
+- [x] Unit test Room Database pass 100%.
