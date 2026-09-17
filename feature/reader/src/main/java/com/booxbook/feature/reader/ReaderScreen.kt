@@ -27,6 +27,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -45,6 +46,7 @@ import com.booxbook.feature.reader.components.EpubReaderContainer
 import com.booxbook.feature.reader.components.FloatingReaderToolbar
 import com.booxbook.feature.reader.components.ReaderSettingsSheet
 import com.booxbook.feature.reader.components.TableOfContentsSheet
+import com.booxbook.feature.reader.components.TtsFloatingPlayer
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
 import org.readium.r2.shared.publication.Href
 import org.readium.r2.shared.publication.Link
@@ -58,6 +60,8 @@ fun ReaderScreen(
     viewModel: ReaderViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val ttsState by viewModel.ttsSessionState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     var activeEpubNavigator by remember { mutableStateOf<EpubNavigatorFragment?>(null) }
 
     LaunchedEffect(bookId) {
@@ -206,6 +210,15 @@ fun ReaderScreen(
                         isBookmarked = uiState.isCurrentLocationBookmarked,
                         onBackClick = onBackClick,
                         onBookmarkToggle = viewModel::toggleBookmark,
+                        isTtsSupported = uiState.format != BookFormat.CBZ,
+                        isTtsActive = uiState.isTtsActive,
+                        onTtsToggle = {
+                            if (uiState.isTtsActive) {
+                                viewModel.stopTts()
+                            } else {
+                                viewModel.startTts(context)
+                            }
+                        },
                         modifier = Modifier.align(Alignment.TopCenter)
                     )
 
@@ -235,6 +248,20 @@ fun ReaderScreen(
                         onOpenSettings = { viewModel.openSheet(ActiveReaderSheet.SETTINGS) },
                         onOpenBookmarks = { viewModel.openSheet(ActiveReaderSheet.BOOKMARKS) },
                         modifier = Modifier.align(Alignment.BottomCenter)
+                    )
+
+                    // TTS Floating Mini-Player
+                    TtsFloatingPlayer(
+                        visible = uiState.isTtsActive,
+                        state = ttsState,
+                        onTogglePlayPause = viewModel::toggleTtsPlayPause,
+                        onNextSentence = viewModel::nextTtsSentence,
+                        onPreviousSentence = viewModel::previousTtsSentence,
+                        onSpeedSelected = viewModel::setTtsSpeed,
+                        onClose = viewModel::stopTts,
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = if (uiState.isControlsVisible) 96.dp else 16.dp)
                     )
 
                     // Sheets

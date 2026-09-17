@@ -1,5 +1,8 @@
 package com.booxbook.feature.reader
 
+import android.content.Context
+import android.content.Intent
+import android.os.Build
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.booxbook.core.database.repository.BookRepository
@@ -13,6 +16,9 @@ import com.booxbook.core.model.AnnotationType
 import com.booxbook.core.model.Book
 import com.booxbook.core.model.BookFormat
 import com.booxbook.core.model.ReadingProgress
+import com.booxbook.core.tts.TtsEngineWrapper
+import com.booxbook.core.tts.TtsService
+import com.booxbook.core.tts.model.TtsSessionState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -31,7 +37,8 @@ class ReaderViewModel @Inject constructor(
     private val bookRepository: BookRepository,
     val epubReaderEngine: EpubReaderEngine,
     val azw3ReaderEngine: Azw3ReaderEngine,
-    val cbzReaderEngine: CbzReaderEngine
+    val cbzReaderEngine: CbzReaderEngine,
+    val ttsEngineWrapper: TtsEngineWrapper
 ) : ViewModel() {
 
     internal var ioDispatcher: CoroutineDispatcher = Dispatchers.IO
@@ -45,9 +52,24 @@ class ReaderViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(ReaderUiState())
     val uiState: StateFlow<ReaderUiState> = _uiState.asStateFlow()
 
+    val ttsSessionState: StateFlow<TtsSessionState> = ttsEngineWrapper.state
+
     private var progressSaveJob: Job? = null
     private var annotationsJob: Job? = null
     private var initialLocator: String? = null
+
+    init {
+        viewModelScope.launch {
+            ttsEngineWrapper.state.collect { ttsState ->
+                _uiState.update {
+                    it.copy(
+                        isTtsActive = ttsState.isActive,
+                        ttsSentenceHighlight = if (ttsState.isPlaying) ttsState.currentSentence else null
+                    )
+                }
+            }
+        }
+    }
 
     fun loadBook(bookId: String) {
         viewModelScope.launch {
@@ -308,6 +330,86 @@ class ReaderViewModel @Inject constructor(
         }
     }
 
+    fun startTts(context: Context) {
+        val book = _uiState.value.book ?: return
+        if (book.format == BookFormat.CBZ) return
+
+        viewModelScope.launch(ioDispatcher) {
+            val publication = getActiveReadiumEngine()?.getPublication()
+            val readingOrder = publication?.readingOrder ?: emptyList()
+            val currentPosition = _uiState.value.currentPage.coerceIn(0, (readingOrder.size - 1).coerceAtLeast(0))
+            val currentLink = readingOrder.getOrNull(currentPosition) ?: readingOrder.firstOrNull()
+
+            var chapterText = ""
+            if (currentLink != null && publication != null) {
+                try {
+                    val resource = publication.get(currentLink)
+                    val rawBytes = resource?.read()?.getOrNull()
+                    if (rawBytes != null) {
+                        val html = rawBytes.toString(Charsets.UTF_8)
+                        chapterText = android.text.Html.fromHtml(html, android.text.Html.FROM_HTML_MODE_LEGACY).toString()
+                    }
+                } catch (_: Throwable) {}
+            }
+
+            if (chapterText.isBlank()) {
+                chapterText = "${book.title}. ${_uiState.value.currentChapterTitle}"
+            }
+
+            withContext(Dispatchers.Main) {
+                ttsEngineWrapper.loadContent(
+                    bookId = book.id,
+                    bookTitle = book.title,
+                    chapterTitle = _uiState.value.currentChapterTitle,
+                    rawText = chapterText
+                )
+                ttsEngineWrapper.play()
+
+                val intent = Intent(context, TtsService::class.java).apply {
+                    action = TtsService.ACTION_PLAY
+                }
+                try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        context.startForegroundService(intent)
+                    } else {
+                        context.startService(intent)
+                    }
+                } catch (_: Throwable) {}
+
+                _uiState.update { it.copy(isTtsActive = true) }
+            }
+        }
+    }
+
+    fun toggleTtsPlayPause() {
+        if (ttsEngineWrapper.state.value.isPlaying) {
+            ttsEngineWrapper.pause()
+        } else {
+            ttsEngineWrapper.resume()
+        }
+    }
+
+    fun nextTtsSentence() {
+        ttsEngineWrapper.next()
+    }
+
+    fun previousTtsSentence() {
+        ttsEngineWrapper.previous()
+    }
+
+    fun seekTtsSentence(index: Int) {
+        ttsEngineWrapper.seekTo(index)
+    }
+
+    fun setTtsSpeed(speed: Float) {
+        ttsEngineWrapper.setSpeed(speed)
+    }
+
+    fun stopTts() {
+        ttsEngineWrapper.stop()
+        _uiState.update { it.copy(isTtsActive = false, ttsSentenceHighlight = null) }
+    }
+
     fun deleteAnnotation(annotation: Annotation) {
         viewModelScope.launch(ioDispatcher) {
             bookRepository.removeAnnotation(annotation.id)
@@ -326,6 +428,7 @@ class ReaderViewModel @Inject constructor(
         // Synchronously and deterministically close resources to prevent memory & file descriptor leaks
         progressSaveJob?.cancel()
         annotationsJob?.cancel()
+        ttsEngineWrapper.stop()
         epubReaderEngine.closeBookSync()
         azw3ReaderEngine.closeBookSync()
         cbzReaderEngine.closeBookSync()

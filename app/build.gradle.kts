@@ -50,6 +50,7 @@ dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:database"))
     implementation(project(":core:engine"))
+    implementation(project(":core:tts"))
     implementation(project(":feature:library"))
     implementation(project(":feature:reader"))
 

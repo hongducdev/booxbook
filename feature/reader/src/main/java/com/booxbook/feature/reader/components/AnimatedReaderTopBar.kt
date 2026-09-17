@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.BookmarkBorder
+import androidx.compose.material.icons.rounded.Headphones
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -41,6 +42,9 @@ fun AnimatedReaderTopBar(
     isBookmarked: Boolean,
     onBackClick: () -> Unit,
     onBookmarkToggle: () -> Unit,
+    isTtsSupported: Boolean = false,
+    isTtsActive: Boolean = false,
+    onTtsToggle: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     AnimatedVisibility(
@@ -103,12 +107,24 @@ fun AnimatedReaderTopBar(
                     }
                 }
 
-                IconButton(onClick = onBookmarkToggle) {
-                    Icon(
-                        imageVector = if (isBookmarked) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
-                        contentDescription = if (isBookmarked) "Bỏ đánh dấu" else "Đánh dấu trang",
-                        tint = if (isBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (isTtsSupported) {
+                        IconButton(onClick = onTtsToggle) {
+                            Icon(
+                                imageVector = Icons.Rounded.Headphones,
+                                contentDescription = if (isTtsActive) "Tắt đọc giọng nói" else "Bật đọc giọng nói (TTS)",
+                                tint = if (isTtsActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    IconButton(onClick = onBookmarkToggle) {
+                        Icon(
+                            imageVector = if (isBookmarked) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
+                            contentDescription = if (isBookmarked) "Bỏ đánh dấu" else "Đánh dấu trang",
+                            tint = if (isBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         }

@@ -52,7 +52,7 @@ BooxBook là ứng dụng đọc sách native hiện đại trên nền tảng A
 | 4 | [Libmobi NDK Bridge for AZW3](./phase-04-libmobi-ndk-bridge-for-azw3.md) | Completed |
 | 5 | [Expressive UI & Library Feature](./phase-05-expressive-ui-library-feature.md) | Completed |
 | 6 | [Reader Screen & Annotations](./phase-06-reader-screen-annotations.md) | Completed |
-| 7 | [TTS Engine & Mini Player](./phase-07-tts-engine-mini-player.md) | Pending |
+| 7 | [TTS Engine & Mini Player](./phase-07-tts-engine-mini-player.md) | Completed |
 | 8 | [Polish Testing & Optimization](./phase-08-polish-testing-optimization.md) | Pending |
 
 ## Dependencies

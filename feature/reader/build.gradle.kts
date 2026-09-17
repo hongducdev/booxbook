@@ -41,6 +41,7 @@ dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:database"))
     implementation(project(":core:engine"))
+    implementation(project(":core:tts"))
 
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)

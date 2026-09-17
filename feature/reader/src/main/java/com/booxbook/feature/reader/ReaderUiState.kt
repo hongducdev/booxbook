@@ -38,5 +38,7 @@ data class ReaderUiState(
     val activeSheet: ActiveReaderSheet? = null,
     val annotations: List<Annotation> = emptyList(),
     val isCurrentLocationBookmarked: Boolean = false,
+    val isTtsActive: Boolean = false,
+    val ttsSentenceHighlight: String? = null,
     val errorMessage: String? = null
 )

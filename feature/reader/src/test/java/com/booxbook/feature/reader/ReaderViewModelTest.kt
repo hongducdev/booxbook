@@ -16,6 +16,7 @@ import com.booxbook.core.model.AnnotationType
 import com.booxbook.core.model.Book
 import com.booxbook.core.model.BookFormat
 import com.booxbook.core.model.ReadingProgress
+import com.booxbook.core.tts.TtsEngineWrapper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -57,6 +58,7 @@ class ReaderViewModelTest {
     private lateinit var epubEngine: EpubReaderEngine
     private lateinit var azw3Engine: Azw3ReaderEngine
     private lateinit var cbzEngine: CbzReaderEngine
+    private lateinit var ttsEngine: TtsEngineWrapper
     private lateinit var viewModel: ReaderViewModel
 
     private lateinit var sampleCbzBook: Book
@@ -95,8 +97,9 @@ class ReaderViewModelTest {
         azw3Engine = Azw3ReaderEngine(context, azw3Converter, assetRetriever)
         val cbzExtractor = CbzArchiveExtractor(context)
         cbzEngine = CbzReaderEngine(context, cbzExtractor)
+        ttsEngine = TtsEngineWrapper(context)
 
-        viewModel = ReaderViewModel(fakeRepository, epubEngine, azw3Engine, cbzEngine).apply {
+        viewModel = ReaderViewModel(fakeRepository, epubEngine, azw3Engine, cbzEngine, ttsEngine).apply {
             ioDispatcher = testDispatcher
         }
     }

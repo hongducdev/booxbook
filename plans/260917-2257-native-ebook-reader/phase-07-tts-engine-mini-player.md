@@ -1,7 +1,7 @@
 ---
 phase: 7
 title: "TTS Engine & Mini Player"
-status: pending
+status: completed
 priority: P2
 effort: "2d"
 dependencies: ["6"]
@@ -64,6 +64,6 @@ Tích hợp trình đọc văn bản thành giọng nói (Text-To-Speech) cho s�
    - Khi TTS phát câu nào, gửi index câu đó về ViewModel để cập nhật visual highlight trên `EpubNavigator`.
 
 ## Success Criteria
-- [ ] TTS phát giọng đọc rõ ràng bằng tiếng Việt hoặc tiếng Anh.
-- [ ] Câu đang đọc được bôi vàng nổi bật trên màn hình và tự lật trang khi đọc sang trang mới.
-- [ ] Mini-player điều khiển mượt mà, tắt màn hình vẫn tiếp tục đọc được qua Foreground Service.
+- [x] TTS phát giọng đọc rõ ràng bằng tiếng Việt hoặc tiếng Anh.
+- [x] Câu đang đọc được bôi vàng nổi bật trên màn hình và tự lật trang khi đọc sang trang mới.
+- [x] Mini-player điều khiển mượt mà, tắt màn hình vẫn tiếp tục đọc được qua Foreground Service.
