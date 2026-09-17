@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.BooxBook" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <style name="Theme.BooxBook.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#191C20</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <item name="postSplashScreenTheme">@style/Theme.BooxBook</item>
+    </style>
+</resources>

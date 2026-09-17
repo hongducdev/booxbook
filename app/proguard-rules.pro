@@ -1,0 +1,1 @@
+# BooxBook Proguard Rules

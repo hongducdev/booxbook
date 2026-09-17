@@ -1,0 +1,16 @@
+-- Merging decision tree log ---
+manifest
+ADDED from D:\MyProjects\BooxBook\core\model\build\intermediates\tmp\ProcessLibraryManifest\debug\tempAndroidManifest1964109974005039214.xml:2:13-83
+INJECTED from D:\MyProjects\BooxBook\core\model\build\intermediates\tmp\ProcessLibraryManifest\debug\tempAndroidManifest1964109974005039214.xml:2:13-83
+	package
+		INJECTED from D:\MyProjects\BooxBook\core\model\build\intermediates\tmp\ProcessLibraryManifest\debug\tempAndroidManifest1964109974005039214.xml
+	xmlns:android
+		ADDED from D:\MyProjects\BooxBook\core\model\build\intermediates\tmp\ProcessLibraryManifest\debug\tempAndroidManifest1964109974005039214.xml:2:23-81
+uses-sdk
+INJECTED from D:\MyProjects\BooxBook\core\model\build\intermediates\tmp\ProcessLibraryManifest\debug\tempAndroidManifest1964109974005039214.xml reason: use-sdk injection requested
+INJECTED from D:\MyProjects\BooxBook\core\model\build\intermediates\tmp\ProcessLibraryManifest\debug\tempAndroidManifest1964109974005039214.xml
+INJECTED from D:\MyProjects\BooxBook\core\model\build\intermediates\tmp\ProcessLibraryManifest\debug\tempAndroidManifest1964109974005039214.xml
+	android:targetSdkVersion
+		INJECTED from D:\MyProjects\BooxBook\core\model\build\intermediates\tmp\ProcessLibraryManifest\debug\tempAndroidManifest1964109974005039214.xml
+	android:minSdkVersion
+		INJECTED from D:\MyProjects\BooxBook\core\model\build\intermediates\tmp\ProcessLibraryManifest\debug\tempAndroidManifest1964109974005039214.xml
