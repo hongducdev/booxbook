@@ -11,7 +11,7 @@ import androidx.compose.ui.unit.sp
 import com.booxbook.core.ui.R
 
 /**
- * Google Sans Flex 400 (Regular weight).
+ * Google Sans Flex 400 (Regular with full Roundness 'ROND' 100).
  */
 @OptIn(ExperimentalTextApi::class)
 val GoogleSansFlex400 = FontFamily(
@@ -19,13 +19,14 @@ val GoogleSansFlex400 = FontFamily(
         resId = R.font.gflex_variable,
         weight = FontWeight.W400,
         variationSettings = FontVariation.Settings(
-            FontVariation.weight(400)
+            FontVariation.weight(400),
+            FontVariation.Setting("ROND", 100f)
         )
     )
 )
 
 /**
- * Google Sans Flex 600 (SemiBold weight).
+ * Google Sans Flex 600 (SemiBold with full Roundness 'ROND' 100).
  */
 @OptIn(ExperimentalTextApi::class)
 val GoogleSansFlex600 = FontFamily(
@@ -33,13 +34,14 @@ val GoogleSansFlex600 = FontFamily(
         resId = R.font.gflex_variable,
         weight = FontWeight.W600,
         variationSettings = FontVariation.Settings(
-            FontVariation.weight(600)
+            FontVariation.weight(600),
+            FontVariation.Setting("ROND", 100f)
         )
     )
 )
 
 /**
- * Google Sans Flex Display for expressive headlines and hero text.
+ * Google Sans Flex Display (Bold with full Roundness 'ROND' 100 for Expressive Headlines).
  */
 @OptIn(ExperimentalTextApi::class)
 val GoogleSansFlexDisplay = FontFamily(
@@ -47,40 +49,54 @@ val GoogleSansFlexDisplay = FontFamily(
         resId = R.font.gflex_variable,
         weight = FontWeight.Bold,
         variationSettings = FontVariation.Settings(
-            FontVariation.weight(750)
+            FontVariation.weight(750),
+            FontVariation.Setting("ROND", 100f),
+            FontVariation.Setting("opsz", 72f)
         )
     )
 )
 
 /**
- * Full multi-weight Google Sans Flex family.
+ * Full multi-weight Google Sans Flex family with 100% Roundness ('ROND' 100).
  */
 @OptIn(ExperimentalTextApi::class)
 val GoogleSansFlex = FontFamily(
     Font(
         resId = R.font.gflex_variable,
         weight = FontWeight.Normal,
-        variationSettings = FontVariation.Settings(FontVariation.weight(400))
+        variationSettings = FontVariation.Settings(
+            FontVariation.weight(400),
+            FontVariation.Setting("ROND", 100f)
+        )
     ),
     Font(
         resId = R.font.gflex_variable,
         weight = FontWeight.Medium,
-        variationSettings = FontVariation.Settings(FontVariation.weight(500))
+        variationSettings = FontVariation.Settings(
+            FontVariation.weight(500),
+            FontVariation.Setting("ROND", 100f)
+        )
     ),
     Font(
         resId = R.font.gflex_variable,
         weight = FontWeight.SemiBold,
-        variationSettings = FontVariation.Settings(FontVariation.weight(600))
+        variationSettings = FontVariation.Settings(
+            FontVariation.weight(600),
+            FontVariation.Setting("ROND", 100f)
+        )
     ),
     Font(
         resId = R.font.gflex_variable,
         weight = FontWeight.Bold,
-        variationSettings = FontVariation.Settings(FontVariation.weight(700))
+        variationSettings = FontVariation.Settings(
+            FontVariation.weight(750),
+            FontVariation.Setting("ROND", 100f)
+        )
     )
 )
 
 /**
- * Expressive typography hierarchy using Google Sans Flex variable font families.
+ * Expressive typography hierarchy using Google Sans Flex rounded variable font.
  */
 val ExpressiveTypography = Typography(
     displayLarge = TextStyle(
