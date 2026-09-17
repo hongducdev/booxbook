@@ -1,7 +1,7 @@
 ---
 phase: 6
 title: "Reader Screen & Annotations"
-status: pending
+status: completed
 priority: P1
 effort: "3d"
 dependencies: ["3", "4", "5"]
@@ -66,7 +66,7 @@ Xây dựng Màn hình Đọc sách hợp nhất (Unified Reader Screen), hỗ t
 5. Tạo `TableOfContentsSheet` và `ReaderSettingsSheet` với Material 3 Expressive BottomSheet.
 
 ## Success Criteria
-- [ ] Lật trang EPUB và cuộn CBZ hoạt động trơn tru.
-- [ ] Đổi cỡ chữ, màu nền phản hồi tức thì mà không làm mất vị trí đọc hiện tại.
-- [ ] Bôi đen text và tạo highlight thành công, highlight vẫn hiển thị khi mở lại sách.
-- [ ] Nhảy chương từ mục lục chính xác.
+- [x] Lật trang EPUB và cuộn CBZ hoạt động trơn tru.
+- [x] Đổi cỡ chữ, màu nền phản hồi tức thì mà không làm mất vị trí đọc hiện tại.
+- [x] Bôi đen text và tạo highlight thành công, highlight vẫn hiển thị khi mở lại sách.
+- [x] Nhảy chương từ mục lục chính xác.

@@ -7,6 +7,7 @@ import com.booxbook.core.engine.model.TocItem
 import com.booxbook.core.model.Book
 import com.booxbook.core.model.BookFormat
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,6 +29,8 @@ class CbzReaderEngine @Inject constructor(
 
     override val supportedFormat: BookFormat = BookFormat.CBZ
 
+    var ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+
     private val _state = MutableStateFlow<ReaderState>(ReaderState.Idle)
     override val state: StateFlow<ReaderState> = _state.asStateFlow()
 
@@ -39,7 +42,7 @@ class CbzReaderEngine @Inject constructor(
      */
     fun getArchive(): CbzArchive? = activeArchive
 
-    override suspend fun openBook(book: Book): Result<Unit> = withContext(Dispatchers.IO) {
+    override suspend fun openBook(book: Book): Result<Unit> = withContext(ioDispatcher) {
         runCatching {
             closeBook()
             _state.value = ReaderState.Loading(book)
@@ -77,17 +80,24 @@ class CbzReaderEngine @Inject constructor(
     }
 
     override suspend fun closeBook() {
-        withContext(Dispatchers.IO) {
-            try {
-                activeArchive?.close()
-            } catch (_: Throwable) {}
-            activeArchive = null
-            activeBook = null
-            _state.value = ReaderState.Idle
+        withContext(ioDispatcher) {
+            closeBookSync()
         }
     }
 
-    override suspend fun extractCover(book: Book, destinationFile: File): Result<File?> = withContext(Dispatchers.IO) {
+    /**
+     * Synchronously closes resources, safe to call during lifecycle teardown or onCleared().
+     */
+    fun closeBookSync() {
+        try {
+            activeArchive?.close()
+        } catch (_: Throwable) {}
+        activeArchive = null
+        activeBook = null
+        _state.value = ReaderState.Idle
+    }
+
+    override suspend fun extractCover(book: Book, destinationFile: File): Result<File?> = withContext(ioDispatcher) {
         val file = File(book.filePath)
         if (!file.exists()) return@withContext Result.success(null)
         cbzArchiveExtractor.extractCover(file, book.id, destinationFile)

@@ -20,7 +20,8 @@ data class ReaderPreferences(
     val pageMargins: Double = 1.0,
     val isScrollMode: Boolean = false, // false = Discrete pagination (lật từng trang)
     val fontFamily: String? = null,
-    val isDarkMode: Boolean = false
+    val isDarkMode: Boolean = false,
+    val themePreset: String = "DARK"
 )
 
 /**

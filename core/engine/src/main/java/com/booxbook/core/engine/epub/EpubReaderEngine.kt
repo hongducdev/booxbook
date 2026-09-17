@@ -10,6 +10,7 @@ import com.booxbook.core.engine.model.TocItem
 import com.booxbook.core.model.Book
 import com.booxbook.core.model.BookFormat
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -43,6 +44,8 @@ class EpubReaderEngine @Inject constructor(
 
     override val supportedFormat: BookFormat = BookFormat.EPUB
 
+    var ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+
     private val _state = MutableStateFlow<ReaderState>(ReaderState.Idle)
     override val state: StateFlow<ReaderState> = _state.asStateFlow()
 
@@ -63,7 +66,7 @@ class EpubReaderEngine @Inject constructor(
      */
     fun getNavigatorFactory(): EpubNavigatorFactory? = navigatorFactory
 
-    override suspend fun openBook(book: Book): Result<Unit> = withContext(Dispatchers.IO) {
+    override suspend fun openBook(book: Book): Result<Unit> = withContext(ioDispatcher) {
         runCatching {
             closeBook()
             _state.value = ReaderState.Loading(book)
@@ -101,15 +104,22 @@ class EpubReaderEngine @Inject constructor(
     }
 
     override suspend fun closeBook() {
-        withContext(Dispatchers.IO) {
-            try {
-                activePublication?.close()
-            } catch (_: Throwable) {}
-            activePublication = null
-            activeBook = null
-            navigatorFactory = null
-            _state.value = ReaderState.Idle
+        withContext(ioDispatcher) {
+            closeBookSync()
         }
+    }
+
+    /**
+     * Synchronously closes resources, safe to call during lifecycle teardown or onCleared().
+     */
+    fun closeBookSync() {
+        try {
+            activePublication?.close()
+        } catch (_: Throwable) {}
+        activePublication = null
+        activeBook = null
+        navigatorFactory = null
+        _state.value = ReaderState.Idle
     }
 
     /**
@@ -117,13 +127,19 @@ class EpubReaderEngine @Inject constructor(
      * Defaults to discrete pagination (scroll = false).
      */
     fun buildEpubPreferences(prefs: ReaderPreferences = ReaderPreferences()): EpubPreferences {
+        val resolvedTheme = when (prefs.themePreset) {
+            "SEPIA" -> Theme.SEPIA
+            "LIGHT" -> Theme.LIGHT
+            "DARK", "AMOLED" -> Theme.DARK
+            else -> if (prefs.isDarkMode) Theme.DARK else Theme.LIGHT
+        }
         return EpubPreferences(
             scroll = prefs.isScrollMode, // false = discrete page-turn
             fontSize = prefs.fontSize,
             lineHeight = prefs.lineHeight,
             pageMargins = prefs.pageMargins,
             fontFamily = prefs.fontFamily?.let { FontFamily(it) },
-            theme = if (prefs.isDarkMode) Theme.DARK else Theme.LIGHT
+            theme = resolvedTheme
         )
     }
 
@@ -146,7 +162,7 @@ class EpubReaderEngine @Inject constructor(
         )
     }
 
-    override suspend fun extractCover(book: Book, destinationFile: File): Result<File?> = withContext(Dispatchers.IO) {
+    override suspend fun extractCover(book: Book, destinationFile: File): Result<File?> = withContext(ioDispatcher) {
         runCatching {
             val isTransient = activeBook?.id != book.id || activePublication == null
             val pubToUse = if (!isTransient) {
