@@ -172,27 +172,30 @@ fun ReaderScreen(
                         }
                     } else {
                         // EPUB / AZW3 Readium Navigator
-                        EpubReaderContainer(
-                            epubEngine = viewModel.epubReaderEngine,
-                            preferences = uiState.preferences,
-                            initialLocatorJson = uiState.currentLocator,
-                            onLocatorChanged = { locator ->
-                                val totalProg = locator.locations.totalProgression?.toFloat()
-                                    ?: (locator.locations.progression?.toFloat() ?: 0f)
-                                val pageIndex = locator.locations.position ?: 0
+                        val readiumEngine = viewModel.getActiveReadiumEngine()
+                        if (readiumEngine != null) {
+                            EpubReaderContainer(
+                                epubEngine = readiumEngine,
+                                preferences = uiState.preferences,
+                                initialLocatorJson = uiState.currentLocator,
+                                onLocatorChanged = { locator ->
+                                    val totalProg = locator.locations.totalProgression?.toFloat()
+                                        ?: (locator.locations.progression?.toFloat() ?: 0f)
+                                    val pageIndex = locator.locations.position ?: 0
 
-                                viewModel.onPageChanged(
-                                    pageIndex = pageIndex,
-                                    totalPages = uiState.totalPages,
-                                    locator = locator.toJSON().toString(),
-                                    chapterTitle = locator.title ?: "",
-                                    percentage = totalProg
-                                )
-                            },
-                            onCenterTap = { viewModel.toggleControls() },
-                            onNavigatorReady = { nav -> activeEpubNavigator = nav },
-                            modifier = Modifier.fillMaxSize()
-                        )
+                                    viewModel.onPageChanged(
+                                        pageIndex = pageIndex,
+                                        totalPages = uiState.totalPages,
+                                        locator = locator.toJSON().toString(),
+                                        chapterTitle = locator.title ?: "",
+                                        percentage = totalProg
+                                    )
+                                },
+                                onCenterTap = { viewModel.toggleControls() },
+                                onNavigatorReady = { nav -> activeEpubNavigator = nav },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
                     }
 
                     // Top App Bar
@@ -217,7 +220,7 @@ fun ReaderScreen(
                                 viewModel.onPageChanged(page, uiState.totalPages)
                             } else {
                                 val nav = activeEpubNavigator
-                                val publication = viewModel.epubReaderEngine.getPublication()
+                                val publication = viewModel.getActiveReadiumEngine()?.getPublication()
                                 if (nav != null && publication != null && uiState.totalPages > 0) {
                                     val targetProgression = (page.toDouble() / (uiState.totalPages - 1).coerceAtLeast(1)).coerceIn(0.0, 1.0)
                                     val targetSpineIndex = (page).coerceIn(0, publication.readingOrder.size - 1)

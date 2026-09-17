@@ -12,7 +12,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.fragment.app.FragmentActivity
 import androidx.fragment.app.FragmentContainerView
-import com.booxbook.core.engine.epub.EpubReaderEngine
+import com.booxbook.core.engine.epub.ReadiumReaderEngine
 import com.booxbook.core.engine.model.ReaderPreferences
 import kotlinx.coroutines.flow.collectLatest
 import org.json.JSONObject
@@ -27,7 +27,7 @@ import org.readium.r2.shared.publication.Locator
 @OptIn(ExperimentalReadiumApi::class)
 @Composable
 fun EpubReaderContainer(
-    epubEngine: EpubReaderEngine,
+    epubEngine: ReadiumReaderEngine,
     preferences: ReaderPreferences,
     initialLocatorJson: String?,
     onLocatorChanged: (Locator) -> Unit,

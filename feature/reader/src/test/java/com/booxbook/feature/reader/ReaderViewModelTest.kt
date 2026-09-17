@@ -5,6 +5,8 @@ import android.net.Uri
 import androidx.test.core.app.ApplicationProvider
 import com.booxbook.core.database.entity.BookWithProgress
 import com.booxbook.core.database.repository.BookRepository
+import com.booxbook.core.engine.azw3.Azw3Converter
+import com.booxbook.core.engine.azw3.Azw3ReaderEngine
 import com.booxbook.core.engine.cbz.CbzArchiveExtractor
 import com.booxbook.core.engine.cbz.CbzReaderEngine
 import com.booxbook.core.engine.epub.EpubReaderEngine
@@ -53,6 +55,7 @@ class ReaderViewModelTest {
     private lateinit var context: Context
     private lateinit var fakeRepository: FakeReaderBookRepository
     private lateinit var epubEngine: EpubReaderEngine
+    private lateinit var azw3Engine: Azw3ReaderEngine
     private lateinit var cbzEngine: CbzReaderEngine
     private lateinit var viewModel: ReaderViewModel
 
@@ -88,10 +91,12 @@ class ReaderViewModelTest {
 
         val assetRetriever = ReadiumAssetRetriever(context)
         epubEngine = EpubReaderEngine(context, assetRetriever)
+        val azw3Converter = Azw3Converter()
+        azw3Engine = Azw3ReaderEngine(context, azw3Converter, assetRetriever)
         val cbzExtractor = CbzArchiveExtractor(context)
         cbzEngine = CbzReaderEngine(context, cbzExtractor)
 
-        viewModel = ReaderViewModel(fakeRepository, epubEngine, cbzEngine).apply {
+        viewModel = ReaderViewModel(fakeRepository, epubEngine, azw3Engine, cbzEngine).apply {
             ioDispatcher = testDispatcher
         }
     }

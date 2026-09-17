@@ -3,8 +3,10 @@ package com.booxbook.feature.reader
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.booxbook.core.database.repository.BookRepository
+import com.booxbook.core.engine.azw3.Azw3ReaderEngine
 import com.booxbook.core.engine.cbz.CbzReaderEngine
 import com.booxbook.core.engine.epub.EpubReaderEngine
+import com.booxbook.core.engine.epub.ReadiumReaderEngine
 import com.booxbook.core.engine.model.ReaderState
 import com.booxbook.core.model.Annotation
 import com.booxbook.core.model.AnnotationType
@@ -28,6 +30,7 @@ import javax.inject.Inject
 class ReaderViewModel @Inject constructor(
     private val bookRepository: BookRepository,
     val epubReaderEngine: EpubReaderEngine,
+    val azw3ReaderEngine: Azw3ReaderEngine,
     val cbzReaderEngine: CbzReaderEngine
 ) : ViewModel() {
 
@@ -35,6 +38,7 @@ class ReaderViewModel @Inject constructor(
         set(value) {
             field = value
             epubReaderEngine.ioDispatcher = value
+            azw3ReaderEngine.ioDispatcher = value
             cbzReaderEngine.ioDispatcher = value
         }
 
@@ -97,12 +101,15 @@ class ReaderViewModel @Inject constructor(
             when (book.format) {
                 BookFormat.EPUB -> initEpub(book, savedProgress)
                 BookFormat.CBZ -> initCbz(book, savedProgress)
-                BookFormat.AZW3 -> {
-                    // Fallback to EPUB reader engine for AZW3
-                    initEpub(book, savedProgress)
-                }
+                BookFormat.AZW3 -> initAzw3(book, savedProgress)
             }
         }
+    }
+
+    fun getActiveReadiumEngine(): ReadiumReaderEngine? = when (_uiState.value.format) {
+        BookFormat.AZW3 -> azw3ReaderEngine
+        BookFormat.EPUB -> epubReaderEngine
+        else -> null
     }
 
     private suspend fun initEpub(book: Book, savedProgress: ReadingProgress?) {
@@ -129,6 +136,35 @@ class ReaderViewModel @Inject constructor(
                 it.copy(
                     isLoading = false,
                     errorMessage = result.exceptionOrNull()?.message ?: "Không thể mở sách EPUB"
+                )
+            }
+        }
+    }
+
+    private suspend fun initAzw3(book: Book, savedProgress: ReadingProgress?) {
+        val result = azw3ReaderEngine.openBook(book)
+        if (result.isSuccess) {
+            val engineState = azw3ReaderEngine.state.value
+            val toc = if (engineState is ReaderState.Ready) engineState.tableOfContents else emptyList()
+            val totalSpine = if (engineState is ReaderState.Ready) engineState.totalPages else 0
+
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    book = book,
+                    format = BookFormat.AZW3,
+                    tableOfContents = toc,
+                    totalPages = totalSpine,
+                    currentLocator = savedProgress?.locator,
+                    progressPercentage = savedProgress?.percentage ?: 0f,
+                    currentPage = savedProgress?.currentPage ?: 0
+                )
+            }
+        } else {
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    errorMessage = result.exceptionOrNull()?.message ?: "Không thể mở sách AZW3"
                 )
             }
         }
@@ -291,6 +327,7 @@ class ReaderViewModel @Inject constructor(
         progressSaveJob?.cancel()
         annotationsJob?.cancel()
         epubReaderEngine.closeBookSync()
+        azw3ReaderEngine.closeBookSync()
         cbzReaderEngine.closeBookSync()
     }
 }

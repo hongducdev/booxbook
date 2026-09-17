@@ -1,7 +1,7 @@
 ---
 phase: 4
 title: "Libmobi NDK Bridge for AZW3"
-status: pending
+status: completed
 priority: P2
 effort: "2d"
 dependencies: ["1", "3"]
@@ -56,6 +56,6 @@ Xây dựng module NDK C++ tích hợp thư viện mã nguồn mở **`libmobi`*
 5. Tạo `Azw3ReaderEngine` kế thừa logic của `EpubReaderEngine`, tự động convert ngầm và nạp file đã convert vào Readium.
 
 ## Success Criteria
-- [ ] Module C++ biên dịch thành công cho cả thiết bị thật (ARM64) và máy ảo Android (x86_64).
-- [ ] Chuyển đổi thành công file `.azw3` mẫu sang file `.epub` có thể đọc bình thường trên Readium.
-- [ ] Xử lý khéo léo thông báo lỗi khi người dùng mở file AZW3 có DRM của Amazon.
+- [x] Module C++ biên dịch thành công cho cả thiết bị thật (ARM64) và máy ảo Android (x86_64).
+- [x] Chuyển đổi thành công file `.azw3` mẫu sang file `.epub` có thể đọc bình thường trên Readium.
+- [x] Xử lý khéo léo thông báo lỗi khi người dùng mở file AZW3 có DRM của Amazon.

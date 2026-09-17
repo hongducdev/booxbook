@@ -188,7 +188,23 @@ To prevent race conditions where Coil or another consumer reads a partially-writ
 
 ---
 
-## 4. Dependency Injection (`EngineModule`)
+## 4. AZW3 Engine (`Azw3ReaderEngine` & Libmobi NDK Bridge)
+
+The AZW3 engine unlocks Amazon Kindle KF8 / AZW3 formats without external converters:
+
+### C++ Native Interface (`libmobi` + JNI)
+- **`azw3_bridge.cpp`**: C++ JNI bridge linking `libmobi` C99 core and Android NDK `zlib`.
+- **`nativeConvertAzw3ToEpub`**: Decodes KF8 palm records, reconstructs OPF manifest via `opf.c`, packages standard EPUB3 ZIP archive in cache.
+- **`nativeIsDrmProtected`**: Detects Amazon Kindle DRM locks and aborts conversion gracefully with a descriptive security message.
+- **`nativeExtractCover`**: Decodes EXTH header `EXTH_COVEROFFSET` to extract cover images directly from AZW3 files without full conversion.
+
+### Architecture & Smart Caching
+- **`Azw3Converter`**: Manages native library loading, SHA-256 fingerprint caching (`azw3_cache/`), and automatic LRU disk cleanup when cache exceeds 250 MB.
+- **`ReadiumReaderEngine` Interface**: Shared interface implemented by both `EpubReaderEngine` and `Azw3ReaderEngine` for Readium navigation, preferences, and fragment instantiation.
+
+---
+
+## 5. Dependency Injection (`EngineModule`)
 
 Engines are wired into the application graph using Hilt:
 
@@ -201,10 +217,12 @@ object EngineModule {
     @Singleton
     fun provideEngineMap(
         epubEngine: EpubReaderEngine,
+        azw3Engine: Azw3ReaderEngine,
         cbzEngine: CbzReaderEngine
     ): Map<BookFormat, @JvmSuppressWildcards ReaderEngine> {
         return mapOf(
             BookFormat.EPUB to epubEngine,
+            BookFormat.AZW3 to azw3Engine,
             BookFormat.CBZ to cbzEngine
         )
     }
@@ -213,14 +231,14 @@ object EngineModule {
 
 ### Extensibility Pattern
 The `Map<BookFormat, ReaderEngine>` multi-binding provides an Open-Closed architecture:
-- Format dispatchers (e.g. `ReaderViewModel`) can dynamically resolve the proper engine for any book via `engineMap[book.format]`.
-- Future formats (e.g., `AZW3`, `PDF`, `FB2`) can be integrated cleanly by implementing `ReaderEngine` and registering their entry in `EngineModule`.
+- Format dispatchers (e.g. `ReaderViewModel`) dynamically resolve the proper engine for any book via `engineMap[book.format]`.
 
 ---
 
-## 5. Verification & Testing
+## 6. Verification & Testing
 
 Unit test coverage verifies core engine mechanics:
 - `NaturalOrderComparatorTest`: Alphanumeric ordering, chapter prefixes (`Ch1_p02` vs `Ch1_p10`), multi-digit numbers, case handling.
 - `CbzArchiveExtractorTest`: Archive extraction, file filtering (`__MACOSX`, non-image), cover extraction, atomic cache write.
 - `EpubPreferencesTest`: Default pagination validation (`scroll = false`), state machine transitions (`Idle` -> `Loading` -> `Ready`), and hierarchical `TocItem` structures.
+- `Azw3ConverterTest`: Cache hit validation, missing file error propagation, DRM detection, and format preference defaults.

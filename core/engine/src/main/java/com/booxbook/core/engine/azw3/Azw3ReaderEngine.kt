@@ -1,9 +1,11 @@
-package com.booxbook.core.engine.epub
+package com.booxbook.core.engine.azw3
 
 import android.content.Context
 import android.graphics.Bitmap
 import androidx.fragment.app.FragmentFactory
 import com.booxbook.core.engine.ReaderEngine
+import com.booxbook.core.engine.epub.ReadiumReaderEngine
+import com.booxbook.core.engine.epub.ReadiumAssetRetriever
 import com.booxbook.core.engine.model.ReaderPreferences
 import com.booxbook.core.engine.model.ReaderState
 import com.booxbook.core.engine.model.TocItem
@@ -32,19 +34,25 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Native EPUB reader engine powered by Readium Kotlin Toolkit.
- * Configured for discrete pagination (lật từng trang) by default.
+ * Native AZW3 (Amazon Kindle KF8) reader engine.
+ * Unpacks AZW3 to a cached EPUB using libmobi C++ JNI bridge and renders
+ * through Readium EPUB Navigator with discrete pagination.
  */
 @OptIn(ExperimentalReadiumApi::class)
 @Singleton
-class EpubReaderEngine @Inject constructor(
+class Azw3ReaderEngine @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val azw3Converter: Azw3Converter,
     private val readiumAssetRetriever: ReadiumAssetRetriever
 ) : ReadiumReaderEngine {
 
-    override val supportedFormat: BookFormat = BookFormat.EPUB
+    override val supportedFormat: BookFormat = BookFormat.AZW3
 
     var ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+        set(value) {
+            field = value
+            azw3Converter.ioDispatcher = value
+        }
 
     private val _state = MutableStateFlow<ReaderState>(ReaderState.Idle)
     override val state: StateFlow<ReaderState> = _state.asStateFlow()
@@ -56,14 +64,7 @@ class EpubReaderEngine @Inject constructor(
     @Volatile
     private var navigatorFactory: EpubNavigatorFactory? = null
 
-    /**
-     * Gets the currently active Readium Publication.
-     */
     override fun getPublication(): Publication? = activePublication
-
-    /**
-     * Gets the active EpubNavigatorFactory for Fragment instantiation.
-     */
     override fun getNavigatorFactory(): EpubNavigatorFactory? = navigatorFactory
 
     override suspend fun openBook(book: Book): Result<Unit> = withContext(ioDispatcher) {
@@ -78,15 +79,30 @@ class EpubReaderEngine @Inject constructor(
                 throw IllegalArgumentException(err)
             }
 
-            val publication = readiumAssetRetriever.openPublication(file).getOrThrow()
+            // Convert AZW3 to EPUB cache
+            val conversionResult = azw3Converter.convertToEpub(file, context.cacheDir)
+            val cachedEpubFile = when (conversionResult) {
+                is Azw3ConversionResult.Success -> conversionResult.epubFile
+                is Azw3ConversionResult.DrmProtected -> {
+                    val err = "Sách này được bảo vệ bản quyền DRM của Amazon Kindle và không thể giải mã"
+                    _state.value = ReaderState.Error(err)
+                    throw SecurityException(err)
+                }
+                is Azw3ConversionResult.Error -> {
+                    val err = "Lỗi xử lý file AZW3: ${conversionResult.message}"
+                    _state.value = ReaderState.Error(err)
+                    throw IllegalStateException(err)
+                }
+            }
+
+            // Open converted publication in Readium
+            val publication = readiumAssetRetriever.openPublication(cachedEpubFile).getOrThrow()
             activePublication = publication
             activeBook = book
 
-            // Create Navigator Factory
             val factory = EpubNavigatorFactory(publication)
             navigatorFactory = factory
 
-            // Extract Table of Contents
             val tocItems = mapLinksToToc(publication.tableOfContents)
             val totalSpineItems = publication.readingOrder.size
 
@@ -97,7 +113,7 @@ class EpubReaderEngine @Inject constructor(
             )
         }.onFailure { throwable ->
             _state.value = ReaderState.Error(
-                message = throwable.message ?: "Không thể mở sách EPUB",
+                message = throwable.message ?: "Không thể mở sách AZW3",
                 throwable = throwable
             )
         }
@@ -109,9 +125,6 @@ class EpubReaderEngine @Inject constructor(
         }
     }
 
-    /**
-     * Synchronously closes resources, safe to call during lifecycle teardown or onCleared().
-     */
     fun closeBookSync() {
         try {
             activePublication?.close()
@@ -122,10 +135,6 @@ class EpubReaderEngine @Inject constructor(
         _state.value = ReaderState.Idle
     }
 
-    /**
-     * Builds [EpubPreferences] according to [ReaderPreferences].
-     * Defaults to discrete pagination (scroll = false).
-     */
     override fun buildEpubPreferences(prefs: ReaderPreferences): EpubPreferences {
         val resolvedTheme = when (prefs.themePreset) {
             "SEPIA" -> Theme.SEPIA
@@ -134,7 +143,7 @@ class EpubReaderEngine @Inject constructor(
             else -> if (prefs.isDarkMode) Theme.DARK else Theme.LIGHT
         }
         return EpubPreferences(
-            scroll = prefs.isScrollMode, // false = discrete page-turn
+            scroll = prefs.isScrollMode,
             fontSize = prefs.fontSize,
             lineHeight = prefs.lineHeight,
             pageMargins = prefs.pageMargins,
@@ -143,9 +152,6 @@ class EpubReaderEngine @Inject constructor(
         )
     }
 
-    /**
-     * Creates a FragmentFactory for [EpubNavigatorFragment] with discrete pagination preferences.
-     */
     override fun createFragmentFactory(
         initialLocator: Locator?,
         preferences: ReaderPreferences,
@@ -164,13 +170,24 @@ class EpubReaderEngine @Inject constructor(
 
     override suspend fun extractCover(book: Book, destinationFile: File): Result<File?> = withContext(ioDispatcher) {
         runCatching {
+            val bookFile = File(book.filePath)
+            if (!bookFile.exists()) return@runCatching null
+
+            // 1. Direct native extraction from AZW3 EXTH headers
+            val extracted = azw3Converter.extractCover(bookFile, destinationFile)
+            if (extracted && destinationFile.exists() && destinationFile.length() > 0) {
+                return@runCatching destinationFile
+            }
+
+            // 2. Fallback: Convert/open publication and extract cover via Readium
             val isTransient = activeBook?.id != book.id || activePublication == null
             val pubToUse = if (!isTransient) {
                 activePublication
             } else {
-                val file = File(book.filePath)
-                if (!file.exists()) return@runCatching null
-                readiumAssetRetriever.openPublication(file).getOrNull()
+                val conversion = azw3Converter.convertToEpub(bookFile, context.cacheDir)
+                if (conversion is Azw3ConversionResult.Success) {
+                    readiumAssetRetriever.openPublication(conversion.epubFile).getOrNull()
+                } else null
             } ?: return@runCatching null
 
             try {
