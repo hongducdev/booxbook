@@ -5,9 +5,11 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import androidx.room.Upsert
 import com.booxbook.core.database.entity.BookEntity
+import com.booxbook.core.database.entity.BookWithProgressEntity
 import com.booxbook.core.model.BookFormat
 import kotlinx.coroutines.flow.Flow
 
@@ -16,8 +18,16 @@ interface BookDao {
     @Query("SELECT * FROM books ORDER BY added_timestamp DESC")
     fun getAllBooks(): Flow<List<BookEntity>>
 
+    @Transaction
+    @Query("SELECT * FROM books ORDER BY added_timestamp DESC")
+    fun getAllBooksWithProgress(): Flow<List<BookWithProgressEntity>>
+
     @Query("SELECT * FROM books WHERE last_read_timestamp > 0 ORDER BY last_read_timestamp DESC LIMIT :limit")
     fun getRecentBooks(limit: Int = 10): Flow<List<BookEntity>>
+
+    @Transaction
+    @Query("SELECT * FROM books WHERE last_read_timestamp > 0 ORDER BY last_read_timestamp DESC LIMIT :limit")
+    fun getRecentBooksWithProgress(limit: Int = 10): Flow<List<BookWithProgressEntity>>
 
     @Query("SELECT * FROM books WHERE format = :format ORDER BY added_timestamp DESC")
     fun getBooksByFormat(format: BookFormat): Flow<List<BookEntity>>

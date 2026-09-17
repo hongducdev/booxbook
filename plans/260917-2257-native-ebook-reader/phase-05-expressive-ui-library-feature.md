@@ -1,7 +1,7 @@
 ---
 phase: 5
 title: "Expressive UI & Library Feature"
-status: pending
+status: completed
 priority: P1
 effort: "2d"
 dependencies: ["1", "2"]
@@ -58,6 +58,6 @@ Xây dựng giao diện Thư viện sách (Library Screen) áp dụng phong các
 4. Thêm Bottom Sheet chi tiết sách với hiệu ứng trượt Spring bottom sheet.
 
 ## Success Criteria
-- [ ] Giao diện thư viện hiển thị sắc nét, chuẩn phong cách Pixel Material 3 Expressive.
-- [ ] Tìm kiếm và lọc định dạng phản hồi tức thì (< 50ms).
-- [ ] Thêm file EPUB/AZW3/CBZ từ bộ nhớ máy thành công và xuất hiện ngay lập tức trên kệ sách.
+- [x] Giao diện thư viện hiển thị sắc nét, chuẩn phong cách Pixel Material 3 Expressive.
+- [x] Tìm kiếm và lọc định dạng phản hồi tức thì (< 50ms).
+- [x] Thêm file EPUB/AZW3/CBZ từ bộ nhớ máy thành công và xuất hiện ngay lập tức trên kệ sách.

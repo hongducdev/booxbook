@@ -1,6 +1,7 @@
 package com.booxbook.core.database.repository
 
 import android.net.Uri
+import com.booxbook.core.database.entity.BookWithProgress
 import com.booxbook.core.model.Annotation
 import com.booxbook.core.model.AnnotationType
 import com.booxbook.core.model.Book
@@ -10,7 +11,9 @@ import kotlinx.coroutines.flow.Flow
 
 interface BookRepository {
     fun getAllBooks(): Flow<List<Book>>
+    fun getAllBooksWithProgress(): Flow<List<BookWithProgress>>
     fun getRecentBooks(limit: Int = 10): Flow<List<Book>>
+    fun getRecentBooksWithProgress(limit: Int = 10): Flow<List<BookWithProgress>>
     fun getBooksByFormat(format: BookFormat): Flow<List<Book>>
     fun getBookById(id: String): Flow<Book?>
     suspend fun getBookByIdSync(id: String): Book?

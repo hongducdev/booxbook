@@ -4,6 +4,7 @@ import android.net.Uri
 import com.booxbook.core.database.dao.AnnotationDao
 import com.booxbook.core.database.dao.BookDao
 import com.booxbook.core.database.dao.ReadingProgressDao
+import com.booxbook.core.database.entity.BookWithProgress
 import com.booxbook.core.database.entity.asDomainModel
 import com.booxbook.core.database.entity.asEntity
 import com.booxbook.core.database.storage.BookStorageManager
@@ -31,8 +32,20 @@ class BookRepositoryImpl @Inject constructor(
         }
     }
 
+    override fun getAllBooksWithProgress(): Flow<List<BookWithProgress>> {
+        return bookDao.getAllBooksWithProgress().map { entities ->
+            entities.map { it.asDomainModel() }
+        }
+    }
+
     override fun getRecentBooks(limit: Int): Flow<List<Book>> {
         return bookDao.getRecentBooks(limit).map { entities ->
+            entities.map { it.asDomainModel() }
+        }
+    }
+
+    override fun getRecentBooksWithProgress(limit: Int): Flow<List<BookWithProgress>> {
+        return bookDao.getRecentBooksWithProgress(limit).map { entities ->
             entities.map { it.asDomainModel() }
         }
     }
