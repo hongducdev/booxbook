@@ -1,7 +1,7 @@
 ---
 phase: 3
 title: "Readium EPUB & Compose CBZ Engines"
-status: pending
+status: completed
 priority: P1
 effort: "2d"
 dependencies: ["1", "2"]
@@ -61,6 +61,6 @@ Tích hợp thư viện **Readium Kotlin Toolkit** để làm engine hiển th�
    - Bọc mỗi trang ảnh bằng `Modifier.zoomable`.
 
 ## Success Criteria
-- [ ] Mở được file EPUB mẫu, hiển thị đúng chữ và lật trang mượt mà từng trang.
-- [ ] Mở được file CBZ mẫu, cuộn dọc mượt mà từ trên xuống dưới không giật lag.
-- [ ] Trích xuất thành công bìa sách từ cả file EPUB và CBZ để hiển thị ngoài thư viện.
+- [x] Mở được file EPUB mẫu, hiển thị đúng chữ và lật trang mượt mà từng trang.
+- [x] Mở được file CBZ mẫu, cuộn dọc mượt mà từ trên xuống dưới không giật lag.
+- [x] Trích xuất thành công bìa sách từ cả file EPUB và CBZ để hiển thị ngoài thư viện.
