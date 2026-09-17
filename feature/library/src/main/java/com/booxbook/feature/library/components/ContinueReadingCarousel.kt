@@ -51,6 +51,9 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.booxbook.core.ui.animation.SpringPhysics
 import com.booxbook.core.ui.theme.BentoCardShape
+import com.booxbook.core.ui.theme.GoogleSansFlex400
+import com.booxbook.core.ui.theme.GoogleSansFlex600
+import com.booxbook.core.ui.theme.GoogleSansFlexDisplay
 import com.booxbook.core.ui.theme.PillShape
 import com.booxbook.feature.library.BookItemUiModel
 import java.io.File
@@ -78,6 +81,7 @@ fun ContinueReadingCarousel(
             Text(
                 text = "Đang đọc dở",
                 style = MaterialTheme.typography.titleMedium.copy(
+                    fontFamily = GoogleSansFlexDisplay,
                     fontWeight = FontWeight.Bold
                 ),
                 color = MaterialTheme.colorScheme.onSurface
@@ -183,6 +187,7 @@ private fun ContinueReadingCard(
                     Text(
                         text = book.title,
                         style = MaterialTheme.typography.titleSmall.copy(
+                            fontFamily = GoogleSansFlex600,
                             fontWeight = FontWeight.Bold,
                             lineHeight = 16.sp
                         ),
@@ -192,7 +197,10 @@ private fun ContinueReadingCard(
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = book.author,
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = GoogleSansFlex400,
+                            fontSize = 11.sp
+                        ),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis

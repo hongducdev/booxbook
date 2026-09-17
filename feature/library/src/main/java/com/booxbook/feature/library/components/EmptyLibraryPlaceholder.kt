@@ -24,6 +24,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.booxbook.core.ui.component.ExpressivePillButton
+import com.booxbook.core.ui.theme.GoogleSansFlex400
+import com.booxbook.core.ui.theme.GoogleSansFlex600
+import com.booxbook.core.ui.theme.GoogleSansFlexDisplay
 
 @Composable
 fun EmptyLibraryPlaceholder(
@@ -58,6 +61,7 @@ fun EmptyLibraryPlaceholder(
         Text(
             text = title,
             style = MaterialTheme.typography.headlineSmall.copy(
+                fontFamily = GoogleSansFlexDisplay,
                 fontWeight = FontWeight.Bold
             ),
             color = MaterialTheme.colorScheme.onSurface,
@@ -69,6 +73,7 @@ fun EmptyLibraryPlaceholder(
         Text(
             text = subtitle,
             style = MaterialTheme.typography.bodyMedium.copy(
+                fontFamily = GoogleSansFlex400,
                 lineHeight = 20.sp
             ),
             color = MaterialTheme.colorScheme.onSurfaceVariant,

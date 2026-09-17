@@ -50,6 +50,9 @@ import coil3.request.crossfade
 import com.booxbook.core.model.BookFormat
 import com.booxbook.core.ui.animation.SpringPhysics
 import com.booxbook.core.ui.theme.BentoCardShape
+import com.booxbook.core.ui.theme.GoogleSansFlex400
+import com.booxbook.core.ui.theme.GoogleSansFlex600
+import com.booxbook.core.ui.theme.GoogleSansFlexDisplay
 import com.booxbook.core.ui.theme.PillShape
 import com.booxbook.feature.library.BookItemUiModel
 import java.io.File
@@ -206,6 +209,7 @@ fun BentoBookCard(
             Text(
                 text = book.title,
                 style = MaterialTheme.typography.titleMedium.copy(
+                    fontFamily = GoogleSansFlex600,
                     fontWeight = FontWeight.SemiBold,
                     lineHeight = 18.sp
                 ),
@@ -219,7 +223,9 @@ fun BentoBookCard(
             // Book Author
             Text(
                 text = book.author,
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodySmall.copy(
+                    fontFamily = GoogleSansFlex400
+                ),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis

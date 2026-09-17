@@ -47,6 +47,9 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.booxbook.core.ui.component.ExpressivePillButton
+import com.booxbook.core.ui.theme.GoogleSansFlex400
+import com.booxbook.core.ui.theme.GoogleSansFlex600
+import com.booxbook.core.ui.theme.GoogleSansFlexDisplay
 import com.booxbook.core.ui.theme.PillShape
 import com.booxbook.feature.library.BookItemUiModel
 import java.io.File
@@ -133,13 +136,16 @@ fun BookDetailBottomSheet(
                     Text(
                         text = book.title,
                         style = MaterialTheme.typography.titleMedium.copy(
+                            fontFamily = GoogleSansFlexDisplay,
                             fontWeight = FontWeight.Bold
                         ),
                         maxLines = 2
                     )
                     Text(
                         text = book.author,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontFamily = GoogleSansFlex400
+                        ),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1
                     )
@@ -249,12 +255,17 @@ private fun MetadataRow(label: String, value: String) {
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontFamily = GoogleSansFlex400
+            ),
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text(
             text = value,
-            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontFamily = GoogleSansFlex600,
+                fontWeight = FontWeight.SemiBold
+            ),
             color = MaterialTheme.colorScheme.onSurface
         )
     }

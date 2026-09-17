@@ -58,6 +58,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.booxbook.core.model.BookFormat
 import com.booxbook.core.ui.component.ExpressiveFilterChip
+import com.booxbook.core.ui.theme.GoogleSansFlex400
+import com.booxbook.core.ui.theme.GoogleSansFlex600
+import com.booxbook.core.ui.theme.GoogleSansFlexDisplay
 import com.booxbook.core.ui.theme.PillShape
 import com.booxbook.feature.library.components.BentoBookCard
 import com.booxbook.feature.library.components.BookDetailBottomSheet
@@ -160,6 +163,7 @@ fun LibraryScreen(
                     Text(
                         text = "BooxBook",
                         style = MaterialTheme.typography.headlineMedium.copy(
+                            fontFamily = GoogleSansFlexDisplay,
                             fontWeight = FontWeight.Black,
                             letterSpacing = (-0.5).sp
                         ),
@@ -173,6 +177,7 @@ fun LibraryScreen(
                         Text(
                             text = "${uiState.books.size} cuốn sách",
                             style = MaterialTheme.typography.labelMedium.copy(
+                                fontFamily = GoogleSansFlex600,
                                 fontWeight = FontWeight.SemiBold
                             ),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -196,7 +201,9 @@ fun LibraryScreen(
                         placeholder = {
                             Text(
                                 text = "Tìm kiếm tựa đề hoặc tác giả...",
-                                style = MaterialTheme.typography.bodyMedium,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontFamily = GoogleSansFlex400
+                                ),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         },
@@ -293,6 +300,7 @@ fun LibraryScreen(
                             Text(
                                 text = "Tất cả sách (${uiState.filteredBooks.size})",
                                 style = MaterialTheme.typography.titleMedium.copy(
+                                    fontFamily = GoogleSansFlexDisplay,
                                     fontWeight = FontWeight.Bold
                                 ),
                                 color = MaterialTheme.colorScheme.onSurface,
