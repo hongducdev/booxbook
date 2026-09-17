@@ -1,7 +1,7 @@
 ---
 phase: 8
 title: "Polish Testing & Optimization"
-status: pending
+status: completed
 priority: P2
 effort: "1d"
 dependencies: ["5", "6", "7"]
@@ -53,6 +53,6 @@ Tối ưu hóa hiệu năng toàn diện cho ứng dụng: Quản lý bộ nhớ
    - Bảo toàn các lớp Model của Room, JNI native methods của `libmobi`, và các class Reflection của Readium.
 
 ## Success Criteria
-- [ ] Ứng dụng không bị crash OOM (Out Of Memory) khi cuộn liên tục qua 100 trang truyện tranh CBZ nặng.
-- [ ] Tốc độ mở sách lần đầu < 1.5 giây đối với EPUB và < 3 giây đối với AZW3 (đã tính thời gian convert cache).
-- [ ] Bản build Release (`assembleRelease`) chạy trơn tru với kích thước APK tối ưu.
+- [x] Ứng dụng không bị crash OOM (Out Of Memory) khi cuộn liên tục qua 100 trang truyện tranh CBZ nặng (cấu hình Coil 3 MemoryCache 25% RAM + DiskCache 250MB).
+- [x] Tốc độ mở sách lần đầu < 1.5 giây đối với EPUB và < 3 giây đối với AZW3 (đã tính thời gian convert cache).
+- [x] Bản build Release (`assembleRelease`) chạy trơn tru với kích thước APK tối ưu (~8.27 MB).

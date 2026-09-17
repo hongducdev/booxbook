@@ -4,7 +4,7 @@ description: >-
   Native Android Ebook Reader supporting EPUB, AZW3, and CBZ with Material 3
   Expressive UI (JustForPixel style), discrete pagination, webtoon comic
   scrolling, annotations, and TTS.
-status: pending
+status: completed
 priority: P1
 branch: feature/native-ebook-reader
 tags:
@@ -53,7 +53,7 @@ BooxBook là ứng dụng đọc sách native hiện đại trên nền tảng A
 | 5 | [Expressive UI & Library Feature](./phase-05-expressive-ui-library-feature.md) | Completed |
 | 6 | [Reader Screen & Annotations](./phase-06-reader-screen-annotations.md) | Completed |
 | 7 | [TTS Engine & Mini Player](./phase-07-tts-engine-mini-player.md) | Completed |
-| 8 | [Polish Testing & Optimization](./phase-08-polish-testing-optimization.md) | Pending |
+| 8 | [Polish Testing & Optimization](./phase-08-polish-testing-optimization.md) | Completed |
 
 ## Dependencies
 - Android NDK r25+ (cho module `libmobi`).

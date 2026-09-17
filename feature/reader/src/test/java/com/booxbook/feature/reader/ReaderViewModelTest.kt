@@ -262,6 +262,44 @@ class ReaderViewModelTest {
         // Engines are closed
         assertNull(cbzEngine.getArchive())
     }
+
+    @Test
+    fun `loadBook with AZW3 book updates format and dispatches properly`() = runTest {
+        val azw3Book = Book(
+            id = "azw3-1",
+            title = "Kindle Book",
+            filePath = "/dummy/sample.azw3",
+            format = BookFormat.AZW3
+        )
+        fakeRepository.books[azw3Book.id] = azw3Book
+
+        viewModel.loadBook(azw3Book.id)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(BookFormat.AZW3, state.format)
+        assertEquals("Kindle Book", state.book?.title)
+    }
+
+    @Test
+    fun `tts speed and stop controls behave as expected`() = runTest {
+        viewModel.setTtsSpeed(1.5f)
+        assertEquals(1.5f, viewModel.ttsSessionState.value.speechRate)
+
+        viewModel.stopTts()
+        assertFalse(viewModel.uiState.value.isTtsActive)
+        assertNull(viewModel.uiState.value.ttsSentenceHighlight)
+    }
+
+    @Test
+    fun `updateThemePreset and updateFontSize modify reading preferences`() = runTest {
+        viewModel.updateFontSize(0.2)
+        assertEquals(1.2, viewModel.uiState.value.preferences.fontSize, 0.001)
+
+        viewModel.updateThemePreset(ReaderThemePreset.AMOLED)
+        assertEquals(ReaderThemePreset.AMOLED, viewModel.uiState.value.themePreset)
+        assertTrue(viewModel.uiState.value.preferences.isDarkMode)
+    }
 }
 
 private class FakeReaderBookRepository : BookRepository {

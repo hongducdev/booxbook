@@ -27,7 +27,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -62,6 +64,7 @@ fun ReaderScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val ttsState by viewModel.ttsSessionState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
     var activeEpubNavigator by remember { mutableStateOf<EpubNavigatorFragment?>(null) }
 
     LaunchedEffect(bookId) {
@@ -209,10 +212,14 @@ fun ReaderScreen(
                         subtitle = uiState.currentChapterTitle,
                         isBookmarked = uiState.isCurrentLocationBookmarked,
                         onBackClick = onBackClick,
-                        onBookmarkToggle = viewModel::toggleBookmark,
+                        onBookmarkToggle = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            viewModel.toggleBookmark()
+                        },
                         isTtsSupported = uiState.format != BookFormat.CBZ,
                         isTtsActive = uiState.isTtsActive,
                         onTtsToggle = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             if (uiState.isTtsActive) {
                                 viewModel.stopTts()
                             } else {
@@ -229,6 +236,7 @@ fun ReaderScreen(
                         totalPages = uiState.totalPages,
                         progressPercentage = uiState.progressPercentage,
                         onSeekToPage = { page ->
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             if (uiState.format == BookFormat.CBZ) {
                                 viewModel.onPageChanged(page, uiState.totalPages)
                             } else {
