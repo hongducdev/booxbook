@@ -21,7 +21,12 @@ data class ReaderPreferences(
     val isScrollMode: Boolean = false, // false = Discrete pagination (lật từng trang)
     val fontFamily: String? = null,
     val isDarkMode: Boolean = false,
-    val themePreset: String = "DARK"
+    val themePreset: String = "DARK",
+    /** Tap-zone layout key, resolved by `ReaderTapZoneMode` in :feature:reader. */
+    val tapZoneMode: String = "KINDLE",
+    /** Page-turn transition key, resolved by `ReaderPageTurnEffect` in :feature:reader. */
+    val pageTurnEffect: String = "SLIDE",
+    val hapticsEnabled: Boolean = true
 )
 
 /**

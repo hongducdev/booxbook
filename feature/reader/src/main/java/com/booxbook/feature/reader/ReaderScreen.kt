@@ -1,5 +1,6 @@
 package com.booxbook.feature.reader
 
+import android.view.View
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -46,9 +47,12 @@ import com.booxbook.feature.reader.components.AnimatedReaderTopBar
 import com.booxbook.feature.reader.components.BookmarksSheet
 import com.booxbook.feature.reader.components.EpubReaderContainer
 import com.booxbook.feature.reader.components.FloatingReaderToolbar
+import com.booxbook.feature.reader.components.PageTurnFlipOverlay
 import com.booxbook.feature.reader.components.ReaderSettingsSheet
 import com.booxbook.feature.reader.components.TableOfContentsSheet
+import com.booxbook.feature.reader.components.TapZonePreviewOverlay
 import com.booxbook.feature.reader.components.TtsFloatingPlayer
+import com.booxbook.feature.reader.components.rememberPageTurnFlipController
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
 import org.readium.r2.shared.publication.Href
 import org.readium.r2.shared.publication.Link
@@ -58,6 +62,7 @@ import org.readium.r2.shared.util.Url
 @Composable
 fun ReaderScreen(
     bookId: String,
+    initialLocator: String? = null,
     onBackClick: () -> Unit = {},
     viewModel: ReaderViewModel = hiltViewModel()
 ) {
@@ -67,8 +72,36 @@ fun ReaderScreen(
     val haptic = LocalHapticFeedback.current
     var activeEpubNavigator by remember { mutableStateOf<EpubNavigatorFragment?>(null) }
 
-    LaunchedEffect(bookId) {
-        viewModel.loadBook(bookId)
+    val flipController = rememberPageTurnFlipController()
+    var showTapZonePreview by remember { mutableStateOf(false) }
+
+    val tapZoneMode = ReaderTapZoneMode.fromKey(uiState.preferences.tapZoneMode)
+    val pageTurnEffect = ReaderPageTurnEffect.fromKey(uiState.preferences.pageTurnEffect)
+
+    val performPageTurn: (Boolean) -> Unit = { forward ->
+        val navigator = activeEpubNavigator
+        if (navigator != null) {
+            // Kindle-like lift: snapshot the outgoing page first, then turn instantly and peel it away.
+            val publicationView: View? = navigator.publicationView
+            val flipStarted = pageTurnEffect == ReaderPageTurnEffect.FLIP &&
+                publicationView != null &&
+                flipController.play(publicationView, forward)
+
+            val animated = pageTurnEffect != ReaderPageTurnEffect.NONE && !flipStarted
+            if (forward) {
+                navigator.goForward(animated = animated)
+            } else {
+                navigator.goBackward(animated = animated)
+            }
+
+            if (uiState.preferences.hapticsEnabled) {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            }
+        }
+    }
+
+    LaunchedEffect(bookId, initialLocator) {
+        viewModel.loadBook(bookId, targetLocator = initialLocator)
     }
 
     BackHandler {
@@ -198,12 +231,33 @@ fun ReaderScreen(
                                         percentage = totalProg
                                     )
                                 },
-                                onCenterTap = { viewModel.toggleControls() },
+                                onTapAction = { action ->
+                                    when (action) {
+                                        ReaderTapAction.NEXT -> performPageTurn(true)
+                                        ReaderTapAction.PREV -> performPageTurn(false)
+                                        ReaderTapAction.MENU -> viewModel.toggleControls()
+                                        ReaderTapAction.NONE -> Unit
+                                    }
+                                },
                                 onNavigatorReady = { nav -> activeEpubNavigator = nav },
                                 modifier = Modifier.fillMaxSize()
                             )
                         }
                     }
+
+                    // Kindle-like page-lift transition: above the canvas, below the chrome.
+                    PageTurnFlipOverlay(
+                        controller = flipController,
+                        modifier = Modifier.fillMaxSize()
+                    )
+
+                    // Transient tap-zone preview, triggered from reader settings.
+                    TapZonePreviewOverlay(
+                        mode = tapZoneMode,
+                        visible = showTapZonePreview,
+                        onDismissed = { showTapZonePreview = false },
+                        modifier = Modifier.fillMaxSize()
+                    )
 
                     // Top App Bar
                     AnimatedReaderTopBar(
@@ -299,9 +353,19 @@ fun ReaderScreen(
                             ReaderSettingsSheet(
                                 preferences = uiState.preferences,
                                 themePreset = uiState.themePreset,
+                                tapZoneMode = tapZoneMode,
+                                pageTurnEffect = pageTurnEffect,
+                                hapticsEnabled = uiState.preferences.hapticsEnabled,
                                 onFontSizeDelta = viewModel::updateFontSize,
                                 onFontFamilySelected = viewModel::updateFontFamily,
                                 onThemePresetSelected = viewModel::updateThemePreset,
+                                onTapZoneModeSelected = viewModel::updateTapZoneMode,
+                                onPageTurnEffectSelected = viewModel::updatePageTurnEffect,
+                                onHapticsToggled = viewModel::updateHapticsEnabled,
+                                onPreviewTapZones = {
+                                    viewModel.dismissSheet()
+                                    showTapZonePreview = true
+                                },
                                 onDismiss = viewModel::dismissSheet
                             )
                         }

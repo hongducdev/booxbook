@@ -6,6 +6,7 @@ import androidx.fragment.app.FragmentFactory
 import com.booxbook.core.engine.ReaderEngine
 import com.booxbook.core.engine.epub.ReadiumReaderEngine
 import com.booxbook.core.engine.epub.ReadiumAssetRetriever
+import com.booxbook.core.engine.epub.ReadiumFragmentFactoryProvider
 import com.booxbook.core.engine.model.ReaderPreferences
 import com.booxbook.core.engine.model.ReaderState
 import com.booxbook.core.engine.model.TocItem
@@ -43,7 +44,8 @@ import javax.inject.Singleton
 class Azw3ReaderEngine @Inject constructor(
     @ApplicationContext private val context: Context,
     private val azw3Converter: Azw3Converter,
-    private val readiumAssetRetriever: ReadiumAssetRetriever
+    private val readiumAssetRetriever: ReadiumAssetRetriever,
+    private val fragmentFactoryProvider: ReadiumFragmentFactoryProvider
 ) : ReadiumReaderEngine {
 
     override val supportedFormat: BookFormat = BookFormat.AZW3
@@ -132,6 +134,8 @@ class Azw3ReaderEngine @Inject constructor(
         activePublication = null
         activeBook = null
         navigatorFactory = null
+        // The publication is gone, so a restored navigator fragment could not be recreated.
+        fragmentFactoryProvider.factory = null
         _state.value = ReaderState.Idle
     }
 
@@ -165,7 +169,10 @@ class Azw3ReaderEngine @Inject constructor(
             initialPreferences = epubPrefs,
             listener = listener,
             paginationListener = paginationListener
-        )
+        ).also { created ->
+            // Park the factory so a restored navigator fragment can be re-instantiated.
+            fragmentFactoryProvider.factory = created
+        }
     }
 
     override suspend fun extractCover(book: Book, destinationFile: File): Result<File?> = withContext(ioDispatcher) {

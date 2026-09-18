@@ -37,6 +37,7 @@ dependencies {
     implementation(project(":core:ui"))
     implementation(project(":core:model"))
     implementation(project(":core:database"))
+    implementation(project(":core:engine"))
 
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
@@ -53,6 +54,8 @@ dependencies {
     implementation(libs.coil.compose)
 
     testImplementation(libs.junit)
+    testImplementation(libs.androidx.junit)
+    testImplementation("androidx.test:core-ktx:1.6.1")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
     testImplementation("org.robolectric:robolectric:4.14.1")
 }

@@ -11,6 +11,7 @@ import com.booxbook.core.engine.cbz.CbzArchiveExtractor
 import com.booxbook.core.engine.cbz.CbzReaderEngine
 import com.booxbook.core.engine.epub.EpubReaderEngine
 import com.booxbook.core.engine.epub.ReadiumAssetRetriever
+import com.booxbook.core.engine.epub.ReadiumFragmentFactoryProvider
 import com.booxbook.core.model.Annotation
 import com.booxbook.core.model.AnnotationType
 import com.booxbook.core.model.Book
@@ -92,9 +93,10 @@ class ReaderViewModelTest {
         fakeRepository.books[sampleCbzBook.id] = sampleCbzBook
 
         val assetRetriever = ReadiumAssetRetriever(context)
-        epubEngine = EpubReaderEngine(context, assetRetriever)
+        val fragmentFactoryProvider = ReadiumFragmentFactoryProvider()
+        epubEngine = EpubReaderEngine(context, assetRetriever, fragmentFactoryProvider)
         val azw3Converter = Azw3Converter()
-        azw3Engine = Azw3ReaderEngine(context, azw3Converter, assetRetriever)
+        azw3Engine = Azw3ReaderEngine(context, azw3Converter, assetRetriever, fragmentFactoryProvider)
         val cbzExtractor = CbzArchiveExtractor(context)
         cbzEngine = CbzReaderEngine(context, cbzExtractor)
         ttsEngine = TtsEngineWrapper(context)

@@ -3,6 +3,8 @@ package com.booxbook.feature.reader.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +22,7 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.FormatSize
 import androidx.compose.material.icons.rounded.Remove
+import androidx.compose.material.icons.rounded.TouchApp
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
@@ -28,7 +31,9 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -43,6 +48,8 @@ import com.booxbook.core.ui.theme.GoogleSansFlex400
 import com.booxbook.core.ui.theme.GoogleSansFlex600
 import com.booxbook.core.ui.theme.GoogleSansFlexDisplay
 import com.booxbook.core.ui.theme.PillShape
+import com.booxbook.feature.reader.ReaderPageTurnEffect
+import com.booxbook.feature.reader.ReaderTapZoneMode
 import com.booxbook.feature.reader.ReaderThemePreset
 
 import kotlin.math.roundToInt
@@ -52,9 +59,16 @@ import kotlin.math.roundToInt
 fun ReaderSettingsSheet(
     preferences: ReaderPreferences,
     themePreset: ReaderThemePreset,
+    tapZoneMode: ReaderTapZoneMode,
+    pageTurnEffect: ReaderPageTurnEffect,
+    hapticsEnabled: Boolean,
     onFontSizeDelta: (Double) -> Unit,
     onFontFamilySelected: (String?) -> Unit,
     onThemePresetSelected: (ReaderThemePreset) -> Unit,
+    onTapZoneModeSelected: (ReaderTapZoneMode) -> Unit,
+    onPageTurnEffectSelected: (ReaderPageTurnEffect) -> Unit,
+    onHapticsToggled: (Boolean) -> Unit,
+    onPreviewTapZones: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -70,6 +84,7 @@ fun ReaderSettingsSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp)
                 .padding(bottom = 36.dp)
         ) {
@@ -215,27 +230,130 @@ fun ReaderSettingsSheet(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                FontChoicePill(
+                OptionPill(
                     title = "Google Sans",
                     selected = preferences.fontFamily == null,
                     onClick = { onFontFamilySelected(null) },
                     modifier = Modifier.weight(1f)
                 )
-                FontChoicePill(
+                OptionPill(
                     title = "Serif",
                     selected = preferences.fontFamily == "serif",
                     onClick = { onFontFamilySelected("serif") },
                     modifier = Modifier.weight(1f)
                 )
-                FontChoicePill(
+                OptionPill(
                     title = "Monospace",
                     selected = preferences.fontFamily == "monospace",
                     onClick = { onFontFamilySelected("monospace") },
                     modifier = Modifier.weight(1f)
                 )
             }
+
+            Spacer(modifier = Modifier.height(24.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 4. Touch interaction & page-turn effects
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Rounded.TouchApp,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Chạm & lật trang",
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontFamily = GoogleSansFlex600,
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+
+            SectionLabel("Vùng chạm")
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                ReaderTapZoneMode.entries.forEach { mode ->
+                    OptionPill(
+                        title = mode.displayName,
+                        selected = tapZoneMode == mode,
+                        onClick = { onTapZoneModeSelected(mode) },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            SectionLabel("Hiệu ứng lật trang")
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                ReaderPageTurnEffect.entries.forEach { effect ->
+                    OptionPill(
+                        title = effect.displayName,
+                        selected = pageTurnEffect == effect,
+                        onClick = { onPageTurnEffectSelected(effect) },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Rung nhẹ khi lật trang",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontFamily = GoogleSansFlex400),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Switch(
+                    checked = hapticsEnabled,
+                    onCheckedChange = onHapticsToggled
+                )
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            TextButton(
+                onClick = onPreviewTapZones,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Xem vùng chạm",
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontFamily = GoogleSansFlex600,
+                        fontWeight = FontWeight.Bold
+                    )
+                )
+            }
         }
     }
+}
+
+@Composable
+private fun SectionLabel(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelLarge.copy(
+            fontFamily = GoogleSansFlex600,
+            fontWeight = FontWeight.Bold
+        ),
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
 }
 
 @Composable
@@ -285,7 +403,7 @@ private fun ThemeColorPill(
 }
 
 @Composable
-private fun FontChoicePill(
+private fun OptionPill(
     title: String,
     selected: Boolean,
     onClick: () -> Unit,

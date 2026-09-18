@@ -57,6 +57,7 @@ class ReaderViewModel @Inject constructor(
     private var progressSaveJob: Job? = null
     private var annotationsJob: Job? = null
     private var initialLocator: String? = null
+    private var loadedBookId: String? = null
 
     init {
         viewModelScope.launch {
@@ -71,7 +72,16 @@ class ReaderViewModel @Inject constructor(
         }
     }
 
-    fun loadBook(bookId: String) {
+    fun loadBook(bookId: String, targetLocator: String? = null) {
+        // Configuration changes recompose the reader and restart its LaunchedEffect. Re-opening
+        // the book would close the live Publication out from under the restored navigator
+        // (its WebView still streams resources), so a session is only opened once per ViewModel.
+        val current = _uiState.value
+        if (loadedBookId == bookId && current.book != null && current.errorMessage == null) {
+            return
+        }
+        loadedBookId = bookId
+
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
@@ -93,16 +103,17 @@ class ReaderViewModel @Inject constructor(
             val savedProgress = withContext(ioDispatcher) {
                 bookRepository.getReadingProgressSync(bookId)
             }
-            initialLocator = savedProgress?.locator
+            val locatorToUse = targetLocator ?: savedProgress?.locator
+            initialLocator = locatorToUse
 
             // Set book immediately upon retrieval from repository
             _uiState.update {
                 it.copy(
                     book = book,
                     format = book.format,
-                    currentLocator = savedProgress?.locator,
-                    progressPercentage = savedProgress?.percentage ?: 0f,
-                    currentPage = savedProgress?.currentPage ?: 0
+                    currentLocator = locatorToUse,
+                    progressPercentage = if (targetLocator != null) it.progressPercentage else (savedProgress?.percentage ?: 0f),
+                    currentPage = if (targetLocator != null) it.currentPage else (savedProgress?.currentPage ?: 0)
                 )
             }
 
@@ -121,9 +132,9 @@ class ReaderViewModel @Inject constructor(
 
             // Initialize respective engine
             when (book.format) {
-                BookFormat.EPUB -> initEpub(book, savedProgress)
-                BookFormat.CBZ -> initCbz(book, savedProgress)
-                BookFormat.AZW3 -> initAzw3(book, savedProgress)
+                BookFormat.EPUB -> initEpub(book, savedProgress, locatorToUse)
+                BookFormat.CBZ -> initCbz(book, savedProgress, locatorToUse)
+                BookFormat.AZW3 -> initAzw3(book, savedProgress, locatorToUse)
             }
         }
     }
@@ -134,12 +145,13 @@ class ReaderViewModel @Inject constructor(
         else -> null
     }
 
-    private suspend fun initEpub(book: Book, savedProgress: ReadingProgress?) {
+    private suspend fun initEpub(book: Book, savedProgress: ReadingProgress?, targetLocator: String? = null) {
         val result = epubReaderEngine.openBook(book)
         if (result.isSuccess) {
             val engineState = epubReaderEngine.state.value
             val toc = if (engineState is ReaderState.Ready) engineState.tableOfContents else emptyList()
             val totalSpine = if (engineState is ReaderState.Ready) engineState.totalPages else 0
+            val locatorToUse = targetLocator ?: savedProgress?.locator
 
             _uiState.update {
                 it.copy(
@@ -148,9 +160,9 @@ class ReaderViewModel @Inject constructor(
                     format = book.format,
                     tableOfContents = toc,
                     totalPages = totalSpine,
-                    currentLocator = savedProgress?.locator,
-                    progressPercentage = savedProgress?.percentage ?: 0f,
-                    currentPage = savedProgress?.currentPage ?: 0
+                    currentLocator = locatorToUse,
+                    progressPercentage = if (targetLocator != null) it.progressPercentage else (savedProgress?.percentage ?: 0f),
+                    currentPage = if (targetLocator != null) it.currentPage else (savedProgress?.currentPage ?: 0)
                 )
             }
         } else {
@@ -163,12 +175,13 @@ class ReaderViewModel @Inject constructor(
         }
     }
 
-    private suspend fun initAzw3(book: Book, savedProgress: ReadingProgress?) {
+    private suspend fun initAzw3(book: Book, savedProgress: ReadingProgress?, targetLocator: String? = null) {
         val result = azw3ReaderEngine.openBook(book)
         if (result.isSuccess) {
             val engineState = azw3ReaderEngine.state.value
             val toc = if (engineState is ReaderState.Ready) engineState.tableOfContents else emptyList()
             val totalSpine = if (engineState is ReaderState.Ready) engineState.totalPages else 0
+            val locatorToUse = targetLocator ?: savedProgress?.locator
 
             _uiState.update {
                 it.copy(
@@ -177,9 +190,9 @@ class ReaderViewModel @Inject constructor(
                     format = BookFormat.AZW3,
                     tableOfContents = toc,
                     totalPages = totalSpine,
-                    currentLocator = savedProgress?.locator,
-                    progressPercentage = savedProgress?.percentage ?: 0f,
-                    currentPage = savedProgress?.currentPage ?: 0
+                    currentLocator = locatorToUse,
+                    progressPercentage = if (targetLocator != null) it.progressPercentage else (savedProgress?.percentage ?: 0f),
+                    currentPage = if (targetLocator != null) it.currentPage else (savedProgress?.currentPage ?: 0)
                 )
             }
         } else {
@@ -192,12 +205,13 @@ class ReaderViewModel @Inject constructor(
         }
     }
 
-    private suspend fun initCbz(book: Book, savedProgress: ReadingProgress?) {
+    private suspend fun initCbz(book: Book, savedProgress: ReadingProgress?, targetLocator: String? = null) {
         val result = cbzReaderEngine.openBook(book)
         if (result.isSuccess) {
             val archive = cbzReaderEngine.getArchive()
             val totalPages = archive?.pageCount ?: 0
-            val initialPage = savedProgress?.currentPage ?: 0
+            val targetPage = targetLocator?.substringAfter("page://", "")?.toIntOrNull()
+            val initialPage = targetPage ?: (savedProgress?.currentPage ?: 0)
             val initialPercent = if (totalPages > 0) (initialPage + 1).toFloat() / totalPages else 0f
             val engineState = cbzReaderEngine.state.value
             val toc = if (engineState is ReaderState.Ready) engineState.tableOfContents else emptyList()
@@ -301,6 +315,24 @@ class ReaderViewModel @Inject constructor(
                     themePreset = preset.name
                 )
             )
+        }
+    }
+
+    fun updateTapZoneMode(mode: ReaderTapZoneMode) {
+        _uiState.update { state ->
+            state.copy(preferences = state.preferences.copy(tapZoneMode = mode.name))
+        }
+    }
+
+    fun updatePageTurnEffect(effect: ReaderPageTurnEffect) {
+        _uiState.update { state ->
+            state.copy(preferences = state.preferences.copy(pageTurnEffect = effect.name))
+        }
+    }
+
+    fun updateHapticsEnabled(enabled: Boolean) {
+        _uiState.update { state ->
+            state.copy(preferences = state.preferences.copy(hapticsEnabled = enabled))
         }
     }
 

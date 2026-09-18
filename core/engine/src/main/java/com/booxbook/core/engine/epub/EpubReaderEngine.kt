@@ -39,7 +39,8 @@ import javax.inject.Singleton
 @Singleton
 class EpubReaderEngine @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val readiumAssetRetriever: ReadiumAssetRetriever
+    private val readiumAssetRetriever: ReadiumAssetRetriever,
+    private val fragmentFactoryProvider: ReadiumFragmentFactoryProvider
 ) : ReadiumReaderEngine {
 
     override val supportedFormat: BookFormat = BookFormat.EPUB
@@ -119,6 +120,8 @@ class EpubReaderEngine @Inject constructor(
         activePublication = null
         activeBook = null
         navigatorFactory = null
+        // The publication is gone, so a restored navigator fragment could not be recreated.
+        fragmentFactoryProvider.factory = null
         _state.value = ReaderState.Idle
     }
 
@@ -159,7 +162,10 @@ class EpubReaderEngine @Inject constructor(
             initialPreferences = epubPrefs,
             listener = listener,
             paginationListener = paginationListener
-        )
+        ).also { created ->
+            // Park the factory so a restored navigator fragment can be re-instantiated.
+            fragmentFactoryProvider.factory = created
+        }
     }
 
     override suspend fun extractCover(book: Book, destinationFile: File): Result<File?> = withContext(ioDispatcher) {
