@@ -7,6 +7,8 @@ import com.booxbook.core.model.AnnotationType
 import com.booxbook.core.model.Book
 import com.booxbook.core.model.BookFormat
 import com.booxbook.core.model.ReadingProgress
+import com.booxbook.core.model.ReadingSession
+import com.booxbook.core.model.ReadingStatisticsOverview
 import kotlinx.coroutines.flow.Flow
 
 interface BookRepository {
@@ -32,4 +34,10 @@ interface BookRepository {
     suspend fun addAnnotation(annotation: Annotation): Long
     suspend fun updateAnnotation(annotation: Annotation)
     suspend fun removeAnnotation(id: Long)
+
+    suspend fun recordReadingSession(bookId: String, startTime: Long, endTime: Long, durationSeconds: Long): Long
+    fun getAllReadingSessions(): Flow<List<ReadingSession>>
+    fun getReadingStatisticsOverview(): Flow<ReadingStatisticsOverview>
+    fun getDailyGoalMinutes(): Flow<Int>
+    suspend fun setDailyGoalMinutes(minutes: Int)
 }

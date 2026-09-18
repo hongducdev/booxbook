@@ -7,6 +7,7 @@ import com.booxbook.core.database.DatabaseConstants
 import com.booxbook.core.database.dao.AnnotationDao
 import com.booxbook.core.database.dao.BookDao
 import com.booxbook.core.database.dao.ReadingProgressDao
+import com.booxbook.core.database.dao.ReadingSessionDao
 import com.booxbook.core.database.repository.BookRepository
 import com.booxbook.core.database.repository.BookRepositoryImpl
 import com.booxbook.core.database.storage.BookStorageManager
@@ -46,6 +47,10 @@ object DatabaseModule {
     @Provides
     fun provideAnnotationDao(database: BooxBookDatabase): AnnotationDao =
         database.annotationDao()
+
+    @Provides
+    fun provideReadingSessionDao(database: BooxBookDatabase): ReadingSessionDao =
+        database.readingSessionDao()
 
     @Provides
     @Singleton

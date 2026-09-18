@@ -59,6 +59,18 @@ class ReaderViewModel @Inject constructor(
     private var initialLocator: String? = null
     private var loadedBookId: String? = null
 
+    // Reading Time Tracking State
+    private var sessionStartTimeMs: Long = 0L
+    private var lastActiveTimeMs: Long = 0L
+    private var accumulatedActiveDurationMs: Long = 0L
+    private var isSessionPaused: Boolean = false
+    private var periodicFlushJob: Job? = null
+
+    companion object {
+        const val INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000L // 5 phút không tương tác
+        const val PERIODIC_FLUSH_INTERVAL_MS = 60 * 1000L // 60 giây định kỳ
+    }
+
     init {
         viewModelScope.launch {
             ttsEngineWrapper.state.collect { ttsState ->
@@ -136,6 +148,9 @@ class ReaderViewModel @Inject constructor(
                 BookFormat.CBZ -> initCbz(book, savedProgress, locatorToUse)
                 BookFormat.AZW3 -> initAzw3(book, savedProgress, locatorToUse)
             }
+
+            // Start tracking reading time
+            startReadingSession(bookId)
         }
     }
 
@@ -448,6 +463,96 @@ class ReaderViewModel @Inject constructor(
         }
     }
 
+    fun startReadingSession(bookId: String) {
+        val now = System.currentTimeMillis()
+        sessionStartTimeMs = now
+        lastActiveTimeMs = now
+        accumulatedActiveDurationMs = 0L
+        isSessionPaused = false
+
+        periodicFlushJob?.cancel()
+        periodicFlushJob = viewModelScope.launch(ioDispatcher) {
+            while (true) {
+                delay(PERIODIC_FLUSH_INTERVAL_MS)
+                flushReadingSession(isEnding = false)
+            }
+        }
+    }
+
+    fun recordUserInteraction() {
+        val now = System.currentTimeMillis()
+        if (!isSessionPaused && lastActiveTimeMs > 0) {
+            val elapsed = now - lastActiveTimeMs
+            val isTtsActive = ttsEngineWrapper.state.value.isPlaying
+            if (elapsed <= INACTIVITY_TIMEOUT_MS || isTtsActive) {
+                accumulatedActiveDurationMs += elapsed
+            } else {
+                accumulatedActiveDurationMs += INACTIVITY_TIMEOUT_MS
+            }
+        }
+        lastActiveTimeMs = now
+        isSessionPaused = false
+    }
+
+    fun pauseReadingSession() {
+        if (isSessionPaused) return
+        val now = System.currentTimeMillis()
+        val isTtsActive = ttsEngineWrapper.state.value.isPlaying
+        if (lastActiveTimeMs > 0) {
+            val elapsed = now - lastActiveTimeMs
+            if (elapsed <= INACTIVITY_TIMEOUT_MS || isTtsActive) {
+                accumulatedActiveDurationMs += elapsed
+            } else {
+                accumulatedActiveDurationMs += INACTIVITY_TIMEOUT_MS
+            }
+        }
+        isSessionPaused = true
+        flushReadingSession(isEnding = false)
+    }
+
+    fun resumeReadingSession() {
+        lastActiveTimeMs = System.currentTimeMillis()
+        isSessionPaused = false
+    }
+
+    fun flushReadingSession(isEnding: Boolean = false) {
+        val bookId = loadedBookId ?: return
+        val now = System.currentTimeMillis()
+
+        if (!isSessionPaused && lastActiveTimeMs > 0) {
+            val elapsed = now - lastActiveTimeMs
+            val isTtsActive = ttsEngineWrapper.state.value.isPlaying
+            if (elapsed <= INACTIVITY_TIMEOUT_MS || isTtsActive) {
+                accumulatedActiveDurationMs += elapsed
+            } else {
+                accumulatedActiveDurationMs += INACTIVITY_TIMEOUT_MS
+            }
+            lastActiveTimeMs = now
+        }
+
+        val secondsToRecord = accumulatedActiveDurationMs / 1000L
+        if (secondsToRecord >= 1L) {
+            val startTime = sessionStartTimeMs
+            accumulatedActiveDurationMs = 0L
+            sessionStartTimeMs = now
+            viewModelScope.launch(ioDispatcher) {
+                bookRepository.recordReadingSession(
+                    bookId = bookId,
+                    startTime = startTime,
+                    endTime = now,
+                    durationSeconds = secondsToRecord
+                )
+            }
+        }
+
+        if (isEnding) {
+            periodicFlushJob?.cancel()
+            sessionStartTimeMs = 0L
+            lastActiveTimeMs = 0L
+            accumulatedActiveDurationMs = 0L
+        }
+    }
+
     private fun isBookmarked(annotations: List<Annotation>, locator: String?, page: Int): Boolean {
         if (locator == null) return false
         return annotations.any {
@@ -458,6 +563,7 @@ class ReaderViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         // Synchronously and deterministically close resources to prevent memory & file descriptor leaks
+        flushReadingSession(isEnding = true)
         progressSaveJob?.cancel()
         annotationsJob?.cancel()
         ttsEngineWrapper.stop()

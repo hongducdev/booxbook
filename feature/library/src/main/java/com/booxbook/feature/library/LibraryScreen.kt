@@ -28,12 +28,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -69,7 +66,7 @@ import com.booxbook.feature.library.components.BookDetailBottomSheet
 import com.booxbook.feature.library.components.ContinueReadingCarousel
 import com.booxbook.feature.library.components.EmptyLibraryPlaceholder
 
-private val SUPPORTED_BOOK_MIME_TYPES = arrayOf(
+val SUPPORTED_BOOK_MIME_TYPES = arrayOf(
     "application/epub+zip",
     "application/x-cbz",
     "application/zip",
@@ -134,27 +131,7 @@ fun LibraryScreen(
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = { documentPicker.launch(SUPPORTED_BOOK_MIME_TYPES) },
-                shape = PillShape,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Add,
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Thêm sách",
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
-                )
-            }
-        }
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -283,13 +260,12 @@ fun LibraryScreen(
                 // Main Library Content
                 if (uiState.isEmpty || uiState.isSearchEmpty) {
                     EmptyLibraryPlaceholder(
-                        isSearchEmpty = uiState.isSearchEmpty,
-                        onAddBookClick = { documentPicker.launch(SUPPORTED_BOOK_MIME_TYPES) }
+                        isSearchEmpty = uiState.isSearchEmpty
                     )
                 } else {
                     LazyVerticalGrid(
                         columns = GridCells.Adaptive(minSize = 150.dp),
-                        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 96.dp),
+                        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 140.dp),
                         horizontalArrangement = Arrangement.spacedBy(14.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                         modifier = Modifier.fillMaxSize()

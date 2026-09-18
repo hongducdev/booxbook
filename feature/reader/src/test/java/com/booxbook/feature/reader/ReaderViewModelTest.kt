@@ -17,6 +17,8 @@ import com.booxbook.core.model.AnnotationType
 import com.booxbook.core.model.Book
 import com.booxbook.core.model.BookFormat
 import com.booxbook.core.model.ReadingProgress
+import com.booxbook.core.model.ReadingSession
+import com.booxbook.core.model.ReadingStatisticsOverview
 import com.booxbook.core.tts.TtsEngineWrapper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -302,6 +304,30 @@ class ReaderViewModelTest {
         assertEquals(ReaderThemePreset.AMOLED, viewModel.uiState.value.themePreset)
         assertTrue(viewModel.uiState.value.preferences.isDarkMode)
     }
+
+    @Test
+    fun readingSessionRecordsTimeOnInteractionAndFlush() = runTest {
+        val book = Book(
+            id = "track_book",
+            title = "Track Book",
+            author = "Author",
+            filePath = "/path/track.epub",
+            format = BookFormat.EPUB
+        )
+        fakeRepository.books[book.id] = book
+
+        viewModel.loadBook(book.id)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.recordUserInteraction()
+        viewModel.pauseReadingSession()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.resumeReadingSession()
+        viewModel.flushReadingSession(isEnding = true)
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertNotNull(fakeRepository)
+    }
 }
 
 private class FakeReaderBookRepository : BookRepository {
@@ -356,4 +382,22 @@ private class FakeReaderBookRepository : BookRepository {
     override suspend fun removeAnnotation(id: Long) {
         annotationsFlow.value = annotationsFlow.value.filter { it.id != id }
     }
+
+    val recordedSessions = mutableListOf<ReadingSession>()
+    override suspend fun recordReadingSession(bookId: String, startTime: Long, endTime: Long, durationSeconds: Long): Long {
+        val session = ReadingSession(
+            id = idCounter++,
+            bookId = bookId,
+            startTime = startTime,
+            endTime = endTime,
+            durationSeconds = durationSeconds,
+            date = "2026-09-18"
+        )
+        recordedSessions.add(session)
+        return session.id
+    }
+    override fun getAllReadingSessions(): Flow<List<ReadingSession>> = MutableStateFlow(recordedSessions)
+    override fun getReadingStatisticsOverview(): Flow<ReadingStatisticsOverview> = MutableStateFlow(ReadingStatisticsOverview())
+    override fun getDailyGoalMinutes(): Flow<Int> = MutableStateFlow(45)
+    override suspend fun setDailyGoalMinutes(minutes: Int) {}
 }

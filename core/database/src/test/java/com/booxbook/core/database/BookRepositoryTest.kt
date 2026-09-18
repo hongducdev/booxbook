@@ -40,6 +40,7 @@ class BookRepositoryTest {
             bookDao = db.bookDao(),
             readingProgressDao = db.readingProgressDao(),
             annotationDao = db.annotationDao(),
+            readingSessionDao = db.readingSessionDao(),
             storageManager = storageManager
         )
     }
@@ -147,5 +148,40 @@ class BookRepositoryTest {
         assertNull(repository.getBookByIdSync("repo_book_4"))
         assertNull(repository.getReadingProgressSync("repo_book_4"))
         assertEquals(0, repository.getAnnotationsForBook("repo_book_4").first().size)
+    }
+
+    @Test
+    fun recordReadingSessionAndVerifyStatistics() = runTest {
+        val book = Book(
+            id = "stats_book_1",
+            title = "Dế Mèn",
+            author = "Tô Hoài",
+            filePath = "/path/to/demen.epub",
+            format = BookFormat.EPUB
+        )
+        repository.saveBook(book)
+
+        // Record a 30-minute session (1800s)
+        val startTime = System.currentTimeMillis() - 1800_000
+        val endTime = System.currentTimeMillis()
+        repository.recordReadingSession("stats_book_1", startTime, endTime, 1800L)
+
+        val stats = repository.getReadingStatisticsOverview().first()
+        assertEquals(30, stats.todayMinutes)
+        assertEquals(1, stats.totalSessionsCount)
+        assertEquals(1, stats.currentStreakDays)
+        assertEquals(1, stats.topBooks.size)
+        assertEquals("Dế Mèn", stats.topBooks[0].book.title)
+        assertEquals(1800L, stats.topBooks[0].totalDurationSeconds)
+
+        // Verify weekly stats includes today with 30 minutes
+        val todayStat = stats.weeklyStats.firstOrNull { it.isToday }
+        assertNotNull(todayStat)
+        assertEquals(30, todayStat?.durationMinutes)
+
+        // Verify daily goal change
+        repository.setDailyGoalMinutes(60)
+        val updatedStats = repository.getReadingStatisticsOverview().first()
+        assertEquals(60, updatedStats.dailyGoalMinutes)
     }
 }

@@ -24,11 +24,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -82,7 +86,24 @@ fun ReaderScreen(
     val tapZoneMode = ReaderTapZoneMode.fromKey(uiState.preferences.tapZoneMode)
     val pageTurnEffect = ReaderPageTurnEffect.fromKey(uiState.preferences.pageTurnEffect)
 
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_PAUSE -> viewModel.pauseReadingSession()
+                Lifecycle.Event.ON_RESUME -> viewModel.resumeReadingSession()
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            viewModel.flushReadingSession(isEnding = true)
+        }
+    }
+
     val performPageTurn: (Boolean) -> Unit = { forward ->
+        viewModel.recordUserInteraction()
         val navigator = activeEpubNavigator
         if (navigator != null) {
             // Kindle-like lift: snapshot the outgoing page first, then turn instantly and peel it away.
@@ -212,13 +233,17 @@ fun ReaderScreen(
                                     archive = archive,
                                     initialPageIndex = uiState.currentPage,
                                     onPageChanged = { pageIndex, totalPages ->
+                                        viewModel.recordUserInteraction()
                                         viewModel.onPageChanged(
                                             pageIndex = pageIndex,
                                             totalPages = totalPages,
                                             chapterTitle = "Trang ${pageIndex + 1}"
                                         )
                                     },
-                                    onTap = { viewModel.toggleControls() },
+                                    onTap = {
+                                        viewModel.recordUserInteraction()
+                                        viewModel.toggleControls()
+                                    },
                                     modifier = Modifier.fillMaxSize()
                                 )
                             }
@@ -231,6 +256,7 @@ fun ReaderScreen(
                                     preferences = uiState.preferences,
                                     initialLocatorJson = uiState.currentLocator,
                                     onLocatorChanged = { locator ->
+                                        viewModel.recordUserInteraction()
                                         val totalProg = locator.locations.totalProgression?.toFloat()
                                             ?: (locator.locations.progression?.toFloat() ?: 0f)
                                         val pageIndex = locator.locations.position ?: 0
@@ -244,6 +270,7 @@ fun ReaderScreen(
                                         )
                                     },
                                     onTapAction = { action ->
+                                        viewModel.recordUserInteraction()
                                         when (action) {
                                             ReaderTapAction.NEXT -> performPageTurn(true)
                                             ReaderTapAction.PREV -> performPageTurn(false)

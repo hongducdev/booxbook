@@ -7,15 +7,18 @@ import com.booxbook.core.database.converter.Converters
 import com.booxbook.core.database.dao.AnnotationDao
 import com.booxbook.core.database.dao.BookDao
 import com.booxbook.core.database.dao.ReadingProgressDao
+import com.booxbook.core.database.dao.ReadingSessionDao
 import com.booxbook.core.database.entity.AnnotationEntity
 import com.booxbook.core.database.entity.BookEntity
 import com.booxbook.core.database.entity.ReadingProgressEntity
+import com.booxbook.core.database.entity.ReadingSessionEntity
 
 @Database(
     entities = [
         BookEntity::class,
         ReadingProgressEntity::class,
-        AnnotationEntity::class
+        AnnotationEntity::class,
+        ReadingSessionEntity::class
     ],
     version = DatabaseConstants.DATABASE_VERSION,
     exportSchema = false
@@ -25,4 +28,5 @@ abstract class BooxBookDatabase : RoomDatabase() {
     abstract fun bookDao(): BookDao
     abstract fun readingProgressDao(): ReadingProgressDao
     abstract fun annotationDao(): AnnotationDao
+    abstract fun readingSessionDao(): ReadingSessionDao
 }

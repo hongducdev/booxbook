@@ -8,6 +8,8 @@ import com.booxbook.core.model.AnnotationType
 import com.booxbook.core.model.Book
 import com.booxbook.core.model.BookFormat
 import com.booxbook.core.model.ReadingProgress
+import com.booxbook.core.model.ReadingSession
+import com.booxbook.core.model.ReadingStatisticsOverview
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -304,4 +306,15 @@ private class FakeBookRepository : BookRepository {
     override suspend fun addAnnotation(annotation: Annotation): Long = 1L
     override suspend fun updateAnnotation(annotation: Annotation) {}
     override suspend fun removeAnnotation(id: Long) {}
+
+    val recordedSessions = mutableListOf<ReadingSession>()
+    override suspend fun recordReadingSession(bookId: String, startTime: Long, endTime: Long, durationSeconds: Long): Long {
+        val session = ReadingSession(id = recordedSessions.size + 1L, bookId = bookId, startTime = startTime, endTime = endTime, durationSeconds = durationSeconds, date = "2026-09-18")
+        recordedSessions.add(session)
+        return session.id
+    }
+    override fun getAllReadingSessions(): Flow<List<ReadingSession>> = MutableStateFlow(recordedSessions)
+    override fun getReadingStatisticsOverview(): Flow<ReadingStatisticsOverview> = MutableStateFlow(ReadingStatisticsOverview())
+    override fun getDailyGoalMinutes(): Flow<Int> = MutableStateFlow(45)
+    override suspend fun setDailyGoalMinutes(minutes: Int) {}
 }

@@ -7,13 +7,14 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import com.booxbook.feature.library.LibraryScreen
+import com.booxbook.MainScreen
 import com.booxbook.feature.library.detail.BookDetailScreen
 import com.booxbook.feature.reader.ReaderScreen
 import java.net.URLDecoder
 import java.net.URLEncoder
 
 sealed class Screen(val route: String) {
+    data object Main : Screen("main")
     data object Library : Screen("library")
 
     data object BookDetail : Screen("book_detail/{bookId}") {
@@ -39,11 +40,11 @@ fun BooxBookNavHost(
 ) {
     NavHost(
         navController = navController,
-        startDestination = Screen.Library.route,
+        startDestination = Screen.Main.route,
         modifier = modifier
     ) {
-        composable(Screen.Library.route) {
-            LibraryScreen(
+        composable(Screen.Main.route) {
+            MainScreen(
                 onBookClick = { bookId ->
                     navController.navigate(Screen.BookDetail.createRoute(bookId))
                 }

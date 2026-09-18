@@ -55,6 +55,7 @@ dependencies {
     implementation(project(":core:tts"))
     implementation(project(":feature:library"))
     implementation(project(":feature:reader"))
+    implementation(project(":feature:statistics"))
 
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
