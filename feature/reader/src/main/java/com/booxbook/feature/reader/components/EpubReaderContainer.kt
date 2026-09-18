@@ -2,9 +2,7 @@ package com.booxbook.feature.reader.components
 
 import android.view.View
 import android.widget.FrameLayout
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -15,7 +13,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -85,10 +82,6 @@ fun EpubReaderContainer(
 
     var hostView by remember { mutableStateOf<FrameLayout?>(null) }
     var activeFragment by remember { mutableStateOf<EpubNavigatorFragment?>(null) }
-
-    // The canvas runs edge-to-edge, so the status bar covers the top of it. The always-menu
-    // strip has to start below that inset to stay tappable.
-    val statusBarTopPx = with(LocalDensity.current) { WindowInsets.statusBars.getTop(this) }
 
     // Re-key the attach effect on the engine state so it is retried once the publication is
     // ready, instead of silently giving up if the first composition runs too early.
@@ -164,7 +157,7 @@ fun EpubReaderContainer(
         }
     }
 
-    DisposableEffect(activeFragment, preferences.tapZoneMode, statusBarTopPx) {
+    DisposableEffect(activeFragment, preferences.tapZoneMode) {
         val fragment = activeFragment ?: return@DisposableEffect onDispose {}
         val tapZoneMode = ReaderTapZoneMode.fromKey(preferences.tapZoneMode)
 
@@ -178,8 +171,7 @@ fun EpubReaderContainer(
                 val action = ReaderTapZones.resolve(
                     x = event.point.x / width,
                     y = event.point.y / height,
-                    mode = tapZoneMode,
-                    topInsetFraction = statusBarTopPx / height
+                    mode = tapZoneMode
                 )
                 if (action == ReaderTapAction.NONE) return false
 

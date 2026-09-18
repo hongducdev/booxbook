@@ -7,17 +7,12 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -28,7 +23,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -63,48 +57,44 @@ fun TapZonePreviewOverlay(
         exit = fadeOut(animationSpec = tween(220)),
         modifier = modifier
     ) {
-        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val density = LocalDensity.current
-            val heightPx = with(density) { maxHeight.toPx() }
-            val insetPx = WindowInsets.statusBars.getTop(density).toFloat()
-            val insetFraction = if (heightPx > 0f) (insetPx / heightPx).coerceIn(0f, 0.5f) else 0f
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                if (mode == ReaderTapZoneMode.KINDLE) {
+                    ZoneCell(
+                        title = "Menu",
+                        hint = "Thanh điều khiển",
+                        color = MenuColor,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(ReaderTapZones.TOP_STRIP)
+                    )
+                }
 
-            // The horizontal split covers the whole canvas...
-            Row(modifier = Modifier.fillMaxSize()) {
-                when (mode) {
-                    ReaderTapZoneMode.KINDLE -> {
-                        ZoneCell("Trang trước", "Chạm", PrevColor, Modifier.weight(0.30f).fillMaxHeight())
-                        ZoneCell("Menu", "Thanh điều khiển", MenuColor, Modifier.weight(0.40f).fillMaxHeight())
-                        ZoneCell("Trang sau", "Chạm", NextColor, Modifier.weight(0.30f).fillMaxHeight())
-                    }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                ) {
+                    when (mode) {
+                        ReaderTapZoneMode.KINDLE -> {
+                            ZoneCell("Trang trước", "Chạm", PrevColor, Modifier.weight(0.30f).fillMaxHeight())
+                            ZoneCell("Menu", "Thanh điều khiển", MenuColor, Modifier.weight(0.40f).fillMaxHeight())
+                            ZoneCell("Trang sau", "Chạm", NextColor, Modifier.weight(0.30f).fillMaxHeight())
+                        }
 
-                    ReaderTapZoneMode.EDGES -> {
-                        ZoneCell("Trang trước", "Chạm", PrevColor, Modifier.weight(0.25f).fillMaxHeight())
-                        ZoneCell("Menu", "Thanh điều khiển", MenuColor, Modifier.weight(0.50f).fillMaxHeight())
-                        ZoneCell("Trang sau", "Chạm", NextColor, Modifier.weight(0.25f).fillMaxHeight())
-                    }
+                        ReaderTapZoneMode.EDGES -> {
+                            ZoneCell("Trang trước", "Chạm", PrevColor, Modifier.weight(0.25f).fillMaxHeight())
+                            ZoneCell("Menu", "Thanh điều khiển", MenuColor, Modifier.weight(0.50f).fillMaxHeight())
+                            ZoneCell("Trang sau", "Chạm", NextColor, Modifier.weight(0.25f).fillMaxHeight())
+                        }
 
-                    ReaderTapZoneMode.MENU_ONLY -> {
-                        ZoneCell("Không tác dụng", null, InactiveColor, Modifier.weight(0.25f).fillMaxHeight())
-                        ZoneCell("Menu", "Thanh điều khiển", MenuColor, Modifier.weight(0.50f).fillMaxHeight())
-                        ZoneCell("Không tác dụng", null, InactiveColor, Modifier.weight(0.25f).fillMaxHeight())
+                        ReaderTapZoneMode.MENU_ONLY -> {
+                            ZoneCell("Không tác dụng", null, InactiveColor, Modifier.weight(0.25f).fillMaxHeight())
+                            ZoneCell("Menu", "Thanh điều khiển", MenuColor, Modifier.weight(0.50f).fillMaxHeight())
+                            ZoneCell("Không tác dụng", null, InactiveColor, Modifier.weight(0.25f).fillMaxHeight())
+                        }
                     }
                 }
-            }
-
-            // ...and the always-menu strip is drawn on top, starting below the status bar, which is
-            // exactly where the resolver puts it.
-            if (mode == ReaderTapZoneMode.KINDLE) {
-                ZoneCell(
-                    title = "Menu",
-                    hint = "Thanh điều khiển",
-                    color = MenuColor,
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .fillMaxWidth()
-                        .height(maxHeight * (insetFraction + ReaderTapZones.TOP_STRIP))
-                        .offset(y = maxHeight * insetFraction)
-                )
             }
 
             Surface(
@@ -112,7 +102,7 @@ fun TapZonePreviewOverlay(
                 color = Color.Black.copy(alpha = 0.72f),
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 96.dp)
+                    .padding(bottom = 48.dp)
             ) {
                 Text(
                     text = "Vùng chạm: ${mode.displayName}",

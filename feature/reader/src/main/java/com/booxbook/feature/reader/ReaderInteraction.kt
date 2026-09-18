@@ -65,23 +65,19 @@ object ReaderTapZones {
     /**
      * Resolves a tap at normalised ([x], [y]) into an action.
      *
-     * [topInsetFraction] is the fraction of the canvas hidden behind the status bar; the
-     * always-menu strip starts *below* it, otherwise it would be unreachable on edge-to-edge
-     * screens. Inputs are clamped, so a tap slightly outside the canvas still resolves predictably.
+     * Inputs are clamped, so a tap slightly outside the canvas still resolves predictably.
      */
     fun resolve(
         x: Float,
         y: Float,
-        mode: ReaderTapZoneMode,
-        topInsetFraction: Float = 0f
+        mode: ReaderTapZoneMode
     ): ReaderTapAction {
         val px = x.coerceIn(0f, 1f)
         val py = y.coerceIn(0f, 1f)
-        val stripBottom = topInsetFraction.coerceIn(0f, 0.5f) + TOP_STRIP
 
         return when (mode) {
             ReaderTapZoneMode.KINDLE -> when {
-                py <= stripBottom -> ReaderTapAction.MENU
+                py <= TOP_STRIP -> ReaderTapAction.MENU
                 px < KINDLE_EDGE -> ReaderTapAction.PREV
                 px > 1f - KINDLE_EDGE -> ReaderTapAction.NEXT
                 else -> ReaderTapAction.MENU

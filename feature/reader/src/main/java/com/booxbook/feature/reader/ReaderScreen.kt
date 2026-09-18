@@ -7,10 +7,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material3.ButtonDefaults
@@ -192,72 +196,81 @@ fun ReaderScreen(
                 }
 
                 else -> {
-                    // Content Canvas: EPUB vs CBZ
-                    if (uiState.format == BookFormat.CBZ) {
-                        val archive = viewModel.cbzReaderEngine.getArchive()
-                        if (archive != null) {
-                            CbzReaderComponent(
-                                archive = archive,
-                                initialPageIndex = uiState.currentPage,
-                                onPageChanged = { pageIndex, totalPages ->
-                                    viewModel.onPageChanged(
-                                        pageIndex = pageIndex,
-                                        totalPages = totalPages,
-                                        chapterTitle = "Trang ${pageIndex + 1}"
-                                    )
-                                },
-                                onTap = { viewModel.toggleControls() },
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        }
-                    } else {
-                        // EPUB / AZW3 Readium Navigator
-                        val readiumEngine = viewModel.getActiveReadiumEngine()
-                        if (readiumEngine != null) {
-                            EpubReaderContainer(
-                                epubEngine = readiumEngine,
-                                preferences = uiState.preferences,
-                                initialLocatorJson = uiState.currentLocator,
-                                onLocatorChanged = { locator ->
-                                    val totalProg = locator.locations.totalProgression?.toFloat()
-                                        ?: (locator.locations.progression?.toFloat() ?: 0f)
-                                    val pageIndex = locator.locations.position ?: 0
+                    val readerInsets = WindowInsets.systemBars.union(WindowInsets.displayCutout)
 
-                                    viewModel.onPageChanged(
-                                        pageIndex = pageIndex,
-                                        totalPages = uiState.totalPages,
-                                        locator = locator.toJSON().toString(),
-                                        chapterTitle = locator.title ?: "",
-                                        percentage = totalProg
-                                    )
-                                },
-                                onTapAction = { action ->
-                                    when (action) {
-                                        ReaderTapAction.NEXT -> performPageTurn(true)
-                                        ReaderTapAction.PREV -> performPageTurn(false)
-                                        ReaderTapAction.MENU -> viewModel.toggleControls()
-                                        ReaderTapAction.NONE -> Unit
-                                    }
-                                },
-                                onNavigatorReady = { nav -> activeEpubNavigator = nav },
-                                modifier = Modifier.fillMaxSize()
-                            )
+                    // Padded reading canvas: insets protect text from status bar and navigation bar cutouts.
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .windowInsetsPadding(readerInsets)
+                    ) {
+                        // Content Canvas: EPUB vs CBZ
+                        if (uiState.format == BookFormat.CBZ) {
+                            val archive = viewModel.cbzReaderEngine.getArchive()
+                            if (archive != null) {
+                                CbzReaderComponent(
+                                    archive = archive,
+                                    initialPageIndex = uiState.currentPage,
+                                    onPageChanged = { pageIndex, totalPages ->
+                                        viewModel.onPageChanged(
+                                            pageIndex = pageIndex,
+                                            totalPages = totalPages,
+                                            chapterTitle = "Trang ${pageIndex + 1}"
+                                        )
+                                    },
+                                    onTap = { viewModel.toggleControls() },
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                        } else {
+                            // EPUB / AZW3 Readium Navigator
+                            val readiumEngine = viewModel.getActiveReadiumEngine()
+                            if (readiumEngine != null) {
+                                EpubReaderContainer(
+                                    epubEngine = readiumEngine,
+                                    preferences = uiState.preferences,
+                                    initialLocatorJson = uiState.currentLocator,
+                                    onLocatorChanged = { locator ->
+                                        val totalProg = locator.locations.totalProgression?.toFloat()
+                                            ?: (locator.locations.progression?.toFloat() ?: 0f)
+                                        val pageIndex = locator.locations.position ?: 0
+
+                                        viewModel.onPageChanged(
+                                            pageIndex = pageIndex,
+                                            totalPages = uiState.totalPages,
+                                            locator = locator.toJSON().toString(),
+                                            chapterTitle = locator.title ?: "",
+                                            percentage = totalProg
+                                        )
+                                    },
+                                    onTapAction = { action ->
+                                        when (action) {
+                                            ReaderTapAction.NEXT -> performPageTurn(true)
+                                            ReaderTapAction.PREV -> performPageTurn(false)
+                                            ReaderTapAction.MENU -> viewModel.toggleControls()
+                                            ReaderTapAction.NONE -> Unit
+                                        }
+                                    },
+                                    onNavigatorReady = { nav -> activeEpubNavigator = nav },
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
                         }
+
+                        // Kindle-like page-lift transition: above the canvas, below the chrome.
+                        PageTurnFlipOverlay(
+                            controller = flipController,
+                            modifier = Modifier.fillMaxSize()
+                        )
+
+                        // Transient tap-zone preview, triggered from reader settings.
+                        TapZonePreviewOverlay(
+                            mode = tapZoneMode,
+                            visible = showTapZonePreview,
+                            onDismissed = { showTapZonePreview = false },
+                            modifier = Modifier.fillMaxSize()
+                        )
                     }
-
-                    // Kindle-like page-lift transition: above the canvas, below the chrome.
-                    PageTurnFlipOverlay(
-                        controller = flipController,
-                        modifier = Modifier.fillMaxSize()
-                    )
-
-                    // Transient tap-zone preview, triggered from reader settings.
-                    TapZonePreviewOverlay(
-                        mode = tapZoneMode,
-                        visible = showTapZonePreview,
-                        onDismissed = { showTapZonePreview = false },
-                        modifier = Modifier.fillMaxSize()
-                    )
 
                     // Top App Bar
                     AnimatedReaderTopBar(

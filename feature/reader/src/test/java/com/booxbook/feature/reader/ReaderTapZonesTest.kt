@@ -102,39 +102,5 @@ class ReaderTapZonesTest {
         assertEquals(ReaderPageTurnEffect.SLIDE, ReaderPageTurnEffect.fromKey("not-an-effect"))
     }
 
-    @Test
-    fun `status bar inset pushes the menu strip below the status bar`() {
-        val inset = 0.046f
-        val stripBottom = inset + ReaderTapZones.TOP_STRIP
-
-        // On the strip boundary -> menu.
-        assertEquals(
-            ReaderTapAction.MENU,
-            ReaderTapZones.resolve(0.05f, stripBottom, ReaderTapZoneMode.KINDLE, inset)
-        )
-        // Just below it the normal zones apply again.
-        assertEquals(
-            ReaderTapAction.PREV,
-            ReaderTapZones.resolve(0.05f, stripBottom + 0.005f, ReaderTapZoneMode.KINDLE, inset)
-        )
-        // A tap physically behind the status bar also resolves to menu (it never reaches the app).
-        assertEquals(
-            ReaderTapAction.MENU,
-            ReaderTapZones.resolve(0.05f, 0.01f, ReaderTapZoneMode.KINDLE, inset)
-        )
-    }
-
-    @Test
-    fun `absurd insets are clamped so zones stay reachable`() {
-        assertEquals(
-            ReaderTapAction.MENU,
-            ReaderTapZones.resolve(0.05f, 0.50f, ReaderTapZoneMode.KINDLE, 5f)
-        )
-        assertEquals(
-            ReaderTapAction.MENU,
-            ReaderTapZones.resolve(0.05f, ReaderTapZones.TOP_STRIP, ReaderTapZoneMode.KINDLE, -1f)
-        )
-    }
-
     private fun resolve(x: Float, y: Float, mode: ReaderTapZoneMode) = ReaderTapZones.resolve(x, y, mode)
 }

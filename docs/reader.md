@@ -502,19 +502,33 @@ In `EpubReaderContainer.kt`:
 
 > Reference: `Yuneko-dev/Nekori` avoids this whole class of problems by owning a plain `WebView` from the reader ViewModel and rendering paged content itself (CSS columns + JS), with the Activity only attaching the viewer's `FrameLayout`. BooxBook keeps Readium for EPUB parsing/locators and therefore must host its Fragment carefully, as described above.
 
-### 4. True Immersive Edge-to-Edge Mode
+### 4. Edge-to-Edge System Bar Insets & Content Safe-Area
 
-To provide an authentic reading experience, the Scaffold applies zero content insets:
+The Scaffold remains edge-to-edge (`contentWindowInsets = WindowInsets(0, 0, 0, 0)`) so the theme background seamlessly extends behind system bars and display cutouts.
+
+However, to prevent book text and comic panels from being obscured by status bar icons (clock, battery, camera hole) or the bottom navigation bar gesture pill, the reading canvas, flip transition, and tap-zone preview overlay are wrapped in a safe-area container using Compose WindowInsets:
 
 ```kotlin
-Scaffold(
-    modifier = Modifier.fillMaxSize().background(backgroundColor),
-    containerColor = backgroundColor,
-    contentWindowInsets = WindowInsets(0, 0, 0, 0)
-)
+val readerInsets = WindowInsets.systemBars.union(WindowInsets.displayCutout)
+
+Box(
+    modifier = Modifier
+        .fillMaxSize()
+        .windowInsetsPadding(readerInsets)
+) {
+    // EPUB / AZW3 Readium Navigator or CBZ LazyColumn
+    ...
+    // Page-turn flip overlay
+    ...
+    // Tap-zone preview overlay
+    ...
+}
 ```
 
-The underlying reading canvas (EPUB or CBZ) extends edge-to-edge behind translucent system status and navigation bars. Overlays (`AnimatedReaderTopBar` and `FloatingReaderToolbar`) apply explicit `statusBarsPadding()` and `navigationBarsPadding()` respectively, preventing UI overlap with system cutouts or gesture pills.
+Because the canvas bounds are strictly inset to the readable area:
+- Readium paginates text precisely within the safe rectangle (0 text clipped by camera cutouts or system bars).
+- Tap zones start right at the edges of the visible canvas; the Kindle-style top menu strip (`y <= 6%`) is 100% accessible to user touch immediately below the status bar.
+- Reading chrome overlays (`AnimatedReaderTopBar` and `FloatingReaderToolbar`) float at screen edges using `statusBarsPadding()` and `navigationBarsPadding()`.
 
 ---
 
