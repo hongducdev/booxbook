@@ -147,60 +147,105 @@ when {
 Reflowable and fixed-layout EPUB publications are rendered using Readium's `EpubNavigatorFragment` embedded into Compose via an interoperability container (`EpubReaderContainer.kt`).
 
 #### 1. Fragment Lifecycle and Container Retention
-To ensure crash-free execution during orientation changes and recompositions, the container dynamically generates and remembers a stable view ID:
+Reflowable EPUB/AZW3 pages are hosted by a real Fragment (Readium's `EpubNavigatorFragment` owns the paginated WebView), so it has to be added to the Activity's `FragmentManager`. Two rules make it actually render:
+
+1. **Commit the transaction only after the host view is attached to the window, and outside of Compose's layout pass.** Committing synchronously from `AndroidView`'s `factory` attaches the WebView to a detached hierarchy; Chromium then keeps rendering frames but they never reach the screen, leaving the canvas showing the Compose `Scaffold` background (`#141218` under the DARK preset) — a blank reader.
+2. **The host view id must survive configuration changes** so a restored navigator can be matched back to its container.
 
 ```kotlin
 val activity = LocalContext.current as? FragmentActivity ?: return
 val fragmentManager = activity.supportFragmentManager
+
+// Stable id: a restored fragment keeps pointing at the same container id.
 val containerId = rememberSaveable { View.generateViewId() }
-```
 
-The navigator fragment is instantiated via `epubEngine.createFragmentFactory()` with saved locator restoration:
+val engineState by epubEngine.state.collectAsStateWithLifecycle()
 
-```kotlin
-val navigatorFragment = remember {
-    val factory = epubEngine.createFragmentFactory(
-        initialLocator = initialLocator,
-        preferences = preferences
-    )
-    if (factory != null) {
-        fragmentManager.fragmentFactory = factory
-        fragmentManager.fragmentFactory.instantiate(
-            activity.classLoader,
-            EpubNavigatorFragment::class.java.name
-        ) as EpubNavigatorFragment
-    } else {
-        null
-    }
-}
-```
+LaunchedEffect(hostView, engineState, epubEngine) {
+    if (activeFragment != null) return@LaunchedEffect
+    if (epubEngine.getNavigatorFactory() == null) return@LaunchedEffect   // publication not ready
 
-The underlying `FragmentContainerView` mounts the fragment through `fragmentManager.beginTransaction().replace(id, navigatorFragment).commitAllowingStateLoss()`.
+    val host = hostView ?: return@LaunchedEffect
+    host.awaitAttached()                                                  // post-attach, post-layout
+    if (fragmentManager.isDestroyed || fragmentManager.isStateSaved) return@LaunchedEffect
 
-#### 2. Central Tap Detection & Gesture Partitioning
-To prevent conflict between page-flipping taps and reading chrome toggling, `EpubReaderContainer` registers an `InputListener` with the Readium fragment:
-
-```kotlin
-val inputListener = object : InputListener {
-    override fun onTap(event: TapEvent): Boolean {
-        val point = event.point
-        val view = fragment?.view ?: return false
-        val width = view.width.toFloat()
-        if (width <= 0f) return false
-
-        // Central 50% zone triggers reading chrome; edge 25% zones flip pages
-        val relativeX = point.x / width
-        if (relativeX in 0.25f..0.75f) {
-            onCenterTap()
-            return true
+    val navigator = fragmentManager.findFragmentById(containerId) as? EpubNavigatorFragment
+        ?: run {
+            val factory = epubEngine.createFragmentFactory(initialLocator, preferences)
+                ?: return@LaunchedEffect
+            factory.instantiate(
+                activity.classLoader,
+                EpubNavigatorFragment::class.java.name
+            ) as EpubNavigatorFragment
         }
-        return false
-    }
-
-    override fun onDrag(event: DragEvent): Boolean = false
-    override fun onKey(event: KeyEvent): Boolean = false
+    ...
 }
 ```
+
+The container is a plain `FrameLayout` created by the `AndroidView` factory.
+
+#### 2. Configuration Changes and Restoration
+`FragmentManager` restores its fragments during `Activity.onCreate`, i.e. **before** Compose has created the container view. A restored navigator therefore ends up with a detached, zero-sized view (`mView` bounds `0,0-0,0`, container child count `0`) and the reader goes blank after rotation.
+
+BooxBook handles this in two places:
+
+- `MainActivity` installs a `RestorableReadiumFragmentFactory` (backed by `ReadiumFragmentFactoryProvider`) on the Activity's `FragmentManager` **before `super.onCreate()`**. Hilt injects fields only on context-available, hence an `@EntryPoint` is used instead of `@Inject`. This prevents `Fragment$InstantiationException: ... could not find Fragment constructor` during restore.
+- `EpubReaderContainer` drops any restored navigator whose view is not attached and rebuilds it once the container is on screen; the reading position is re-applied through `initialLocatorJson`.
+
+If the process was restarted there is no open publication, so `MainActivity` passes `null` as the saved state instead of restoring an unbuildable navigator.
+
+#### 2. Tap Zones & Gesture Partitioning
+
+Readium 3.1.1 does **not** wire tap-to-turn navigation: `EpubNavigatorFragment` never references
+`DirectionalNavigationAdapter`, so without app-side handling an edge tap does nothing. Taps are
+therefore resolved by the app and turned with `goForward(animated)` / `goBackward(animated)`.
+
+`EpubReaderContainer` registers an `InputListener` whose tap handler delegates to the pure
+resolver in `ReaderInteraction.kt`:
+
+```kotlin
+val action = ReaderTapZones.resolve(
+    x = event.point.x / width,
+    y = event.point.y / height,
+    mode = ReaderTapZoneMode.fromKey(preferences.tapZoneMode),
+    topInsetFraction = statusBarTopPx / height
+)
+if (action == ReaderTapAction.NONE) return false   // let Readium/WebView handle it (e.g. links)
+onTapAction(action)
+return true
+```
+
+| `ReaderTapZoneMode` | prev | menu | next | top strip |
+|---|---|---|---|---|
+| `KINDLE` (default) | x < 0.30 | 0.30..0.70 | x > 0.70 | status-bar inset + 6% → menu |
+| `EDGES` | x < 0.25 | 0.25..0.75 | x > 0.75 | — |
+| `MENU_ONLY` | — | 0.25..0.75 | — | — |
+
+The canvas runs edge-to-edge, so the always-menu strip starts **below the status bar**
+(`topInsetFraction`); otherwise most of it would sit behind system UI and be unreachable.
+`MENU_ONLY` reproduces the pre-feature behaviour exactly.
+
+Because the resolver is a pure function of normalised coordinates, all boundaries are covered by
+`feature/reader/src/test/java/com/booxbook/feature/reader/ReaderTapZonesTest.kt`.
+
+#### 3. Page-Turn Effects
+
+`ReaderPageTurnEffect` controls what happens on a page turn:
+
+| Effect | Behaviour |
+|---|---|
+| `SLIDE` (default) | `goForward/goBackward(animated = true)` — Readium's own scroller animation |
+| `FLIP` | Kindle-like page lift (see below) |
+| `NONE` | instant swap (`animated = false`) |
+
+The `FLIP` path snapshots the navigator's `publicationView` into a bitmap *before* the turn,
+turns instantly, then peels the snapshot away in `PageTurnFlipOverlay` with a 3D rotation about
+the spine edge plus a gradient scrim, revealing the freshly rendered page underneath. If the
+snapshot is unavailable (zero-sized view, all-one-colour capture), it falls back to `SLIDE`.
+
+A haptic tick is emitted per turn when `ReaderPreferences.hapticsEnabled` is set, and
+`TapZonePreviewOverlay` renders a transient, labelled diagram of the active zones (triggered from
+reader settings), auto-dismissing after ~2.2 s.
 
 #### 3. Continuous Locator Tracking
 The fragment's `currentLocator` Flow is collected continuously, keeping the `ReaderViewModel` and reading progress in sync:
@@ -220,8 +265,8 @@ LaunchedEffect(navigatorFragment) {
 Changes in `ReaderPreferences` (font size, font family, theme) are dispatched directly to the active navigator:
 
 ```kotlin
-LaunchedEffect(preferences, navigatorFragment) {
-    val fragment = navigatorFragment ?: return@LaunchedEffect
+LaunchedEffect(preferences, activeFragment) {
+    val fragment = activeFragment ?: return@LaunchedEffect
     fragment.submitPreferences(epubEngine.buildEpubPreferences(preferences))
 }
 ```
@@ -441,18 +486,21 @@ progressSaveJob = viewModelScope.launch(ioDispatcher) {
 ### 3. Fragment Container Safety & Listener Cleanup
 
 In `EpubReaderContainer.kt`:
-1. `rememberSaveable { View.generateViewId() }` ensures the view ID assigned to `FragmentContainerView` survives configuration changes.
-2. `DisposableEffect` deregisters the Readium `InputListener` and cleans up the fragment transaction when the Composable leaves the composition tree:
+1. `rememberSaveable { View.generateViewId() }` ensures the id assigned to the host `FrameLayout` survives configuration changes, so a restored navigator can be matched back to it.
+2. `DisposableEffect(activeFragment)` deregisters the Readium `InputListener` and removes the fragment when the Composable leaves the composition tree:
    ```kotlin
    onDispose {
        onNavigatorReady(null)
-       fragment?.removeInputListener(inputListener)
+       fragment.removeInputListener(inputListener)
        val existing = fragmentManager.findFragmentById(containerId)
        if (existing != null && !activity.isFinishing && !activity.isDestroyed) {
            fragmentManager.beginTransaction().remove(existing).commitAllowingStateLoss()
        }
    }
    ```
+3. `MainActivity` must install the Readium `FragmentFactory` before `super.onCreate()`, otherwise restoration crashes with `Fragment$InstantiationException`.
+
+> Reference: `Yuneko-dev/Nekori` avoids this whole class of problems by owning a plain `WebView` from the reader ViewModel and rendering paged content itself (CSS columns + JS), with the Activity only attaching the viewer's `FrameLayout`. BooxBook keeps Readium for EPUB parsing/locators and therefore must host its Fragment carefully, as described above.
 
 ### 4. True Immersive Edge-to-Edge Mode
 
