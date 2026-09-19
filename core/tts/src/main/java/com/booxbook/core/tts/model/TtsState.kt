@@ -22,6 +22,7 @@ data class TtsSessionState(
     val currentSentenceIndex: Int = 0,
     val totalSentences: Int = 0,
     val currentSentence: String = "",
+    val currentLocator: String? = null,
     val speechRate: Float = 1.0f,
     val pitch: Float = 1.0f,
     val isInitialized: Boolean = false

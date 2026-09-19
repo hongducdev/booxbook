@@ -85,12 +85,14 @@ class TtsEngineWrapperTest {
             playbackState = TtsPlaybackState.Playing,
             bookTitle = "Dế Mèn Phiêu Lưu Ký",
             currentSentence = "Tôi sống độc lập từ thuở bé.",
+            currentLocator = "{\"href\":\"chapter1.xhtml\",\"text\":{\"highlight\":\"Tôi sống độc lập từ thuở bé.\"}}",
             currentSentenceIndex = 0,
             totalSentences = 10
         )
         assertTrue(playingState.isPlaying)
         assertTrue(playingState.isActive)
         assertEquals(10, playingState.totalSentences)
+        assertEquals("{\"href\":\"chapter1.xhtml\",\"text\":{\"highlight\":\"Tôi sống độc lập từ thuở bé.\"}}", playingState.currentLocator)
 
         val pausedState = TtsSessionState(playbackState = TtsPlaybackState.Paused)
         assertFalse(pausedState.isPlaying)

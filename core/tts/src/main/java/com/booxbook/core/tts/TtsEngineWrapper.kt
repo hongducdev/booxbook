@@ -30,6 +30,7 @@ class TtsEngineWrapper @Inject constructor(
 
     private var tts: TextToSpeech? = null
     private val sentences = mutableListOf<TtsSentence>()
+    private var playPendingAfterInit = false
 
     private val _state = MutableStateFlow(TtsSessionState())
     val state: StateFlow<TtsSessionState> = _state.asStateFlow()
@@ -66,6 +67,13 @@ class TtsEngineWrapper @Inject constructor(
 
             setupProgressListener(ttsInstance)
             _state.update { it.copy(isInitialized = true) }
+
+            if (playPendingAfterInit) {
+                playPendingAfterInit = false
+                if (sentences.isNotEmpty()) {
+                    speakSentence(_state.value.currentSentenceIndex)
+                }
+            }
         } else {
             _state.update {
                 it.copy(
@@ -116,16 +124,21 @@ class TtsEngineWrapper @Inject constructor(
         bookTitle: String,
         chapterTitle: String,
         rawText: String,
-        startIndex: Int = 0
+        startIndex: Int = 0,
+        preParsedSentences: List<TtsSentence>? = null
     ) {
-        val parsedSentences = tokenizeSentences(rawText)
         sentences.clear()
-        sentences.addAll(parsedSentences.mapIndexed { idx, txt ->
-            TtsSentence(index = idx, text = txt)
-        })
+        if (!preParsedSentences.isNullOrEmpty()) {
+            sentences.addAll(preParsedSentences)
+        } else {
+            val parsedSentences = tokenizeSentences(rawText)
+            sentences.addAll(parsedSentences.mapIndexed { idx, txt ->
+                TtsSentence(index = idx, text = txt)
+            })
+        }
 
         val initialIndex = startIndex.coerceIn(0, (sentences.size - 1).coerceAtLeast(0))
-        val initialSentence = sentences.getOrNull(initialIndex)?.text ?: ""
+        val initialSentence = sentences.getOrNull(initialIndex)
 
         // Detect language from text heuristics
         detectAndSetLanguage(rawText)
@@ -137,7 +150,8 @@ class TtsEngineWrapper @Inject constructor(
                 chapterTitle = chapterTitle,
                 currentSentenceIndex = initialIndex,
                 totalSentences = sentences.size,
-                currentSentence = initialSentence,
+                currentSentence = initialSentence?.text.orEmpty(),
+                currentLocator = initialSentence?.locator,
                 playbackState = TtsPlaybackState.Paused
             )
         }
@@ -145,7 +159,16 @@ class TtsEngineWrapper @Inject constructor(
 
     fun play() {
         val state = _state.value
-        if (!state.isInitialized || sentences.isEmpty()) return
+        if (tts == null) {
+            initializeTts()
+            playPendingAfterInit = true
+            return
+        }
+        if (!state.isInitialized) {
+            playPendingAfterInit = true
+            return
+        }
+        if (sentences.isEmpty()) return
         speakSentence(state.currentSentenceIndex)
     }
 
@@ -164,6 +187,7 @@ class TtsEngineWrapper @Inject constructor(
             it.copy(
                 playbackState = TtsPlaybackState.Idle,
                 currentSentence = "",
+                currentLocator = null,
                 currentSentenceIndex = 0
             )
         }
@@ -186,10 +210,12 @@ class TtsEngineWrapper @Inject constructor(
     fun seekTo(index: Int) {
         if (index in 0 until sentences.size) {
             val wasPlaying = _state.value.isPlaying
+            val sentence = sentences[index]
             _state.update {
                 it.copy(
                     currentSentenceIndex = index,
-                    currentSentence = sentences[index].text
+                    currentSentence = sentence.text,
+                    currentLocator = sentence.locator
                 )
             }
             if (wasPlaying) {
@@ -218,6 +244,7 @@ class TtsEngineWrapper @Inject constructor(
             it.copy(
                 currentSentenceIndex = index,
                 currentSentence = sentence.text,
+                currentLocator = sentence.locator,
                 playbackState = TtsPlaybackState.Playing
             )
         }
