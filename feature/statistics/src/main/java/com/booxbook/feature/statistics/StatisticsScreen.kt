@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -33,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.booxbook.core.ui.component.DelayedLoadingIndicator
 import com.booxbook.core.ui.theme.GoogleSansFlex600
 import com.booxbook.core.ui.theme.GoogleSansFlexDisplay
 import com.booxbook.core.ui.theme.PillShape
@@ -162,10 +162,9 @@ fun StatisticsScreen(
                 exit = fadeOut(),
                 modifier = Modifier.align(Alignment.Center)
             ) {
-                CircularProgressIndicator(
-                    color = MaterialTheme.colorScheme.primary,
-                    strokeWidth = 3.dp
-                )
+                // Spec: chờ ngắn và không đo được tiến trình -> loading indicator, đặt giữa vùng đang
+                // tải. Dữ liệu đọc từ Room nên thường xong trước ngưỡng 200 ms -> không hiện gì.
+                DelayedLoadingIndicator()
             }
         }
     }

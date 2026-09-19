@@ -23,8 +23,6 @@ import androidx.compose.material.icons.rounded.FormatSize
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.booxbook.core.ui.animation.SpringPhysics
+import com.booxbook.core.ui.component.WavyReaderSlider
 import com.booxbook.core.ui.theme.GoogleSansFlex600
 
 @Composable
@@ -94,21 +93,16 @@ fun FloatingReaderToolbar(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
 
-                        Slider(
+                        WavyReaderSlider(
                             value = sliderPosition,
+                            valueRange = 0f..(totalPages - 1).toFloat(),
                             onValueChange = { sliderPosition = it },
                             onValueChangeFinished = {
                                 onSeekToPage(sliderPosition.toInt())
                             },
-                            valueRange = 0f..(totalPages - 1).toFloat(),
                             modifier = Modifier
                                 .weight(1f)
                                 .padding(horizontal = 12.dp),
-                            colors = SliderDefaults.colors(
-                                thumbColor = MaterialTheme.colorScheme.primary,
-                                activeTrackColor = MaterialTheme.colorScheme.primary,
-                                inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
-                            )
                         )
 
                         Text(

@@ -25,7 +25,6 @@ import androidx.compose.material.icons.rounded.AutoStories
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -49,6 +48,7 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.booxbook.core.model.BookFormat
 import com.booxbook.core.ui.animation.SpringPhysics
+import com.booxbook.core.ui.component.ReadingProgressBar
 import com.booxbook.core.ui.theme.BentoCardShape
 import com.booxbook.core.ui.theme.GoogleSansFlex400
 import com.booxbook.core.ui.theme.GoogleSansFlex600
@@ -234,15 +234,7 @@ fun BentoBookCard(
             // Progress bar
             if (progress != null && progress.percentage > 0f) {
                 Spacer(modifier = Modifier.height(8.dp))
-                LinearProgressIndicator(
-                    progress = { progress.percentage.coerceIn(0f, 1f) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(4.dp)
-                        .clip(CircleShape),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
-                )
+                ReadingProgressBar(progress = progress.percentage)
             }
         }
     }

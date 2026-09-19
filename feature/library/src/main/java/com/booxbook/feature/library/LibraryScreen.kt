@@ -30,7 +30,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -57,6 +56,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.booxbook.core.model.BookFormat
 import com.booxbook.core.ui.component.ExpressiveFilterChip
+import com.booxbook.core.ui.component.ExpressiveLoadingIndicator
+import com.booxbook.core.ui.component.ReadingProgressRing
 import com.booxbook.core.ui.theme.GoogleSansFlex400
 import com.booxbook.core.ui.theme.GoogleSansFlex600
 import com.booxbook.core.ui.theme.GoogleSansFlexDisplay
@@ -334,11 +335,17 @@ fun LibraryScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
                     ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            strokeWidth = 3.dp,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                        // Spec: đo được tiến trình thì dùng progress indicator determinate; chỉ khi
+                        // không biết tiến trình (nhập 1 tệp) mới dùng loading indicator.
+                        if (currentImport is ImportState.Importing && currentImport.total > 1) {
+                            ReadingProgressRing(
+                                progress = (currentImport.current.toFloat() / currentImport.total)
+                                    .coerceIn(0f, 1f),
+                                modifier = Modifier.size(28.dp),
+                            )
+                        } else {
+                            ExpressiveLoadingIndicator(modifier = Modifier.size(28.dp))
+                        }
                         Spacer(modifier = Modifier.width(16.dp))
                         Text(
                             text = importText,

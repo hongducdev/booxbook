@@ -13,11 +13,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import com.booxbook.core.ui.component.ExpressiveContainedLoadingIndicator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -55,6 +56,9 @@ import java.io.File
 /**
  * Comic/Manga reader component implementing vertical continuous scroll (Webtoon style)
  * with pinch-to-zoom and double-tap zoom capabilities.
+ *
+ * [onReady] báo rằng trang đầu tiên đã giải nén xong và sẵn sàng hiển thị. Màn đọc dùng tín hiệu này
+ * để tan lớp phủ "đang mở sách" đúng lúc nội dung thật sự có mặt, thay vì đoán bằng một khoảng chờ.
  */
 @Composable
 fun CbzReaderComponent(
@@ -62,7 +66,8 @@ fun CbzReaderComponent(
     modifier: Modifier = Modifier,
     initialPageIndex: Int = 0,
     onPageChanged: (pageIndex: Int, totalPages: Int) -> Unit = { _, _ -> },
-    onTap: () -> Unit = {}
+    onTap: () -> Unit = {},
+    onReady: () -> Unit = {}
 ) {
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialPageIndex)
 
@@ -150,7 +155,9 @@ fun CbzReaderComponent(
                 ) { index ->
                     CbzPageItem(
                         archive = archive,
-                        index = index
+                        index = index,
+                        isInitialPage = index == initialPageIndex,
+                        onFirstPageReady = onReady
                     )
                 }
             }
@@ -184,7 +191,9 @@ fun CbzReaderComponent(
 @Composable
 private fun CbzPageItem(
     archive: CbzArchive,
-    index: Int
+    index: Int,
+    isInitialPage: Boolean = false,
+    onFirstPageReady: () -> Unit = {}
 ) {
     val context = LocalContext.current
 
@@ -192,6 +201,13 @@ private fun CbzPageItem(
     val pageFile by produceState<File?>(initialValue = null, archive, index) {
         value = withContext(Dispatchers.IO) {
             runCatching { archive.getPageFile(index) }.getOrNull()
+        }
+    }
+
+    // Trang mở đầu tiên có mặt là mốc "nội dung đã sẵn sàng" của cả màn đọc CBZ.
+    LaunchedEffect(pageFile, isInitialPage) {
+        if (isInitialPage && pageFile != null) {
+            onFirstPageReady()
         }
     }
 
@@ -223,10 +239,10 @@ private fun CbzPageItem(
                     .background(Color(0xFF1E1E1E)),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(
-                    color = Color.White.copy(alpha = 0.5f),
-                    strokeWidth = 2.dp
-                )
+                // Trang truyện đang giải nén: chờ ngắn, chưa biết tiến trình -> M3 loading indicator.
+                // Dùng bản có container vì chỉ báo nằm trên nội dung khác (khung trang truyện), đúng
+                // luật của spec: đặt trên nội dung thì cần container để đủ tương phản.
+                ExpressiveContainedLoadingIndicator(modifier = Modifier.size(40.dp))
             }
         }
     }
