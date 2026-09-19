@@ -25,9 +25,10 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.advanceTimeBy
-import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -113,10 +114,53 @@ class ReaderViewModelTest {
         Dispatchers.resetMain()
     }
 
+    /**
+     * Runs [body] and always tears the ViewModel down before `runTest` returns.
+     *
+     * `loadBook()` starts reading-session tracking, which keeps a perpetual
+     * `delay(PERIODIC_FLUSH_INTERVAL_MS)` ticker alive on `viewModelScope`. When `runTest` finishes it
+     * drains the scheduler with `advanceUntilIdleOr { false }`, and a ticker that is still alive always
+     * leaves one more event queued — so that drain never terminates and the whole test task hangs
+     * forever instead of failing. `viewModel.release()` cancels the ticker, which lets the drain finish.
+     *
+     * For the same reason a test body must never call `advanceUntilIdle()` while the ticker runs; use
+     * [settle] and [advanceBy], which move virtual time by a bounded amount.
+     */
+    private fun readerTest(body: suspend TestScope.() -> Unit) = runTest {
+        try {
+            body()
+        } finally {
+            viewModel.release()
+        }
+    }
+
+    /** Runs everything already due at the current virtual time. Bounded, unlike `advanceUntilIdle()`. */
+    private fun settle() {
+        testDispatcher.scheduler.runCurrent()
+    }
+
+    /** Moves virtual time forward by [millis], running every task that becomes due in that window. */
+    private fun advanceBy(millis: Long) {
+        testDispatcher.scheduler.advanceTimeBy(millis)
+        testDispatcher.scheduler.runCurrent()
+    }
+
+    /**
+     * Starts recording [ReaderViewModel.feedback] on an unconfined dispatcher so nothing emitted
+     * later in the test can slip past the collector.
+     */
+    private fun TestScope.collectFeedback(): List<ReaderFeedback> {
+        val recorded = mutableListOf<ReaderFeedback>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.feedback.collect { recorded += it }
+        }
+        return recorded
+    }
+
     @Test
-    fun `loadBook with unknown ID updates error state`() = runTest {
+    fun `loadBook with unknown ID updates error state`() = readerTest {
         viewModel.loadBook("non-existent-id")
-        advanceUntilIdle()
+        settle()
 
         val state = viewModel.uiState.value
         assertFalse(state.isLoading)
@@ -125,12 +169,11 @@ class ReaderViewModelTest {
     }
 
     @Test
-    fun `loadBook with valid CBZ initializes engine and populates state`() = runTest {
+    fun `loadBook with valid CBZ initializes engine and populates state`() = readerTest {
         viewModel.loadBook(sampleCbzBook.id)
-        advanceUntilIdle()
+        settle()
 
         val state = viewModel.uiState.value
-        println("DEBUG: isLoading=${state.isLoading}, error=${state.errorMessage}, totalPages=${state.totalPages}, tocSize=${state.tableOfContents.size}")
         assertFalse(state.isLoading)
         assertNull(state.errorMessage)
         assertEquals("cbz-1", state.book?.id)
@@ -140,7 +183,7 @@ class ReaderViewModelTest {
     }
 
     @Test
-    fun `controls toggle and sheet management`() = runTest {
+    fun `controls toggle and sheet management`() = readerTest {
         assertFalse(viewModel.uiState.value.isControlsVisible)
 
         viewModel.toggleControls()
@@ -158,7 +201,7 @@ class ReaderViewModelTest {
     }
 
     @Test
-    fun `preferences update correctly`() = runTest {
+    fun `preferences update correctly`() = readerTest {
         val initialFontSize = viewModel.uiState.value.preferences.fontSize
 
         viewModel.updateFontSize(0.2)
@@ -177,9 +220,9 @@ class ReaderViewModelTest {
     }
 
     @Test
-    fun `onPageChanged updates state and debounces progress save to Room`() = runTest {
+    fun `onPageChanged updates state and debounces progress save to Room`() = readerTest {
         viewModel.loadBook(sampleCbzBook.id)
-        advanceUntilIdle()
+        settle()
 
         // Change page
         viewModel.onPageChanged(
@@ -196,13 +239,12 @@ class ReaderViewModelTest {
         assertEquals(1.0f, state.progressPercentage, 0.001f)
         assertEquals("Trang 2", state.currentChapterTitle)
 
-        // Progress has not saved immediately before 500ms debounce
-        advanceTimeBy(200)
+        // Progress has not saved immediately before the 500ms debounce elapses
+        advanceBy(200)
         assertNull(fakeRepository.savedProgresses.find { it.currentPage == 1 })
 
-        // After 500ms debounce completes
-        advanceTimeBy(350)
-        advanceUntilIdle()
+        // After the 500ms debounce elapses the progress is written
+        advanceBy(350)
 
         val saved = fakeRepository.savedProgresses.find { it.currentPage == 1 }
         assertNotNull(saved)
@@ -211,16 +253,16 @@ class ReaderViewModelTest {
     }
 
     @Test
-    fun `toggleBookmark creates and removes bookmark annotation`() = runTest {
+    fun `toggleBookmark creates and removes bookmark annotation`() = readerTest {
         viewModel.loadBook(sampleCbzBook.id)
-        advanceUntilIdle()
+        settle()
 
         viewModel.onPageChanged(pageIndex = 0, totalPages = 2, locator = "page://0", chapterTitle = "Trang 1")
-        advanceUntilIdle()
+        settle()
 
         // Toggle on
         viewModel.toggleBookmark()
-        advanceUntilIdle()
+        settle()
 
         assertEquals(1, fakeRepository.annotationsFlow.value.size)
         val created = fakeRepository.annotationsFlow.value.first()
@@ -229,36 +271,36 @@ class ReaderViewModelTest {
 
         // Toggle off
         viewModel.toggleBookmark()
-        advanceUntilIdle()
+        settle()
 
         assertEquals(0, fakeRepository.annotationsFlow.value.size)
     }
 
     @Test
-    fun `deleteAnnotation removes annotation from repository`() = runTest {
+    fun `deleteAnnotation removes annotation from repository`() = readerTest {
         viewModel.loadBook(sampleCbzBook.id)
-        advanceUntilIdle()
+        settle()
 
         viewModel.onPageChanged(pageIndex = 0, totalPages = 2, locator = "page://0")
         viewModel.toggleBookmark()
-        advanceUntilIdle()
+        settle()
 
         val bookmark = fakeRepository.annotationsFlow.value.first()
         viewModel.deleteAnnotation(bookmark)
-        advanceUntilIdle()
+        settle()
 
         assertTrue(fakeRepository.annotationsFlow.value.isEmpty())
     }
 
     @Test
-    fun `onCleared closes reader engines synchronously`() = runTest {
+    fun `onCleared closes reader engines synchronously`() = readerTest {
         viewModel.loadBook(sampleCbzBook.id)
-        advanceUntilIdle()
+        settle()
 
         // Engines are active
         assertNotNull(cbzEngine.getArchive())
 
-        // Clear viewmodel directly
+        // The Android framework invokes the protected onCleared() hook
         val onClearedMethod = viewModel.javaClass.getDeclaredMethod("onCleared")
         onClearedMethod.isAccessible = true
         onClearedMethod.invoke(viewModel)
@@ -268,7 +310,7 @@ class ReaderViewModelTest {
     }
 
     @Test
-    fun `loadBook with AZW3 book updates format and dispatches properly`() = runTest {
+    fun `loadBook with AZW3 book updates format and dispatches properly`() = readerTest {
         val azw3Book = Book(
             id = "azw3-1",
             title = "Kindle Book",
@@ -278,7 +320,7 @@ class ReaderViewModelTest {
         fakeRepository.books[azw3Book.id] = azw3Book
 
         viewModel.loadBook(azw3Book.id)
-        advanceUntilIdle()
+        settle()
 
         val state = viewModel.uiState.value
         assertEquals(BookFormat.AZW3, state.format)
@@ -286,17 +328,18 @@ class ReaderViewModelTest {
     }
 
     @Test
-    fun `tts speed and stop controls behave as expected`() = runTest {
+    fun `tts speed and stop controls behave as expected`() = readerTest {
         viewModel.setTtsSpeed(1.5f)
         assertEquals(1.5f, viewModel.ttsSessionState.value.speechRate)
 
         viewModel.stopTts()
         assertFalse(viewModel.uiState.value.isTtsActive)
         assertNull(viewModel.uiState.value.ttsSentenceHighlight)
+        assertNull(viewModel.uiState.value.ttsSentenceLocator)
     }
 
     @Test
-    fun `updateThemePreset and updateFontSize modify reading preferences`() = runTest {
+    fun `updateThemePreset and updateFontSize modify reading preferences`() = readerTest {
         viewModel.updateFontSize(0.2)
         assertEquals(1.2, viewModel.uiState.value.preferences.fontSize, 0.001)
 
@@ -306,7 +349,7 @@ class ReaderViewModelTest {
     }
 
     @Test
-    fun readingSessionRecordsTimeOnInteractionAndFlush() = runTest {
+    fun readingSessionRecordsTimeOnInteractionAndFlush() = readerTest {
         val book = Book(
             id = "track_book",
             title = "Track Book",
@@ -317,16 +360,119 @@ class ReaderViewModelTest {
         fakeRepository.books[book.id] = book
 
         viewModel.loadBook(book.id)
-        testDispatcher.scheduler.advanceUntilIdle()
+        settle()
 
         viewModel.recordUserInteraction()
         viewModel.pauseReadingSession()
-        testDispatcher.scheduler.advanceUntilIdle()
+        settle()
 
         viewModel.resumeReadingSession()
         viewModel.flushReadingSession(isEnding = true)
-        testDispatcher.scheduler.advanceUntilIdle()
+        settle()
         assertNotNull(fakeRepository)
+    }
+
+    @Test
+    fun `loadBook walks the opening phases and only finishes when the canvas is ready`() = readerTest {
+        viewModel.loadBook(sampleCbzBook.id)
+
+        // The opening screen starts without knowing which book it is showing.
+        assertEquals(ReaderLoadingPhase.LOADING_BOOK, viewModel.uiState.value.loadingPhase)
+        assertNull(viewModel.uiState.value.book)
+
+        settle()
+
+        // The engine is open, so the opening screen can already show the cover and title, but the
+        // first page has not been rendered yet: the overlay must stay.
+        val opening = viewModel.uiState.value
+        assertFalse(opening.isLoading)
+        assertEquals(ReaderLoadingPhase.BUILDING_CANVAS, opening.loadingPhase)
+        assertTrue(opening.isPreparing)
+        assertEquals("One Piece Tập 1", opening.book?.title)
+
+        viewModel.onCanvasReady()
+
+        assertEquals(ReaderLoadingPhase.READY, viewModel.uiState.value.loadingPhase)
+        assertFalse(viewModel.uiState.value.isPreparing)
+    }
+
+    @Test
+    fun `the opening screen closes itself when the reader never reports a ready canvas`() = readerTest {
+        viewModel.loadBook(sampleCbzBook.id)
+        settle()
+        assertEquals(ReaderLoadingPhase.BUILDING_CANVAS, viewModel.uiState.value.loadingPhase)
+
+        advanceBy(ReaderViewModel.CANVAS_READY_FALLBACK_MS + 50)
+
+        assertEquals(ReaderLoadingPhase.READY, viewModel.uiState.value.loadingPhase)
+    }
+
+    @Test
+    fun `a failed open never leaves the opening screen on top of the error`() = readerTest {
+        viewModel.loadBook("non-existent-id")
+        settle()
+
+        val state = viewModel.uiState.value
+        assertNotNull(state.errorMessage)
+        assertFalse(state.isPreparing)
+    }
+
+    @Test
+    fun `bookmark toggle announces both directions through snackbar feedback`() = readerTest {
+        val events = collectFeedback()
+
+        viewModel.loadBook(sampleCbzBook.id)
+        settle()
+        viewModel.onPageChanged(pageIndex = 0, totalPages = 2, locator = "page://0", chapterTitle = "Trang 1")
+        settle()
+
+        viewModel.toggleBookmark()
+        settle()
+        viewModel.toggleBookmark()
+        settle()
+
+        assertEquals(
+            listOf(ReaderFeedback.BookmarkAdded, ReaderFeedback.BookmarkRemoved),
+            events
+        )
+    }
+
+    @Test
+    fun `deleting an annotation offers undo and restores it with the same content`() = readerTest {
+        val events = collectFeedback()
+
+        viewModel.loadBook(sampleCbzBook.id)
+        settle()
+        viewModel.onPageChanged(pageIndex = 0, totalPages = 2, locator = "page://0", chapterTitle = "Trang 1")
+        viewModel.toggleBookmark()
+        settle()
+
+        val bookmark = fakeRepository.annotationsFlow.value.single()
+        viewModel.deleteAnnotation(bookmark)
+        settle()
+
+        assertTrue(fakeRepository.annotationsFlow.value.isEmpty())
+        val deleted = events.last()
+        assertTrue(deleted is ReaderFeedback.AnnotationDeleted)
+        assertEquals(bookmark, (deleted as ReaderFeedback.AnnotationDeleted).annotation)
+
+        viewModel.restoreAnnotation(bookmark)
+        settle()
+
+        val restored = fakeRepository.annotationsFlow.value.single()
+        assertEquals(bookmark.locator, restored.locator)
+        assertEquals(bookmark.noteContent, restored.noteContent)
+        assertTrue(events.last() is ReaderFeedback.AnnotationRestored)
+    }
+
+    @Test
+    fun `stopTts stays silent when no session was running`() = readerTest {
+        val events = collectFeedback()
+
+        viewModel.stopTts()
+        settle()
+
+        assertTrue(events.isEmpty())
     }
 }
 

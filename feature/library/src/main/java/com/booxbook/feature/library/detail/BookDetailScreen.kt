@@ -32,14 +32,16 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -70,7 +72,10 @@ import coil3.request.crossfade
 import com.booxbook.core.engine.model.TocItem
 import com.booxbook.core.model.Book
 import com.booxbook.core.model.ReadingProgress
+import com.booxbook.core.ui.component.DelayedLoadingIndicator
+import com.booxbook.core.ui.component.ExpressiveLoadingIndicator
 import com.booxbook.core.ui.component.ExpressivePillButton
+import com.booxbook.core.ui.component.ReadingProgressBar
 import com.booxbook.core.ui.theme.GoogleSansFlex400
 import com.booxbook.core.ui.theme.GoogleSansFlex600
 import com.booxbook.core.ui.theme.GoogleSansFlexDisplay
@@ -93,12 +98,41 @@ fun BookDetailScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showResetDialog by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(bookId) {
         viewModel.loadBook(bookId)
     }
 
+    // Phản hồi cho các thao tác không được phép thay thế nội dung đang xem: đặt lại tiến độ (kèm khôi
+    // phục) và các lỗi xoá/xoá tiến độ mà trước đây người đọc không hề thấy.
+    LaunchedEffect(viewModel) {
+        viewModel.feedback.collect { feedback ->
+            when (feedback) {
+                is BookDetailFeedback.ProgressReset -> {
+                    val result = snackbarHostState.showSnackbar(
+                        message = "Đã đặt lại tiến độ đọc",
+                        actionLabel = if (feedback.canUndo) "Hoàn tác" else null,
+                        duration = SnackbarDuration.Short
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.undoResetProgress()
+                    }
+                }
+
+                BookDetailFeedback.ProgressRestored -> {
+                    snackbarHostState.showSnackbar("Đã khôi phục tiến độ đọc")
+                }
+
+                is BookDetailFeedback.Failure -> {
+                    snackbarHostState.showSnackbar(feedback.message)
+                }
+            }
+        }
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -147,10 +181,9 @@ fun BookDetailScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            CircularProgressIndicator(
-                                strokeWidth = 3.dp,
-                                color = MaterialTheme.colorScheme.primary
-                            )
+                            // Chờ dữ liệu Room thường rất ngắn: chỉ hiện chỉ báo khi đã chờ thật sự
+                            // đáng báo (spec: dưới 200 ms thì hiện nội dung ngay, không chỉ báo).
+                            DelayedLoadingIndicator()
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
                                 text = "Đang tải thông tin sách...",
@@ -291,11 +324,8 @@ fun BookDetailScreen(
 
                                 if (uiState.isTocLoading) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(14.dp),
-                                            strokeWidth = 2.dp,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
+                                        // 24dp là cỡ nhỏ nhất mà spec cho phép với loading indicator.
+                                        ExpressiveLoadingIndicator(modifier = Modifier.size(24.dp))
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Text(
                                             text = "Đang tải...",
@@ -620,15 +650,9 @@ private fun ReadingProgressSection(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            LinearProgressIndicator(
-                progress = { percentage.coerceIn(0f, 1f) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(8.dp)
-                    .clip(RoundedCornerShape(4.dp)),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
-            )
+            // Tiến độ đọc là giá trị đo được -> determinate linear, dùng chung cấu hình với mọi nơi
+            // khác hiển thị cùng tiến trình này (spec: một tiến trình, một cấu hình).
+            ReadingProgressBar(progress = percentage)
 
             Spacer(modifier = Modifier.height(10.dp))
 

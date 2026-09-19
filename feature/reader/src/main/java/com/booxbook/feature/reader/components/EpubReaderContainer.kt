@@ -24,6 +24,7 @@ import com.booxbook.feature.reader.ReaderTapZones
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.json.JSONObject
+import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
 import org.readium.r2.navigator.input.DragEvent
 import org.readium.r2.navigator.input.InputListener
@@ -33,6 +34,7 @@ import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.util.Url
 import org.readium.r2.shared.util.mediatype.MediaType
+import com.booxbook.feature.reader.ReaderThemePreset
 import kotlin.coroutines.resume
 
 /**
@@ -55,6 +57,10 @@ fun EpubReaderContainer(
     epubEngine: ReadiumReaderEngine,
     preferences: ReaderPreferences,
     initialLocatorJson: String?,
+    ttsSentenceHighlight: String? = null,
+    ttsSentenceLocatorJson: String? = null,
+    isTtsPlaying: Boolean = false,
+    themePreset: ReaderThemePreset = ReaderThemePreset.DARK,
     onLocatorChanged: (Locator) -> Unit,
     onTapAction: (ReaderTapAction) -> Unit,
     onNavigatorReady: (EpubNavigatorFragment?) -> Unit,
@@ -154,6 +160,141 @@ fun EpubReaderContainer(
             runCatching {
                 fragment.submitPreferences(epubEngine.buildEpubPreferences(preferences))
             }
+        }
+    }
+
+    // TTS Sentence Highlighting & Auto-Page-Turn Synchronization
+    LaunchedEffect(activeFragment, ttsSentenceHighlight, ttsSentenceLocatorJson, isTtsPlaying, themePreset) {
+        val fragment = activeFragment ?: return@LaunchedEffect
+        if (!fragment.isAdded || fragment.isDetached) return@LaunchedEffect
+
+        if (!isTtsPlaying || ttsSentenceHighlight.isNullOrBlank()) {
+            runCatching {
+                fragment.applyDecorations(emptyList(), "tts_highlight")
+            }
+            runCatching {
+                fragment.evaluateJavascript(
+                    """
+                    (function() {
+                        var marks = document.querySelectorAll('.boox-tts-highlight');
+                        for (var i = 0; i < marks.length; i++) {
+                            var el = marks[i];
+                            var parent = el.parentNode;
+                            if (parent) {
+                                while (el.firstChild) parent.insertBefore(el.firstChild, el);
+                                parent.removeChild(el);
+                            }
+                        }
+                    })();
+                    """.trimIndent()
+                )
+            }
+            return@LaunchedEffect
+        }
+
+        // Harmonious tint color depending on reader theme preset
+        val highlightArgb = when (themePreset) {
+            ReaderThemePreset.LIGHT -> android.graphics.Color.argb(85, 255, 214, 0) // Warm yellow
+            ReaderThemePreset.SEPIA -> android.graphics.Color.argb(75, 230, 140, 30) // Warm amber
+            ReaderThemePreset.DARK -> android.graphics.Color.argb(90, 255, 215, 64)  // Golden glow on dark
+            ReaderThemePreset.AMOLED -> android.graphics.Color.argb(100, 255, 215, 64) // Amber on black
+        }
+
+        val parsedLocator = if (!ttsSentenceLocatorJson.isNullOrBlank()) {
+            runCatching {
+                Locator.fromJSON(JSONObject(ttsSentenceLocatorJson))
+            }.getOrNull()
+        } else null
+
+        val locatorToUse = parsedLocator ?: runCatching {
+            fragment.currentLocator.value.let { cur ->
+                Locator(
+                    href = cur.href,
+                    mediaType = cur.mediaType,
+                    title = cur.title,
+                    text = Locator.Text(highlight = ttsSentenceHighlight)
+                )
+            }
+        }.getOrNull()
+
+        if (locatorToUse != null) {
+            val decoration = Decoration(
+                id = "tts_active_highlight",
+                locator = locatorToUse,
+                style = Decoration.Style.Highlight(tint = highlightArgb, isActive = true)
+            )
+
+            // Apply Readium native decoration overlay
+            runCatching {
+                fragment.applyDecorations(listOf(decoration), "tts_highlight")
+            }
+
+            // Auto-turn page if the sentence is on a different page
+            runCatching {
+                fragment.go(locatorToUse, animated = true)
+            }
+        }
+
+        // Secondary / Fallback Webview JS highlight to guarantee immediate visual feedback
+        val cssColor = when (themePreset) {
+            ReaderThemePreset.LIGHT -> "rgba(255, 214, 0, 0.35)"
+            ReaderThemePreset.SEPIA -> "rgba(230, 140, 30, 0.30)"
+            ReaderThemePreset.DARK -> "rgba(255, 215, 64, 0.35)"
+            ReaderThemePreset.AMOLED -> "rgba(255, 215, 64, 0.40)"
+        }
+        val safeText = JSONObject.quote(ttsSentenceHighlight)
+        runCatching {
+            fragment.evaluateJavascript(
+                """
+                (function() {
+                    try {
+                        var marks = document.querySelectorAll('.boox-tts-highlight');
+                        for (var i = 0; i < marks.length; i++) {
+                            var el = marks[i];
+                            var parent = el.parentNode;
+                            if (parent) {
+                                while (el.firstChild) parent.insertBefore(el.firstChild, el);
+                                parent.removeChild(el);
+                            }
+                        }
+
+                        var styleEl = document.getElementById('boox-tts-custom-style');
+                        if (!styleEl) {
+                            styleEl = document.createElement('style');
+                            styleEl.id = 'boox-tts-custom-style';
+                            document.head.appendChild(styleEl);
+                        }
+                        styleEl.textContent = '.boox-tts-highlight { background-color: ' + '$cssColor' + ' !important; border-radius: 3px; padding: 1px 0; }';
+
+                        var text = $safeText;
+                        if (!text || text.length < 2) return;
+
+                        var cleanSearch = text.trim().replace(/\s+/g, ' ');
+                        var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+                        var node;
+                        while (node = walker.nextNode()) {
+                            var nodeText = node.textContent;
+                            var idx = nodeText.indexOf(cleanSearch);
+                            if (idx === -1 && cleanSearch.length > 25) {
+                                idx = nodeText.indexOf(cleanSearch.substring(0, 25));
+                            }
+                            if (idx !== -1) {
+                                var range = document.createRange();
+                                range.setStart(node, idx);
+                                var matchLen = Math.min(cleanSearch.length, nodeText.length - idx);
+                                range.setEnd(node, idx + matchLen);
+                                var mark = document.createElement('mark');
+                                mark.className = 'boox-tts-highlight';
+                                try {
+                                    range.surroundContents(mark);
+                                } catch(e) {}
+                                break;
+                            }
+                        }
+                    } catch(e) {}
+                })();
+                """.trimIndent()
+            )
         }
     }
 

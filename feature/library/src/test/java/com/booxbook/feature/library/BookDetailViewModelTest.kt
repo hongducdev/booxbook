@@ -16,12 +16,16 @@ import com.booxbook.core.model.BookFormat
 import com.booxbook.core.model.ReadingProgress
 import com.booxbook.core.model.ReadingSession
 import com.booxbook.core.model.ReadingStatisticsOverview
+import com.booxbook.feature.library.detail.BookDetailFeedback
 import com.booxbook.feature.library.detail.BookDetailViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -142,11 +146,90 @@ class BookDetailViewModelTest {
         assertTrue(deletedCalled)
         assertNull(fakeRepository.books[sampleBook.id])
     }
+
+    /**
+     * Records [BookDetailViewModel.feedback] eagerly so assertions do not depend on when the collector
+     * is scheduled relative to the action under test.
+     */
+    private fun TestScope.collectFeedback(): List<BookDetailFeedback> {
+        val recorded = mutableListOf<BookDetailFeedback>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.feedback.collect { recorded += it }
+        }
+        return recorded
+    }
+
+    @Test
+    fun `resetReadingProgress reports the reset and undo restores the previous progress`() = runTest {
+        val events = collectFeedback()
+
+        viewModel.loadBook(sampleBook.id)
+        advanceUntilIdle()
+
+        viewModel.resetReadingProgress()
+        advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.progress)
+        assertEquals(0f, viewModel.uiState.value.percentage, 0.001f)
+        val reported = events.last()
+        assertTrue(reported is BookDetailFeedback.ProgressReset)
+        assertTrue((reported as BookDetailFeedback.ProgressReset).canUndo)
+
+        viewModel.undoResetProgress()
+        advanceUntilIdle()
+
+        assertEquals(0.45f, viewModel.uiState.value.percentage, 0.001f)
+        assertEquals(sampleProgress, fakeRepository.progressMap[sampleBook.id])
+        assertTrue(events.last() is BookDetailFeedback.ProgressRestored)
+    }
+
+    @Test
+    fun `resetReadingProgress cannot be undone twice`() = runTest {
+        val events = collectFeedback()
+
+        viewModel.loadBook(sampleBook.id)
+        advanceUntilIdle()
+        viewModel.resetReadingProgress()
+        advanceUntilIdle()
+
+        viewModel.undoResetProgress()
+        advanceUntilIdle()
+        val afterUndo = events.size
+
+        // Bản ghi cũ đã được trả lại, nên lần hoàn tác thứ hai là một no-op thay vì ghi đè lần nữa.
+        viewModel.undoResetProgress()
+        advanceUntilIdle()
+
+        assertEquals(afterUndo, events.size)
+        assertEquals(sampleProgress, fakeRepository.progressMap[sampleBook.id])
+    }
+
+    @Test
+    fun `a failing delete is reported through feedback instead of a hidden error`() = runTest {
+        val events = collectFeedback()
+
+        viewModel.loadBook(sampleBook.id)
+        advanceUntilIdle()
+
+        fakeRepository.failDeletes = true
+
+        var deletedCalled = false
+        viewModel.deleteBook { deletedCalled = true }
+        advanceUntilIdle()
+
+        assertFalse(deletedCalled)
+        val failure = events.last()
+        assertTrue(failure is BookDetailFeedback.Failure)
+        assertEquals("Không thể xóa sách khỏi thiết bị", (failure as BookDetailFeedback.Failure).message)
+    }
 }
 
 private class FakeDetailBookRepository : BookRepository {
     val books = mutableMapOf<String, Book>()
     val progressMap = mutableMapOf<String, ReadingProgress>()
+
+    /** Bật lên để mô phỏng lỗi I/O khi xoá sách. */
+    var failDeletes = false
 
     override fun getAllBooks(): Flow<List<Book>> = MutableStateFlow(books.values.toList())
     override fun getAllBooksWithProgress(): Flow<List<BookWithProgress>> =
@@ -164,7 +247,10 @@ private class FakeDetailBookRepository : BookRepository {
 
     override suspend fun saveBook(book: Book) { books[book.id] = book }
     override suspend fun updateLastRead(bookId: String, timestamp: Long) {}
-    override suspend fun deleteBook(id: String) { books.remove(id) }
+    override suspend fun deleteBook(id: String) {
+        if (failDeletes) throw IllegalStateException("I/O error while deleting")
+        books.remove(id)
+    }
 
     override fun getReadingProgress(bookId: String): Flow<ReadingProgress?> =
         MutableStateFlow(progressMap[bookId])
