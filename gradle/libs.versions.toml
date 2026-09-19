@@ -4,7 +4,11 @@ kotlin = "2.1.0"
 ksp = "2.1.0-1.0.29"
 hilt = "2.53.1"
 hiltNavigationCompose = "1.2.0"
-composeBom = "2024.12.01"
+composeBom = "2025.05.01"
+# Official M3 Expressive APIs (LoadingIndicator, *WavyProgressIndicator).
+# Not in BOM-stable material3; must be pinned. 1.5.0-alpha10 is the highest
+# that still requires only compileSdk 35 / AGP 8.6.0.
+material3Expressive = "1.5.0-alpha10"
 activityCompose = "1.9.3"
 navigationCompose = "2.8.5"
 lifecycleRuntime = "2.8.7"
@@ -38,6 +42,8 @@ compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
 compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
 compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
 compose-material3 = { group = "androidx.compose.material3", name = "material3" }
+# Pinned so every Compose module resolves the same Expressive APIs.
+compose-material3-expressive = { group = "androidx.compose.material3", name = "material3", version.ref = "material3Expressive" }
 compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
 
 # Hilt Dependency Injection

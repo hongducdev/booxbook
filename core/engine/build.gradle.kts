@@ -49,13 +49,16 @@ dependencies {
     coreLibraryDesugaring(libs.desugar.jdk.libs)
 
     implementation(project(":core:model"))
+    // `CbzReaderComponent` là UI Compose, nên nó dùng chung primitive hiển thị của core:ui
+    // (loading indicator / progress bar) thay vì tự vẽ chỉ báo riêng.
+    implementation(project(":core:ui"))
     implementation(libs.androidx.core.ktx)
 
     // Compose
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
     implementation(libs.compose.ui.graphics)
-    implementation(libs.compose.material3)
+    implementation(libs.compose.material3.expressive)
     implementation(libs.compose.material.icons.extended)
     implementation(libs.androidx.lifecycle.runtime.compose)
 

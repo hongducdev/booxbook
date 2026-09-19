@@ -1,3 +1,5 @@
+import java.time.Duration
+
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
@@ -34,6 +36,14 @@ android {
     }
 }
 
+// These unit tests boot a Robolectric sandbox (a full android-all runtime) with the Readium toolkit on the
+// classpath, so the 512 MB Gradle test-worker default leaves them GC-bound. The 10 minute cap is a safety
+// net: a test that never terminates must fail the build loudly instead of hanging it for hours.
+tasks.withType<Test>().configureEach {
+    maxHeapSize = "2g"
+    timeout.set(Duration.ofMinutes(10))
+}
+
 dependencies {
     coreLibraryDesugaring(libs.desugar.jdk.libs)
 
@@ -45,7 +55,7 @@ dependencies {
 
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
-    implementation(libs.compose.material3)
+    implementation(libs.compose.material3.expressive)
     implementation(libs.compose.material.icons.extended)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
