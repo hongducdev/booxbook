@@ -174,7 +174,9 @@ A 28.dp rounded bento card designed for library grid display.
   ```
 - **Coil 3.0 Cover Rendering:** Uses `coil3.compose.AsyncImage` with `ImageRequest.Builder` and `crossfade(true)`. File resolution is passed directly without performing blocking synchronous `File.exists()` checks on the UI main thread. Fallbacks display `Icons.AutoMirrored.Rounded.MenuBook` when no cover path exists.
 - **Format Badges:** Distinct pill surface displaying the file format (`EPUB`, `CBZ`, `AZW3`) overlaid on the cover thumbnail.
-- **Reading Progress Indicator:** When reading progress is present, a linear progress bar (`LinearProgressIndicator`) and percentage caption (e.g., `45%`) render seamlessly along the bottom edge of the cover card.
+- **Reading Progress Indicator:** When reading progress is present, a shared `ReadingProgressBar`
+  (determinate linear wavy) and percentage caption (e.g., `45%`) render along the bottom edge of the
+  cover card. Token và dạng sóng nằm ở [core-ui.md](core-ui.md).
 - **Interaction Contract:** Supports combined click (`onClick` to open reading session) and long-click (`onLongClick` to open the detail bottom sheet).
 
 ---
@@ -184,9 +186,10 @@ Location: `feature/library/src/main/java/com/booxbook/feature/library/components
 
 A horizontal `LazyRow` displayed at the top of the library when in-progress books exist (`recentBooks.isNotEmpty()`).
 
-- **Card Layout:** Horizontal card layout (`ContinueReadingCard`) pairing a compact cover thumbnail (aspect ratio `0.72f`, 14.dp corners) with a right-hand information column displaying title, author, formatted progress percentage, and last read timestamp.
+- **Card Layout:** Horizontal card layout (`ContinueReadingCard`) pairing a compact cover thumbnail (aspect ratio `0.72f`, 14.dp corners) with a right-hand information column displaying title, author, formatted progress percentage, and progress bar.
 - **Tactile Feedback:** Incorporates independent spring scale animation (`0.95f` on press) with `BouncySpring`.
-- **Progress Gauge:** Highlights current reading depth with a branded `LinearProgressIndicator` clipped in `PillShape`.
+- **Progress Gauge:** Highlights current reading depth with the shared `ReadingProgressBar`
+  (determinate linear wavy, static wave — see [core-ui.md](core-ui.md)).
 
 ---
 
@@ -329,6 +332,15 @@ fun importBooksFromUris(uris: List<Uri>) {
 - **Granular Progress Reporting:** Real-time updates emit `Importing(current, total)` enabling top-level progress bar and snackbar counters.
 - **Fault-Tolerant Error Aggregation:** If 3 out of 10 files fail (e.g., corrupted archive or unsupported format), the remaining 7 books are imported successfully, and a composite `BatchResult` notifies the user of the exact errors without rolling back successful imports.
 
+**Chỉ báo của overlay nhập sách** đi theo bảng chọn của Material 3 (xem [core-ui.md](core-ui.md)):
+
+- Nhập **nhiều tệp** (`total > 1`): tiến trình đo được (`current/total`) -> `ReadingProgressRing`
+  determinate, đặt giữa card đang tải, kèm dòng "Đang nhập sách (2/5)…".
+- Nhập **một tệp** (`total == 1`): không biết còn bao lâu -> `ExpressiveLoadingIndicator`.
+
+Trước đây cả hai trường hợp đều dùng vòng xoay indeterminate, tức là vứt đi thông tin tiến trình đã có
+sẵn trong state.
+
 ---
 
 ## 4. Testing & Verification Strategy
@@ -358,6 +370,39 @@ The Library feature maintains 100% test coverage over view model state flows, fi
 | `importBooksFromUris handles partial failures with BatchResult` | Verifies partial failure resilience when importing good and corrupted files together. |
 | `importBooksFromUris handles total failure with Error state` | Verifies error state emission when all imported files fail. |
 | `deleteBook removes book and dismisses detail bottom sheet` | Verifies cascade deletion and cleanup of the active bottom sheet selection. |
+| `resetReadingProgress reports the reset and undo restores the previous progress` | Verifies the detail screen's `BookDetailFeedback.ProgressReset(canUndo = true)` emission and that `undoResetProgress()` writes the previous `ReadingProgress` back. |
+| `resetReadingProgress cannot be undone twice` | Verifies undo is a no-op once the captured progress has been restored, so a second "Hoàn tác" cannot overwrite newer progress. |
+| `a failing delete is reported through feedback instead of a hidden error` | Verifies a repository failure on delete emits `BookDetailFeedback.Failure` — previously it set `errorMessage`, which the screen never shows while a book is loaded. |
+
+---
+
+### Action Feedback on `BookDetailScreen`
+
+`BookDetailViewModel` exposes a `SharedFlow<BookDetailFeedback>` consumed by a `SnackbarHost` on the screen:
+
+```kotlin
+sealed interface BookDetailFeedback {
+    data class ProgressReset(val canUndo: Boolean) : BookDetailFeedback
+    data object ProgressRestored : BookDetailFeedback
+    data class Failure(val message: String) : BookDetailFeedback
+}
+```
+
+Ba quy tắc:
+
+1. **Đặt lại tiến độ là có thể hoàn tác.** `resetReadingProgress()` giữ lại `ReadingProgress` cũ trước khi xoá (`progressBeforeReset`); nút "Hoàn tác" trên snackbar gọi `undoResetProgress()` để ghi lại đúng bản ghi đó và hồi sinh state `progress`.
+2. **Hoàn tác chỉ dùng được một lần.** `progressBeforeReset` bị xoá sau khi khôi phục, nên bấm "Hoàn tác" lần thứ hai là no-op thay vì ghi đè tiến độ mới hơn.
+3. **Lỗi không còn vô hình.** Trước đây lỗi xoá sách được ghi vào `errorMessage`, nhưng `BookDetailScreen` chỉ hiển thị `errorMessage` khi `book == null` — tức là người đọc không bao giờ thấy. Lỗi giờ đi qua `Failure` tới snackbar.
+
+### Chỉ báo tải & tiến trình trên `BookDetailScreen`
+
+Theo bảng chọn của Material 3 (chi tiết ở [core-ui.md](core-ui.md)):
+
+| Chỗ | Chờ gì | Chỉ báo |
+| --- | --- | --- |
+| Nạp sách | Truy vấn Room, thường xong trong vài chục ms | `DelayedLoadingIndicator` — không vẽ gì trong 200 ms đầu để tránh nháy |
+| Đang trích mục lục | Đọc archive/publication | `ExpressiveLoadingIndicator` 24dp trong hàng tiêu đề "Mục lục sách" |
+| Tiến độ đọc | `progress.percentage` đo được | `ReadingProgressBar` — dùng chung cấu hình với thẻ sách và carousel |
 
 ---
 
@@ -372,7 +417,12 @@ The Library feature maintains 100% test coverage over view model state flows, fi
 | `feature/library/src/main/java/com/booxbook/feature/library/components/ContinueReadingCarousel.kt` | Horizontal `LazyRow` carousel for recently read books. |
 | `feature/library/src/main/java/com/booxbook/feature/library/components/BookDetailBottomSheet.kt` | Modal bottom sheet with metadata overview, reading trigger, and safe deletion. |
 | `feature/library/src/main/java/com/booxbook/feature/library/components/EmptyLibraryPlaceholder.kt` | Contextual placeholder for empty library vs no-search-results states. |
+| `feature/library/src/main/java/com/booxbook/feature/library/detail/BookDetailScreen.kt` | Full-screen detail route: cover, progress card, primary read action, TOC tree, delete/reset dialogs, snackbar host. |
+| `feature/library/src/main/java/com/booxbook/feature/library/detail/BookDetailViewModel.kt` | Detail state plus the `BookDetailFeedback` channel (reset with undo, delete/reset failures). |
 | `core/ui/src/main/java/com/booxbook/core/ui/component/ExpressiveFilterChip.kt` | Spring-animated pill filter chip with color transitions. |
 | `core/ui/src/main/java/com/booxbook/core/ui/component/ExpressivePillButton.kt` | Tactile spring-scale pill button primitive. |
+| `core/ui/src/main/java/com/booxbook/core/ui/component/ReadingProgressBar.kt` | Material 3 determinate linear/circular wavy progress dùng chung. |
+| `core/ui/src/main/java/com/booxbook/core/ui/component/ExpressiveLoadingIndicator.kt` | Material 3 `LoadingIndicator` chính thức + `DelayedLoadingIndicator`. |
 | `core/database/src/main/java/com/booxbook/core/database/entity/BookWithProgressEntity.kt` | Room `@Relation` entity joining `books` and `reading_progress`. |
 | `feature/library/src/test/java/com/booxbook/feature/library/LibraryViewModelTest.kt` | Robolectric unit tests validating reactive state flows and edge cases. |
+| `feature/library/src/test/java/com/booxbook/feature/library/BookDetailViewModelTest.kt` | Robolectric unit tests for the detail screen: progress reset/undo and delete failures. |

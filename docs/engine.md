@@ -184,7 +184,7 @@ To prevent race conditions where Coil or another consumer reads a partially-writ
 - **Coil 3 Image Loading (`CbzPageItem`)**:
   - Extracts the page asynchronously on `Dispatchers.IO` using Compose `produceState`.
   - Loads via `AsyncImage` with `crossfade(true)` and `ContentScale.FillWidth`.
-  - Displays a clean loading placeholder with `CircularProgressIndicator` while the page is extracting.
+  - Displays a clean loading placeholder with `ExpressiveContainedLoadingIndicator` while the page is extracting.
 
 ---
 
