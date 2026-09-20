@@ -565,6 +565,314 @@ Quy ước đáng chú ý:
 - **Thất bại không im lặng.** Đánh dấu, xoá/khôi phục ghi chú và khởi động TTS đều phát `Failure` kèm thông điệp gốc thay vì `runCatching` rồi bỏ qua.
 - **Buffer 8 + `tryEmit`.** Snackbar hiển thị tuần tự (`showSnackbar` là suspend), nên buffer giữ các sự kiện đến trong lúc một snackbar đang hiện thay vì chặn luồng gọi.
 
+### 8. `BookendsOverlay` — lớp thông tin phủ trên trang đọc
+
+Lớp overlay cấu hình được, neo ở sáu vùng quanh trang đọc. Ý tưởng và ngữ nghĩa token lấy từ
+[bookends.koplugin](https://github.com/AndyHazz/bookends.koplugin) của AndyHazz (GPL-3.0); phần cài đặt
+ở đây là Kotlin/Compose thuần, **không** sao chép mã Lua.
+
+#### Phân tầng
+
+```
+ReaderUiState ─┐
+TocItem ───────┼─► ReaderViewModel.bookendsContext ─┐
+Annotation ────┘                                    │
+Room (sessions) ─► BookendsViewModel ◄── BookendsPreferencesManager (SharedPreferences + JSON)
+phần cứng ────────┘        │
+                            ├─► BookendsSnapshotAssembler  (số học thuần)
+                            └─► BookendsFormatter          (cú pháp thuần)
+                                        │
+                                        └─► List<BookendsChunk> ─► BookendsOverlay
+```
+
+`BookendsViewModel` **không** nằm trong `ReaderViewModel`: overlay chỉ *đọc* trạng thái, còn cấu hình
+Bookends còn được dùng ở nơi khác không có `ReaderViewModel` nào đang sống. Màn đọc chỉ đẩy vào đúng hai
+thứ nó sở hữu — vị trí đang đọc và tiến trình phiên:
+
+```kotlin
+LaunchedEffect(viewModel, bookendsViewModel) {
+    viewModel.bookendsContext.collect(bookendsViewModel::onReadingContextChanged)
+}
+LaunchedEffect(viewModel, bookendsViewModel) {
+    viewModel.bookendsSessionProgress.collect(bookendsViewModel::onSessionProgressChanged)
+}
+```
+
+#### Tầng resolve thuần khiết
+
+Toàn bộ cú pháp nằm trong `:core:model` (`com.booxbook.core.model.bookends`) và không phụ thuộc Android
+lẫn Compose, nên unit test chạy bằng JUnit thường. Một lần gọi `BookendsFormatter.format` đi qua bốn
+bước theo thứ tự **bắt buộc**:
+
+1. Quét chuỗi để nhặt tham số ngoặc nhọn (`%datetime{%d %B}`).
+2. Dựng bảng token từ `BookendsSnapshot`.
+3. Mở rộng khối `[if:…]…[else]…[/if]` — phải làm **trước** khi tách token, vì nhánh bị loại không được
+   phép sinh ra token nào cả.
+4. Tách token, định dạng nội dòng `[b]/[i]/[u]`, `%bar`, `%spacer` thành `List<BookendsChunk>`.
+
+Cùng một `(line, snapshot, options)` luôn cho cùng kết quả: không đọc Room, không đọc đồng hồ hệ thống,
+không chạm Android. Đồng hồ và múi giờ đi vào qua `nowMillis`/`zoneId` do tầng gọi cung cấp.
+
+#### Vì sao trả `Chunk` chứ không trả `String`
+
+| Chunk | Lý do không thể là chuỗi |
+| --- | --- |
+| `ProgressBar` | Cần `Modifier.weight(1f)` để co giãn phần bề rộng còn lại |
+| `Spacer` | Cùng lý do — đẩy hai đầu một dòng |
+| `Icon` | Dùng Material Icons thay cho glyph Nerd Fonts của bản gốc |
+| `Text` | Mang theo `maxWidthDp` từ cú pháp `%token{N}` để cắt bằng dấu ba chấm |
+
+Sáu kiểu thanh tiến độ được cài đặt: `SOLID`, `BORDER`, `ROUND`, `METRO`, `WAVE`, `HOLLOW`. `WAVE` dùng chính
+ngôn ngữ hình ảnh của Material 3 Expressive mà ứng dụng đã dùng cho slider và chỉ báo tải.
+
+#### Auto-hide, và cái bẫy đi kèm
+
+Dòng mà mọi token đều rỗng tự biến mất (`BookendsRender.isBlank`). Điều này đặt ra một ràng buộc
+**bắt buộc**: mọi token đã tài liệu hoá phải **luôn** có mặt trong bảng token, kể cả khi không có dữ liệu.
+Tokenizer coi tên lạ là văn bản thường (để người dùng thấy lỗi gõ), nên một token quên đăng ký sẽ in
+nguyên `%chap_title` lên trang đọc. `BookendsTokens.registerChapterTokens()` và test
+`moi token duoc tai lieu hoa deu duoc dang ky...` khoá bất biến này lại.
+
+#### Số trang hiển thị vs vị trí logic
+
+`ReaderUiState` có **hai** cặp số trang, và chúng không được trộn:
+
+| Trường | Ý nghĩa |
+| --- | --- |
+| `currentPage` / `totalPages` | Vị trí **logic**: `Locator.locations.position` (đếm từ 1 theo **trang**) cho EPUB/AZW3, hoặc chỉ số trang CBZ 0-based; `totalPages` với EPUB là **số mục trong thứ tự đọc** (số tệp XHTML) |
+| `displayPageCount` | Tổng số trang thật, đọc từ `Publication.positions().size` của Readium |
+
+Ba con số này nằm trên **ba thang đo khác nhau**, và đã hai lần ghép nhầm trên máy thật:
+
+| Ghép nhầm | Kết quả hiện ra |
+| --- | --- |
+| `position` + `totalPages` (thứ tự đọc) | `11 / 93` — một cuốn tiểu thuyết 93 tệp chương |
+| `position` toàn sách + `PaginationListener.totalPages` | `11 / 8` — `PaginationListener` báo số trang **trong từng tệp chương** (`positionsByReadingOrder`), không phải toàn sách |
+| `position` + `positions().size` | `11 / 297` ✅ |
+
+`Publication.positions()` là **nguồn duy nhất** cùng thang đo với `locations.position`: cả hai đều đếm
+trên toàn publication. `ReaderViewModel.loadDisplayPageCount()` gọi nó trong nền trên `ioDispatcher`
+(Readium phải dàn trang từng tệp chương để đếm vị trí), và giữ `displayPageCount = 0` cho tới khi xong —
+trong lúc chờ, token tự ẩn thay vì hiện một tổng số sai.
+
+`PaginationListener` **cố ý không dùng**: nó đúng thang đo cho số trang *trong chương*, nên nếu sau này muốn
+`%chap_pages` chính xác thay vì ước lượng thì đây là nguồn đúng — nhưng phải ghép với `pageIndex` của chính
+nó, không phải với `position` toàn sách.
+
+Thanh công cụ dưới màn đọc **vẫn** hiển thị cặp logic cũ; đổi nó cần thiết kế lại ánh xạ tìm kiếm theo
+vị trí, nên được tách thành việc riêng thay vì sửa nửa vời.
+
+#### Chương: tiêu đề từ engine, số thứ tự từ chỉ mục mục lục
+
+`TocItem` không mang vị trí, nên `BookendsChapterIndexFactory` suy ra vị trí của mỗi mục bằng cách ánh xạ
+`href` sang chỉ số trong `readingOrder` (cùng hệ quy chiếu với `Locator.locations.progression`). Với CBZ
+thì quy theo `page://N`.
+
+Hai quy tắc khác nhau, và đó là chủ ý:
+
+- `%chap_title` (không hậu tố) — lấy `Locator.title` do **Readium** giải, tức đúng giá trị thanh công cụ đang
+  hiển thị. Overlay và chrome không thể nói hai chuyện khác nhau về cùng một vị trí đọc. Chỉ khi engine không
+  báo gì (CBZ, hoặc locator thiếu `title`) mới rơi về chỉ mục mục lục.
+- `%chap_title_N` — mục **sâu nhất** có cấp ≤ N phủ vị trí đang đọc, do chỉ mục quyết định. Engine không có
+  khái niệm cấp mục lục nên không dùng được ở đây.
+- `%chap_num_N` / `%chap_count_N` — chỉ đếm mục **đúng cấp** N. Nếu đếm "cấp ≤ N" thì mục lục hai tầng
+  (Phần → Chương) sẽ ra "chương 13/26" cho sách 2 phần 24 chương, vì tính cả tiêu đề phần.
+
+Không hậu tố nghĩa là **cấp sâu nhất**, không phải cấp 1 — nếu không, `%chap_pct` và `%chap_time_left`
+trên cùng một dòng sẽ nói về hai phạm vi khác nhau.
+
+**Đứng trước mục lục thì không bịa.** Mục lục thường bắt đầu từ chương 1, còn phần đầu sách (bìa, trang tên,
+phần mở đầu) nằm trước đó. `titleAt` trả **chuỗi rỗng** trong trường hợp này để dòng tự ẩn. Bản đầu tiên rơi
+về `scoped.first()` và như vậy là bịa: đang ở trang bìa mà `%chap_title` khẳng định đang ở "HIỆN TẠI" — đã
+quan sát đúng như vậy trên máy thật.
+
+#### Ước lượng thời gian: từ chối khi dữ liệu không đáng tin
+
+`BookendsSnapshot.avgSecondsPerPage` trả `null` — và do đó `%book_time_left`, `%speed`, `%avg_page_time`
+đều rỗng, dòng tự ẩn — khi dữ liệu không đủ tin, theo hai chốt:
+
+| Chốt | Ngưỡng | Vì sao |
+| --- | --- | --- |
+| Mẫu quá nhỏ | < 5 trang | Chia thời gian tích luỹ của cả phiên cho 2 trang là chia cho nhiễu |
+| Tốc độ phi thực tế | ngoài 2–300 giây/trang | Bộ theo dõi phiên đọc tính theo thời gian màn hình bật |
+
+Chốt thứ hai có từ quan sát thật: một cuốn 297 trang đọc 11 trang nhưng tích 4,5 giờ cho 25 phút/trang, và
+`%book_time_left` hiện **"118h 35m còn lại"**. Cố ý **không kẹp** về ngưỡng — kẹp chỉ tạo ra một con số sai
+khác (5 phút/trang vẫn ra "47h"). Đây là chuyện "chưa đo được", không phải "đo được nhưng cần chỉnh".
+
+Gốc rễ nằm ở bộ theo dõi phiên đọc (`ReaderViewModel.recordUserInteraction` tích thời gian theo màn hình bật),
+không phải ở Bookends; sửa nó là việc riêng.
+
+#### Cấu hình
+
+`BookendsPreferencesManager` là nguồn sự thật duy nhất, lưu cả `BookendsSettings` thành **một khối JSON**
+(`BookendsSettingsCodec`) trong `booxbook_bookends_prefs`. Mã hoá nằm ở `:core:model` để
+`:feature:reader` không phải kéo `kotlinx-serialization` chỉ vì một chuỗi JSON.
+
+Cố ý **không** đi qua `ReaderUiState`: các cài đặt reader hiện có (`tapZoneMode`, `pageTurnEffect`…)
+được `SettingsViewModel` ghi vào SharedPreferences nhưng `ReaderViewModel` không bao giờ đọc lại, nên đổi
+ở tab Cài đặt không có tác dụng trong màn đọc. Bookends đọc và ghi qua đúng một đối tượng nên màn cấu
+hình và overlay luôn khớp.
+
+#### Thứ tự lớp trong cây Compose
+
+```
+Scaffold
+└── Box (insets đã cắt)
+    ├── canvas đọc (CbzReaderComponent | EpubReaderContainer)
+    ├── PageTurnFlipOverlay
+    ├── BookendsOverlay          ← trên chữ, dưới chrome; không gắn pointerInput
+    └── TapZonePreviewOverlay
+    AnimatedReaderTopBar / FloatingReaderToolbar / sheets  ← nằm ngoài Box insets
+```
+
+Overlay ẩn khi `isControlsVisible` hoặc đang mở sheet: nếu không, chữ overlay và thanh công cụ sẽ tranh
+nhau cùng một dải màn hình.
+
+#### Metadata sách: ba tầng, và vì sao phải có tầng thứ hai
+
+Các token `%series`, `%description`, `%lang`, `%tags`, `%rating` cần dữ liệu mà `Book` không có sẵn:
+
+```
+OPF của tệp ─► BookStorageManager.parseOpfMetadata ─► BookEntity (5 cột mới)
+                                                          │
+LibraryViewModel.init ─► backfillMetadata()  ──────────────┘  (chỉ cho bản ghi còn NULL)
+                                                          │
+BookDetailScreen ─► BookReviewDao (book_reviews) ─────────┘  (do người đọc tạo)
+                                                          ▼
+                     ReaderViewModel.bookendsContext ─► BookendsSnapshot
+```
+
+Đánh giá nằm ở bảng riêng vì nó **do người đọc tạo**, không phải metadata của tệp — quét lại OPF không được phép
+ghi đè. Còn `NULL` khác `""` ở năm cột metadata là để biết bản ghi nào cần quét lại; xem `docs/database.md`.
+
+#### Định vị ba tầng, và vì sao không cần smart ellipsis
+
+| Tầng | Ở đâu | Dùng khi nào |
+|---|---|---|
+| Lề chung | `BookendsPreset.marginTopDp`… | Chừa chỗ cho thanh trạng thái và thanh điều hướng |
+| Lề riêng của vùng | `BookendsGroup.extraMargin*Dp` | Một vùng cần chừa thêm chỗ — ví dụ góc trên trái đè lên dòng đầu của trang |
+| Nudge theo dòng | `BookendsLine.nudgeXDp/nudgeYDp` | Tinh chỉnh từng pixel; dùng `offset` nên không đẩy các dòng khác |
+
+Ba vùng cùng hàng **chia đều bề rộng** (`weight(1f)`), nên chúng **không thể chồng nhau** về mặt cấu trúc. Đó là
+lý do bản này không cần cơ chế tự cắt chữ kèm dấu ba chấm của bản gốc: không có gì để cắt. Đổi lại, một dòng
+quá dài sẽ bị cắt ở một phần ba bề rộng kể cả khi hai vùng bên cạnh đang trống — chấp nhận được vì preset dựng
+sẵn đều đặt dòng dài ở vùng giữa hoặc dùng `%token{N}` để tự đặt giới hạn.
+
+`truncationGapDp` vì vậy được dùng làm **khoảng cách tối thiểu** giữa hai vùng cùng hàng, thay vì cho việc cắt
+chữ.
+
+#### Trình soạn thảo
+
+`BookendsSettingsSheet` mở được từ **hai chỗ**: sheet cài đặt trong màn đọc, và tab Cài đặt (mục "Bookends").
+Ở tab Cài đặt không có sách nào đang mở nên `snapshot` là `null` và bản xem trước hiện lời nhắc — nhưng cấu
+hình vẫn sửa được đầy đủ.
+
+`BookendsTokenCatalogue` là **tài liệu duy nhất** về ~70 token, và là nguồn cho bảng chọn "Chèn token". Có một
+unit test duyệt qua toàn bộ danh mục để chốt rằng nó không quảng cáo token không tồn tại — danh mục là thứ
+người dùng nhìn thấy, nên nó không được phép sai.
+
+Ô nhập dùng `TextFieldValue` chứ không dùng `String`, vì bảng chọn token cần biết con trỏ đang ở đâu để chèn
+đúng chỗ; với `String` thì chỉ có thể nối vào cuối.
+
+#### Lề trang: ba mức, làm ở tầng Compose
+
+| Điều khiển | Trường |
+|---|---|
+| Lề trên | `ReaderPreferences.marginTopDp` |
+| Lề dưới | `ReaderPreferences.marginBottomDp` |
+| Lề trái & phải (chung một mức) | `ReaderPreferences.marginHorizontalDp` |
+
+**Trên và dưới riêng, trái và phải chung** là yêu cầu thật: chữ chừa hai bên không đều trông như lỗi, còn
+ trên/dưới thì cần khác nhau vì trên phải né thanh trạng thái và overlay, dưới phải né thanh công cụ.
+
+Lề làm bằng **padding Compose** cho cả ba định dạng, không dùng `pageMargins` của Readium — Readium chỉ có **một**
+hệ số cho cả bốn phía (`EpubPreferences` không có type `PageMargins` riêng, không có API per-side; đã kiểm bằng
+`javap`). `ReaderPreferences.pageMargins` vì vậy vẫn tồn tại nhưng **không dùng**.
+
+##### Mắt xích bắt buộc: báo Readium biết vùng đọc đã đổi kích thước
+
+Padding làm WebView đổi kích thước, nhưng **Readium không tự biết** — pager giữ nguyên bề rộng trang cũ và chữ
+chồng lên nhau, tràn ra ngoài khung. `EpubReaderContainer` bù bằng `Modifier.onSizeChanged` trên host view:
+
+```kotlin
+.onSizeChanged { size ->
+    if (size == lastReportedSize) return@onSizeChanged
+    val firstLayout = lastReportedSize == null
+    lastReportedSize = size
+    if (firstLayout) return@onSizeChanged   // bố cục đầu đã có preferences đúng từ factory
+    activeFragment?.takeIf { it.isAdded }?.submitPreferences(epubEngine.buildEpubPreferences(preferences))
+}
+```
+
+`submitPreferences` là **API công khai duy nhất** khiến Readium dàn lại trang (không có `invalidatePagination`
+hay tương đương trên `EpubNavigatorFragment` hay `R2ViewPager`).
+
+##### Ba lần thử, ghi lại để không lặp lại
+
+| Lần | Cách | Kết quả trên máy |
+|---|---|---|
+| 1 | Padding Compose, không báo gì | Đổi lề giữa phiên: chữ chồng, tràn phải. Mở sách mới thì đúng → padding đúng, Readium không biết |
+| 2 | Padding + dựng lại `EpubNavigatorFragment` | Dàn lại được nhưng **canvas trắng** |
+| 3 | `pageMargins` của Readium | Đúng, nhưng chỉ một mức cho cả bốn phía |
+| 4 | Padding + `onSizeChanged` → `submitPreferences` | Đúng, và đủ ba mức |
+
+Lần 2 là lúc đáng lẽ phải dừng và đặt câu hỏi về kiến trúc: dựng lại navigator là chống lại framework, trong khi
+thiếu đúng một dòng báo cho nó biết vùng đọc đã đổi kích thước.
+
+#### `ReaderThemePalette` — một định nghĩa cho hai phía
+
+Trang do Readium vẽ trong WebView, vùng xung quanh do Compose vẽ. Nếu mỗi bên tự chọn màu thì hai thứ lệch nhau
+và người đọc thấy một đường ranh giới mờ quanh trang. `ReaderThemePalette` giữ nền/chữ của cả bốn theme;
+`EpubPreferencesFactory` truyền thẳng vào `EpubPreferences`, và giao diện Compose đọc cùng hằng số đó.
+
+#### Bookends neo theo màn đọc, không theo trang
+
+`BookendsOverlay` nằm **ngoài** hộp đã chừa lề, cùng cấp với hộp đó. Nhờ vậy đổi lề không làm lớp thông tin trôi
+theo. Đặt nó trong hộp đó sẽ khiến cả overlay chạy theo lề — đã quan sát trên máy.
+
+`ReadingFrameLayer` và `TapZonePreviewOverlay` thì nằm **trong** hộp: viền là viền *của trang*, còn bản xem trước
+vùng chạm phải khớp với vùng chạm thật của canvas.
+
+#### Viền khung
+
+`ReadingFrameLayer` vẽ bằng `Canvas` + `Stroke(pathEffect)` chứ không dùng `Modifier.border` — `border` không có
+kiểu nét đứt. Ba kiểu nét: liền, đứt, chấm (chấm = gạch dài 0 + `StrokeCap.Round`). Độ dài gạch tính theo bề
+dày nét, vì nét dày mà gạch ngắn thì các đoạn dính vào nhau thành một đường liền.
+
+Viền **không chiếm chỗ**: nó chỉ vẽ lên trên vùng đọc. Nhờ vậy hai cài đặt độc lập — muốn chữ không chạm viền thì
+tăng lề, còn viền vẫn nằm nguyên chỗ đã đặt. `insetDp` cho phép âm để đẩy viền ra ngoài vùng đọc.
+
+Màu là bảng chọn nhỏ (`AUTO` / `ACCENT` / `WARM`) chứ không phải color picker tự do: trên màn e-ink một màu tuỳ
+ý rất dễ ra không đủ tương phản, và người đọc chỉ phát hiện ra khi đã chọn xong.
+
+#### `ReaderPreferencesManager` — sửa lỗi cài đặt không dính
+
+Trước đây `SettingsViewModel` ghi thẳng `booxbook_reader_prefs` còn `ReaderViewModel` **không bao giờ đọc lại**, nên
+đổi vùng chạm / hiệu ứng lật trang / rung ở tab Cài đặt không có tác dụng gì khi đang đọc. Giờ cả hai phía đọc/ghi
+qua `ReaderPreferencesManager`, và **tên khoá SharedPreferences được giữ nguyên** để cài đặt đang có của người
+dùng không bị đặt lại về mặc định.
+
+#### Chưa làm
+
+- **Preset gallery**: bản gốc tải preset từ một repo GitHub. Chưa có nguồn nào để trỏ tới, nên chưa làm — và làm
+  một gallery rỗng thì vô nghĩa.
+- **Cử chỉ đổi preset / ẩn hiện nhanh**: sẽ phải sửa đường vào của tap-zone trong `EpubReaderContainer`; tách
+  thành việc riêng vì nó đụng vào logic lật trang đang chạy tốt.
+- **Lề bốn phía cho EPUB/AZW3**: đã làm được ba mức (trên, dưới, trái+phải chung). Tách riêng trái và phải thì
+  cần thêm một trường nữa trong `ReaderPreferences` và một thanh trượt nữa — không có rào cản kỹ thuật, chỉ là
+  chưa cần.
+- **Viền khung không tự bám theo lề**: viền vẽ ở mép vùng đọc, còn chữ nằm sau lề; `insetDp` chỉnh tay được.
+- **`RADIAL`**: đã khai báo là không làm, kèm lý do ngay trong `BookendsBarStyle` — vòng tròn không biểu diễn
+  được trên một thanh tuyến tính, muốn có thì phải làm một component tròn riêng ở góc màn hình.
+- **`%chap_pages`/`%chap_read` vẫn là ước lượng** (`spanLength × pageCount`). Với mục lục phẳng, mỗi chương là
+  một tệp nên sai số khoảng ±1 trang; với mục lục hai tầng thì ước lượng đúng theo tổng. Dùng
+  `Publication.positionsByReadingOrder()` sẽ chính xác tuyệt đối, nhưng phải thêm một lời gọi API mỗi lần mở
+  sách và một đường truyền tham số mới — đổi lại chỉ hơn kém một trang.
+- **Token `%opened`, `%quote`, `%quote_source`, `%file_num`, `%file_count`** trả rỗng: dữ liệu tương ứng (mốc mở
+  sách gần nhất, trích dẫn ngẫu nhiên, vị trí tệp trong thư mục) chưa được theo dõi. Dòng chứa chúng tự ẩn.
+- **Thanh công cụ trong màn đọc** vẫn hiển thị cặp số trang logic cũ.
+
 ---
 
 ## 4. Lifecycle, Memory & Thread Safety
