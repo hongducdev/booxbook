@@ -7,7 +7,26 @@ Những quy ước dưới đây đều đã trả giá bằng **lỗi thật** 
 - **Commit ngay khi một việc xong.** Không dồn rồi cắt hunk: thay đổi trong dự án này đan xen nhiều file
   (`ReaderViewModel.kt` từng chứa bốn phần khác nhau), nên tách sau là phải cắt hunk và **không kiểm được commit
   trung gian có biên dịch được hay không**. Một commit hỏng tệ hơn một commit gộp.
-- Conventional commits: `type(scope): mô tả` — mệnh lệnh, hiện tại, dưới 72 ký tự, không dấu chấm cuối.
+- Conventional commits **kèm gitmoji**: `<emoji> type(scope): mô tả` — ví dụ `✨ feat(reader): add bookends overlay`.
+  Mệnh lệnh, hiện tại, dưới 72 ký tự, không dấu chấm cuối. Emoji **đứng trước** type, không thay thế type:
+  emoji cho biết loại thay đổi bằng mắt, type giữ được thông tin máy đọc được.
+
+  | Emoji | Dùng khi |
+  |---|---|
+  | ✨ | thêm tính năng |
+  | 🐛 | sửa lỗi |
+  | 🚑️ | sửa lỗi nghiêm trọng cần phát hành ngay |
+  | ♻️ | tái cấu trúc, không đổi hành vi |
+  | 📝 | tài liệu (`docs/`, `plans/`, journal) |
+  | ✅ | thêm hoặc sửa test |
+  | 💄 | giao diện, style |
+  | 🎨 | sắp xếp lại cấu trúc mã |
+  | 🗃️ | thay đổi schema, migration |
+  | ⚡️ | hiệu năng |
+  | 🔧 | cấu hình, build, dependency |
+  | 🔥 | xoá mã hoặc tệp |
+  | 🔒️ | bảo mật, quyền riêng tư |
+
 - Không ghi công cụ AI trong commit message.
 - Tách `docs/` và `plans/` khỏi code: nhóm đó luôn tách sạch được.
 
