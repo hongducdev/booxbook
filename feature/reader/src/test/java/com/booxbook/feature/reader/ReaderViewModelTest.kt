@@ -16,10 +16,12 @@ import com.booxbook.core.model.Annotation
 import com.booxbook.core.model.AnnotationType
 import com.booxbook.core.model.Book
 import com.booxbook.core.model.BookFormat
+import com.booxbook.core.model.BookReview
 import com.booxbook.core.model.ReadingProgress
 import com.booxbook.core.model.ReadingSession
 import com.booxbook.core.model.ReadingStatisticsOverview
 import com.booxbook.core.tts.TtsEngineWrapper
+import com.booxbook.feature.reader.preferences.ReaderPreferencesManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -63,6 +65,7 @@ class ReaderViewModelTest {
     private lateinit var azw3Engine: Azw3ReaderEngine
     private lateinit var cbzEngine: CbzReaderEngine
     private lateinit var ttsEngine: TtsEngineWrapper
+    private lateinit var preferencesManager: ReaderPreferencesManager
     private lateinit var viewModel: ReaderViewModel
 
     private lateinit var sampleCbzBook: Book
@@ -103,8 +106,16 @@ class ReaderViewModelTest {
         val cbzExtractor = CbzArchiveExtractor(context)
         cbzEngine = CbzReaderEngine(context, cbzExtractor)
         ttsEngine = TtsEngineWrapper(context)
+        preferencesManager = ReaderPreferencesManager(context)
 
-        viewModel = ReaderViewModel(fakeRepository, epubEngine, azw3Engine, cbzEngine, ttsEngine).apply {
+        viewModel = ReaderViewModel(
+            fakeRepository,
+            preferencesManager,
+            epubEngine,
+            azw3Engine,
+            cbzEngine,
+            ttsEngine
+        ).apply {
             ioDispatcher = testDispatcher
         }
     }
@@ -204,19 +215,41 @@ class ReaderViewModelTest {
     fun `preferences update correctly`() = readerTest {
         val initialFontSize = viewModel.uiState.value.preferences.fontSize
 
+        // Cài đặt đi qua `ReaderPreferencesManager` rồi mới tới `uiState`, nên cần một nhịp để luồng chạy.
+        // Đổi lại, đây là lý do cài đặt giờ **dính** và tab Cài đặt tác động được tới màn đọc.
         viewModel.updateFontSize(0.2)
+        settle()
         assertEquals(initialFontSize + 0.2, viewModel.uiState.value.preferences.fontSize, 0.001)
 
         viewModel.updateFontFamily("serif")
+        settle()
         assertEquals("serif", viewModel.uiState.value.preferences.fontFamily)
 
         viewModel.updateThemePreset(ReaderThemePreset.AMOLED)
+        settle()
         assertEquals(ReaderThemePreset.AMOLED, viewModel.uiState.value.themePreset)
         assertTrue(viewModel.uiState.value.preferences.isDarkMode)
 
         viewModel.updateThemePreset(ReaderThemePreset.SEPIA)
+        settle()
         assertEquals(ReaderThemePreset.SEPIA, viewModel.uiState.value.themePreset)
         assertFalse(viewModel.uiState.value.preferences.isDarkMode)
+    }
+
+    @Test
+    fun `cai dat doi tu man doc duoc ghi xuong dia`() = readerTest {
+        viewModel.updateFontSize(0.3)
+        viewModel.updateMargin(ReaderPreferencesManager.MarginSide.HORIZONTAL, 28f)
+        viewModel.updateFrame { it.copy(enabled = true, thicknessDp = 5f) }
+        settle()
+
+        // Dựng manager mới từ cùng `Context`: chứng minh giá trị đã xuống đĩa, không chỉ nằm trong bộ nhớ của
+        // đối tượng đang sống — đây chính là lỗi mà bản cũ mắc phải.
+        val reloaded = ReaderPreferencesManager(context).preferences.value
+        assertEquals(1.3, reloaded.fontSize, 0.001)
+        assertEquals(28f, reloaded.marginHorizontalDp, 1e-6f)
+        assertTrue(reloaded.frame.enabled)
+        assertEquals(5f, reloaded.frame.thicknessDp, 1e-6f)
     }
 
     @Test
@@ -341,9 +374,11 @@ class ReaderViewModelTest {
     @Test
     fun `updateThemePreset and updateFontSize modify reading preferences`() = readerTest {
         viewModel.updateFontSize(0.2)
+        settle()
         assertEquals(1.2, viewModel.uiState.value.preferences.fontSize, 0.001)
 
         viewModel.updateThemePreset(ReaderThemePreset.AMOLED)
+        settle()
         assertEquals(ReaderThemePreset.AMOLED, viewModel.uiState.value.themePreset)
         assertTrue(viewModel.uiState.value.preferences.isDarkMode)
     }
@@ -370,6 +405,85 @@ class ReaderViewModelTest {
         viewModel.flushReadingSession(isEnding = true)
         settle()
         assertNotNull(fakeRepository)
+    }
+
+    @Test
+    fun `man doc mo ma khong tuong tac thi khong sinh ra thoi gian doc`() = readerTest {
+        // Lỗi đã quan sát trên máy thật: 11 trang nhưng tích 4,5 giờ. Nguyên nhân là nhịp flush mỗi 60 giây
+        // tự cộng thêm thời gian trôi qua, nên chỉ cần để màn đọc mở là mỗi phút sinh ra một phút "đọc".
+        var now = 1_000_000L
+        viewModel.clock = { now }
+
+        viewModel.loadBook(sampleCbzBook.id)
+        settle()
+
+        repeat(10) {
+            now += 60_000L
+            advanceBy(60_000L)
+        }
+        settle()
+
+        assertEquals(0, fakeRepository.recordedSessions.size)
+    }
+
+    @Test
+    fun `thoi gian giua hai tuong tac thuc duoc tinh`() = readerTest {
+        var now = 1_000_000L
+        viewModel.clock = { now }
+
+        viewModel.loadBook(sampleCbzBook.id)
+        settle()
+
+        viewModel.recordUserInteraction()
+        now += 30_000L
+        viewModel.recordUserInteraction()
+        viewModel.flushReadingSession(isEnding = true)
+        settle()
+
+        assertEquals(1, fakeRepository.recordedSessions.size)
+        assertEquals(30L, fakeRepository.recordedSessions.first().durationSeconds)
+    }
+
+    @Test
+    fun `khoang nghi dai chi tinh toi da nguong khong tuong tac`() = readerTest {
+        var now = 1_000_000L
+        viewModel.clock = { now }
+
+        viewModel.loadBook(sampleCbzBook.id)
+        settle()
+
+        viewModel.recordUserInteraction()
+        now += 3 * 60 * 60 * 1000L // Bỏ đi ba tiếng.
+        viewModel.recordUserInteraction()
+        viewModel.flushReadingSession(isEnding = true)
+        settle()
+
+        assertEquals(
+            ReaderViewModel.INACTIVITY_TIMEOUT_MS / 1000L,
+            fakeRepository.recordedSessions.first().durationSeconds
+        )
+    }
+
+    @Test
+    fun `tam dung khong tinh thoi gian o nen va khong cong trung`() = readerTest {
+        var now = 1_000_000L
+        viewModel.clock = { now }
+
+        viewModel.loadBook(sampleCbzBook.id)
+        settle()
+
+        viewModel.recordUserInteraction()
+        now += 20_000L
+        viewModel.pauseReadingSession() // Ghi 20 giây rồi dừng.
+
+        now += 60_000L // Một phút ở nền — không được tính.
+        viewModel.resumeReadingSession()
+        now += 10_000L
+        viewModel.recordUserInteraction()
+        viewModel.flushReadingSession(isEnding = true)
+        settle()
+
+        assertEquals(30L, fakeRepository.recordedSessions.sumOf { it.durationSeconds })
     }
 
     @Test
@@ -546,4 +660,11 @@ private class FakeReaderBookRepository : BookRepository {
     override fun getReadingStatisticsOverview(): Flow<ReadingStatisticsOverview> = MutableStateFlow(ReadingStatisticsOverview())
     override fun getDailyGoalMinutes(): Flow<Int> = MutableStateFlow(45)
     override suspend fun setDailyGoalMinutes(minutes: Int) {}
+
+    override fun getReview(bookId: String): Flow<BookReview?> = MutableStateFlow(null)
+    override suspend fun getReviewSync(bookId: String): BookReview? = null
+    override fun getAllReviews(): Flow<List<BookReview>> = MutableStateFlow(emptyList())
+    override suspend fun saveReview(review: BookReview) {}
+    override suspend fun deleteReview(bookId: String) {}
+    override suspend fun backfillMetadata(): Int = 0
 }

@@ -76,4 +76,7 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+    // `EpubPreferences` của Readium khởi tạo enum `Theme` có chạm lớp Android, nên kiểm ánh xạ cài đặt
+    // (đặc biệt là màu nền — thứ từng gây vệt lệch màu trên máy) cần một runtime Android.
+    testImplementation("org.robolectric:robolectric:4.14.1")
 }

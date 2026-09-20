@@ -22,6 +22,7 @@ import androidx.compose.material.icons.rounded.AutoStories
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Insights
+import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Swipe
 import androidx.compose.material.icons.rounded.Timer
@@ -38,6 +39,9 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,11 +53,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.booxbook.core.ui.component.ExpressivePillButton
 import com.booxbook.core.ui.theme.BentoCardShape
 import com.booxbook.core.ui.theme.GoogleSansFlex400
 import com.booxbook.core.ui.theme.GoogleSansFlex600
 import com.booxbook.core.ui.theme.GoogleSansFlexDisplay
 import com.booxbook.core.ui.theme.PillShape
+import com.booxbook.feature.reader.bookends.BookendsViewModel
+import com.booxbook.feature.reader.components.BookendsSettingsSheet
 import com.booxbook.feature.statistics.components.HeatmapTileGeometry
 
 private val DAILY_GOAL_OPTIONS = listOf(15, 30, 45, 60)
@@ -61,9 +68,12 @@ private val DAILY_GOAL_OPTIONS = listOf(15, 30, 45, 60)
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
+    bookendsViewModel: BookendsViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val bookendsState by bookendsViewModel.uiState.collectAsStateWithLifecycle()
+    var showBookends by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier.fillMaxSize()
@@ -513,7 +523,77 @@ fun SettingsScreen(
                     }
                 }
             }
+
+            // --- SECTION 4: BOOKENDS ---
+            item {
+                SectionHeader(
+                    icon = Icons.Rounded.Layers,
+                    title = "Bookends — lớp thông tin trên trang đọc"
+                )
+            }
+
+            item {
+                Card(
+                    shape = BentoCardShape,
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp)
+                    ) {
+                        Text(
+                            text = if (bookendsState.settings.enabled) "Đang bật" else "Đang tắt",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontFamily = GoogleSansFlexDisplay,
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = if (bookendsState.settings.enabled) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Preset, dòng chữ, thanh tiến độ và quy tắc theo định dạng. Mở một cuốn sách " +
+                                "để xem trước trên chính nội dung của nó; ở đây vẫn sửa được cấu hình.",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontFamily = GoogleSansFlex400,
+                                lineHeight = 18.sp
+                            ),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        ExpressivePillButton(onClick = { showBookends = true }) {
+                            Text("Mở cấu hình Bookends")
+                        }
+                    }
+                }
+            }
         }
+    }
+
+    if (showBookends) {
+        BookendsSettingsSheet(
+            settings = bookendsState.settings,
+            // Không có sách nào đang mở ở tab Cài đặt; sheet tự hiện lời nhắc thay vì bản xem trước.
+            snapshot = bookendsState.snapshot,
+            onCreatePreset = bookendsViewModel::createPresetFromActive,
+            onPresetUpdated = { bookendsViewModel.upsertPreset(it) },
+            onPresetSelected = bookendsViewModel::setActivePreset,
+            onPresetReset = bookendsViewModel::resetPreset,
+            onPresetDelete = bookendsViewModel::deletePreset,
+            onEnabledChange = bookendsViewModel::setEnabled,
+            onAutoRuleSet = bookendsViewModel::setAutoRule,
+            onAutoRuleRemoved = bookendsViewModel::removeAutoRule,
+            onDismiss = { showBookends = false }
+        )
     }
 }
 

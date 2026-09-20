@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.util.Xml
+import com.booxbook.core.model.Book
 import com.booxbook.core.model.BookFormat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -26,7 +27,12 @@ data class ImportedBookInfo(
     val filePath: String,
     val coverPath: String?,
     val format: BookFormat,
-    val fileSize: Long
+    val fileSize: Long,
+    val series: String? = null,
+    val seriesIndex: String? = null,
+    val tags: List<String> = emptyList(),
+    val description: String? = null,
+    val language: String? = null
 )
 
 @Singleton
@@ -70,8 +76,34 @@ class BookStorageManager @Inject constructor(
                 filePath = destinationFile.absolutePath,
                 coverPath = extracted.coverPath,
                 format = format,
-                fileSize = finalSize
+                fileSize = finalSize,
+                series = extracted.series,
+                seriesIndex = extracted.seriesIndex,
+                tags = extracted.tags,
+                description = extracted.description,
+                language = extracted.language
             )
+        }
+    }
+
+    /**
+     * Đọc lại metadata từ tệp đã nhập, không đụng tới tệp hay ảnh bìa.
+     *
+     * Dùng cho sách nhập trước khi có tính năng đọc metadata: chúng cần được quét lại để `%series`,
+     * `%description`, `%lang` có dữ liệu. Trả `null` khi không đọc được gì thêm, để nơi gọi không ghi một bản
+     * ghi rỗng đè lên bản ghi đang có.
+     */
+    internal suspend fun reExtractMetadata(book: Book): ExtractedData? = withContext(Dispatchers.IO) {
+        val file = File(book.filePath)
+        if (!file.exists()) return@withContext null
+
+        when (book.format) {
+            BookFormat.EPUB -> runCatching {
+                extractEpubMetadata(file, book.id, book.title, book.author)
+            }.getOrNull()
+
+            // CBZ và AZW3 không mang metadata văn bản; quét lại không cho thêm gì.
+            BookFormat.CBZ, BookFormat.AZW3 -> null
         }
     }
 
@@ -138,10 +170,15 @@ class BookStorageManager @Inject constructor(
         return name.replace(Regex("[^a-zA-Z0-9._-]"), "_")
     }
 
-    private data class ExtractedData(
+    internal data class ExtractedData(
         val title: String,
         val author: String,
-        val coverPath: String?
+        val coverPath: String?,
+        val series: String? = null,
+        val seriesIndex: String? = null,
+        val tags: List<String> = emptyList(),
+        val description: String? = null,
+        val language: String? = null
     )
 
     private fun extractMetadataAndCover(
@@ -173,6 +210,11 @@ class BookStorageManager @Inject constructor(
         var title = defaultTitle
         var author = defaultAuthor
         var coverPath: String? = null
+        var series: String? = null
+        var seriesIndex: String? = null
+        var tags: List<String> = emptyList()
+        var description: String? = null
+        var language: String? = null
 
         runCatching {
             ZipFile(bookFile).use { zip ->
@@ -181,13 +223,18 @@ class BookStorageManager @Inject constructor(
                 val opfEntry = zip.getEntry(opfPath) ?: return@use
 
                 val opfContent = zip.getInputStream(opfEntry).bufferedReader().use { it.readText() }
-                val (parsedTitle, parsedAuthor, coverHref) = parseOpfMetadata(opfContent)
+                val parsed = parseOpfMetadata(opfContent)
 
-                if (parsedTitle.isNotBlank()) title = parsedTitle
-                if (parsedAuthor.isNotBlank()) author = parsedAuthor
+                if (parsed.title.isNotBlank()) title = parsed.title
+                if (parsed.author.isNotBlank()) author = parsed.author
+                series = parsed.series
+                seriesIndex = parsed.seriesIndex
+                tags = parsed.tags
+                description = parsed.description
+                language = parsed.language
 
-                if (coverHref != null) {
-                    val resolvedCoverPath = resolveZipPath(opfPath, coverHref)
+                if (parsed.coverHref != null) {
+                    val resolvedCoverPath = resolveZipPath(opfPath, parsed.coverHref)
                     val coverEntry = zip.getEntry(resolvedCoverPath)
                     if (coverEntry != null) {
                         val extension = resolvedCoverPath.substringAfterLast('.', "jpg")
@@ -203,7 +250,16 @@ class BookStorageManager @Inject constructor(
             }
         }
 
-        return ExtractedData(title, author, coverPath)
+        return ExtractedData(
+            title = title,
+            author = author,
+            coverPath = coverPath,
+            series = series,
+            seriesIndex = seriesIndex,
+            tags = tags,
+            description = description,
+            language = language
+        )
     }
 
     private fun parseOpfPathFromContainer(inputStream: InputStream): String? {
@@ -231,14 +287,38 @@ class BookStorageManager @Inject constructor(
     private data class OpfParsedResult(
         val title: String,
         val author: String,
-        val coverHref: String?
+        val coverHref: String?,
+        val series: String?,
+        val seriesIndex: String?,
+        val tags: List<String>,
+        val description: String?,
+        val language: String?
     )
 
+    /**
+     * Đọc metadata từ OPF.
+     *
+     * Hỗ trợ cả hai cách khai báo bộ sách đang tồn tại ngoài thực tế:
+     *
+     * - **Calibre** — `meta[name="calibre:series"]` + `meta[name="calibre:series_index"]`. Đây là dạng phổ
+     *   biến nhất vì phần lớn thư viện EPUB được quản lý bằng Calibre.
+     * - **EPUB 3 chuẩn** — `meta[property="belongs-to-collection"]` + `meta[property="group-position"]`.
+     *
+     * `dc:subject` có thể xuất hiện nhiều lần, mỗi lần một thẻ; gom hết thay vì chỉ lấy cái đầu.
+     *
+     * Mọi lần đọc văn bản phần tử đều đi qua [safeText]: một thẻ rỗng hay sai cấu trúc không được phép làm mất
+     * **toàn bộ** metadata còn lại, mà `nextText()` ném lỗi thì cả khối `runCatching` ngoài sẽ bỏ hết.
+     */
     private fun parseOpfMetadata(opfXml: String): OpfParsedResult {
         var title = ""
         var author = ""
         var coverHref: String? = null
         var coverMetaItemId: String? = null
+        var series: String? = null
+        var seriesIndex: String? = null
+        var description: String? = null
+        var language: String? = null
+        val subjects = mutableListOf<String>()
         val items = mutableMapOf<String, String>() // id -> href
 
         runCatching {
@@ -252,18 +332,54 @@ class BookStorageManager @Inject constructor(
                     val tagName = parser.name.lowercase()
                     when {
                         tagName == "title" || tagName.endsWith(":title") -> {
-                            val text = parser.nextText()?.trim()
+                            val text = parser.safeText()
                             if (!text.isNullOrBlank() && title.isBlank()) title = text
                         }
                         tagName == "creator" || tagName.endsWith(":creator") -> {
-                            val text = parser.nextText()?.trim()
+                            val text = parser.safeText()
                             if (!text.isNullOrBlank() && author.isBlank()) author = text
+                        }
+                        tagName == "description" || tagName.endsWith(":description") -> {
+                            val text = parser.safeText()
+                            if (!text.isNullOrBlank() && description == null) description = cleanDescription(text)
+                        }
+                        tagName == "subject" || tagName.endsWith(":subject") -> {
+                            val text = parser.safeText()
+                            if (!text.isNullOrBlank()) subjects += text
+                        }
+                        tagName == "language" || tagName.endsWith(":language") -> {
+                            val text = parser.safeText()
+                            if (!text.isNullOrBlank() && language == null) language = text
                         }
                         tagName == "meta" -> {
                             val name = parser.getAttributeValue(null, "name")
+                            val property = parser.getAttributeValue(null, "property")
                             val content = parser.getAttributeValue(null, "content")
-                            if (name.equals("cover", ignoreCase = true) && !content.isNullOrBlank()) {
-                                coverMetaItemId = content
+
+                            when {
+                                name.equals("cover", ignoreCase = true) && !content.isNullOrBlank() -> {
+                                    coverMetaItemId = content
+                                }
+
+                                name.equals("calibre:series", ignoreCase = true) -> {
+                                    if (!content.isNullOrBlank() && series == null) series = content.trim()
+                                }
+
+                                name.equals("calibre:series_index", ignoreCase = true) -> {
+                                    if (!content.isNullOrBlank() && seriesIndex == null) {
+                                        seriesIndex = content.trim()
+                                    }
+                                }
+
+                                property.equals("belongs-to-collection", ignoreCase = true) -> {
+                                    val text = parser.safeText()
+                                    if (!text.isNullOrBlank() && series == null) series = text
+                                }
+
+                                property.equals("group-position", ignoreCase = true) -> {
+                                    val text = parser.safeText()
+                                    if (!text.isNullOrBlank() && seriesIndex == null) seriesIndex = text
+                                }
                             }
                         }
                         tagName == "item" -> {
@@ -288,8 +404,31 @@ class BookStorageManager @Inject constructor(
             }
         }
 
-        return OpfParsedResult(title, author, coverHref)
+        return OpfParsedResult(
+            title = title,
+            author = author,
+            coverHref = coverHref,
+            series = series,
+            seriesIndex = seriesIndex,
+            tags = subjects.distinct(),
+            description = description,
+            language = language
+        )
     }
+
+    /** `nextText()` ném lỗi khi phần tử rỗng hoặc ở cuối tài liệu; ở đây coi đó là "không có gì". */
+    private fun XmlPullParser.safeText(): String? = runCatching { nextText()?.trim() }.getOrNull()
+
+    /**
+     * Mô tả sách trong OPF thường là HTML (`<p>`, `<br/>`, thực thể).
+     *
+     * Giữ nguyên thì `%description` trên overlay sẽ hiện cả thẻ — vô nghĩa với một dòng chữ. Bỏ thẻ và gộp
+     * khoảng trắng để phần mô tả còn đọc được.
+     */
+    private fun cleanDescription(raw: String): String = raw
+        .replace(Regex("<[^>]+>"), " ")
+        .replace(Regex("\\s+"), " ")
+        .trim()
 
     private fun resolveZipPath(baseFilePath: String, relativeHref: String): String {
         val baseDir = baseFilePath.substringBeforeLast('/', "")

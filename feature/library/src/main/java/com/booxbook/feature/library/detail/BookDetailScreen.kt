@@ -35,7 +35,11 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
@@ -55,6 +59,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
@@ -71,6 +76,7 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.booxbook.core.engine.model.TocItem
 import com.booxbook.core.model.Book
+import com.booxbook.core.model.BookReview
 import com.booxbook.core.model.ReadingProgress
 import com.booxbook.core.ui.component.DelayedLoadingIndicator
 import com.booxbook.core.ui.component.ExpressiveLoadingIndicator
@@ -99,6 +105,10 @@ fun BookDetailScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showResetDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
+
+    val onRatingChange: (Int) -> Unit = viewModel::setRating
+    val onReviewTextChange: (String) -> Unit = viewModel::saveReviewText
+    val onToggleFinished: () -> Unit = viewModel::toggleFinished
 
     LaunchedEffect(bookId) {
         viewModel.loadBook(bookId)
@@ -294,7 +304,19 @@ fun BookDetailScreen(
                             }
                         }
 
-                        // 4. Section Divider & Table of Contents Header
+                        // 4. Nhật ký đọc: đánh giá và cảm nhận
+                        item {
+                            ReadingJournalSection(
+                                rating = uiState.rating,
+                                reviewText = uiState.reviewText,
+                                isFinished = uiState.review.isFinished,
+                                onRatingChange = onRatingChange,
+                                onReviewTextChange = onReviewTextChange,
+                                onToggleFinished = onToggleFinished
+                            )
+                        }
+
+                        // 5. Section Divider & Table of Contents Header
                         item {
                             Spacer(modifier = Modifier.height(8.dp))
                             Row(
@@ -470,6 +492,111 @@ fun BookDetailScreen(
                     }
                 )
             }
+        }
+    }
+}
+
+/**
+ * Nhật ký đọc: chấm điểm, cảm nhận, và mốc đã đọc xong.
+ *
+ * Dữ liệu này là **do người đọc tạo**, không phải metadata của tệp, nên nó sống trong bảng riêng và không bị
+ * lần quét lại OPF ghi đè.
+ *
+ * Ô cảm nhận giữ bản nháp cục bộ và chỉ ghi khi người dùng rời ô: ghi theo từng ký tự sẽ thành một lần ghi
+ * Room cho mỗi phím bấm, và mỗi lần ghi lại đẩy `updatedTimestamp` lên.
+ */
+@Composable
+private fun ReadingJournalSection(
+    rating: Int,
+    reviewText: String,
+    isFinished: Boolean,
+    onRatingChange: (Int) -> Unit,
+    onReviewTextChange: (String) -> Unit,
+    onToggleFinished: () -> Unit
+) {
+    var draft by remember(reviewText) { mutableStateOf(reviewText) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 8.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = Icons.Rounded.Star,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = "Nhật ký đọc",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontFamily = GoogleSansFlex600,
+                    fontWeight = FontWeight.Bold
+                ),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            (1..MAX_RATING).forEach { star ->
+                IconButton(onClick = { onRatingChange(star) }) {
+                    Icon(
+                        imageVector = if (star <= rating) Icons.Rounded.Star else Icons.Rounded.StarBorder,
+                        contentDescription = "$star sao",
+                        tint = if (star <= rating) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.outline
+                        }
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = if (rating == 0) "Chưa chấm" else "$rating/5",
+                style = MaterialTheme.typography.bodyMedium.copy(fontFamily = GoogleSansFlex400),
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        OutlinedTextField(
+            value = draft,
+            onValueChange = { draft = it },
+            label = { Text("Cảm nhận của bạn") },
+            minLines = 2,
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged { focus ->
+                    // Rời ô mới ghi: xem ghi chú ở đầu hàm.
+                    if (!focus.isFocused) onReviewTextChange(draft)
+                }
+        )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Đã đọc xong",
+                    style = MaterialTheme.typography.bodyLarge.copy(fontFamily = GoogleSansFlex400),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "Mốc thời gian bạn xác nhận, độc lập với tiến độ đọc",
+                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = GoogleSansFlex400),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Switch(checked = isFinished, onCheckedChange = { onToggleFinished() })
         }
     }
 }
@@ -781,3 +908,6 @@ private fun formatFileSize(sizeInBytes: Long): String {
     val df = DecimalFormat("#,##0.#")
     return "${df.format(sizeInBytes / Math.pow(1024.0, digitGroups.toDouble()))} ${units[digitGroups]}"
 }
+
+/** Số sao tối đa. Khai báo một chỗ để màn chi tiết và ViewModel không lệch nhau. */
+private const val MAX_RATING = 5

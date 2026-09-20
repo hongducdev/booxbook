@@ -19,8 +19,6 @@ import kotlinx.coroutines.withContext
 import org.readium.r2.navigator.epub.EpubNavigatorFactory
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
 import org.readium.r2.navigator.epub.EpubPreferences
-import org.readium.r2.navigator.preferences.FontFamily
-import org.readium.r2.navigator.preferences.Theme
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
@@ -128,23 +126,11 @@ class EpubReaderEngine @Inject constructor(
     /**
      * Builds [EpubPreferences] according to [ReaderPreferences].
      * Defaults to discrete pagination (scroll = false).
+     *
+     * Ánh xạ nằm ở [EpubPreferencesFactory] để engine EPUB và AZW3 không thể lệch nhau.
      */
-    override fun buildEpubPreferences(prefs: ReaderPreferences): EpubPreferences {
-        val resolvedTheme = when (prefs.themePreset) {
-            "SEPIA" -> Theme.SEPIA
-            "LIGHT" -> Theme.LIGHT
-            "DARK", "AMOLED" -> Theme.DARK
-            else -> if (prefs.isDarkMode) Theme.DARK else Theme.LIGHT
-        }
-        return EpubPreferences(
-            scroll = prefs.isScrollMode, // false = discrete page-turn
-            fontSize = prefs.fontSize,
-            lineHeight = prefs.lineHeight,
-            pageMargins = prefs.pageMargins,
-            fontFamily = prefs.fontFamily?.let { FontFamily(it) },
-            theme = resolvedTheme
-        )
-    }
+    override fun buildEpubPreferences(prefs: ReaderPreferences): EpubPreferences =
+        EpubPreferencesFactory.build(prefs)
 
     /**
      * Creates a FragmentFactory for [EpubNavigatorFragment] with discrete pagination preferences.

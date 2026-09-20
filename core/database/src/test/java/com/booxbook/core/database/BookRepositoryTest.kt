@@ -41,6 +41,7 @@ class BookRepositoryTest {
             readingProgressDao = db.readingProgressDao(),
             annotationDao = db.annotationDao(),
             readingSessionDao = db.readingSessionDao(),
+            bookReviewDao = db.bookReviewDao(),
             storageManager = storageManager
         )
     }

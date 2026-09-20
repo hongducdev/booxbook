@@ -38,6 +38,15 @@ interface BookDao {
     @Query("SELECT * FROM books WHERE id = :id")
     suspend fun getBookByIdSync(id: String): BookEntity?
 
+    /**
+     * Sách chưa từng được quét metadata.
+     *
+     * Điều kiện là **cả ba** trường đều `NULL` — tức là bản ghi từ trước khi có tính năng đọc metadata. Sau
+     * lần quét đầu, chúng được ghi thành `""` (đã quét, sách không khai báo), nên không bao giờ lọt vào đây lại.
+     */
+    @Query("SELECT * FROM books WHERE series IS NULL AND description IS NULL AND language IS NULL")
+    suspend fun getBooksMissingMetadata(): List<BookEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertBook(book: BookEntity): Long
 

@@ -15,6 +15,10 @@ interface AnnotationDao {
     @Query("SELECT * FROM annotations WHERE book_id = :bookId ORDER BY created_timestamp DESC")
     fun getAnnotationsForBook(bookId: String): Flow<List<AnnotationEntity>>
 
+    /** Bản đồng bộ của [getAnnotationsForBook], dùng cho test migration và các tác vụ nền một lần. */
+    @Query("SELECT * FROM annotations WHERE book_id = :bookId ORDER BY created_timestamp DESC")
+    suspend fun getAnnotationsForBookSync(bookId: String): List<AnnotationEntity>
+
     @Query("SELECT * FROM annotations WHERE book_id = :bookId AND type = :type ORDER BY created_timestamp DESC")
     fun getAnnotationsByType(bookId: String, type: AnnotationType): Flow<List<AnnotationEntity>>
 

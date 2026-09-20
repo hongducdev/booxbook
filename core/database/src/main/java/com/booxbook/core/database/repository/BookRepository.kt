@@ -6,6 +6,7 @@ import com.booxbook.core.model.Annotation
 import com.booxbook.core.model.AnnotationType
 import com.booxbook.core.model.Book
 import com.booxbook.core.model.BookFormat
+import com.booxbook.core.model.BookReview
 import com.booxbook.core.model.ReadingProgress
 import com.booxbook.core.model.ReadingSession
 import com.booxbook.core.model.ReadingStatisticsOverview
@@ -40,4 +41,18 @@ interface BookRepository {
     fun getReadingStatisticsOverview(): Flow<ReadingStatisticsOverview>
     fun getDailyGoalMinutes(): Flow<Int>
     suspend fun setDailyGoalMinutes(minutes: Int)
+
+    fun getReview(bookId: String): Flow<BookReview?>
+    suspend fun getReviewSync(bookId: String): BookReview?
+    fun getAllReviews(): Flow<List<BookReview>>
+    suspend fun saveReview(review: BookReview)
+    suspend fun deleteReview(bookId: String)
+
+    /**
+     * Quét lại metadata OPF cho những sách nhập trước khi có tính năng đọc metadata.
+     *
+     * Chạy một lần cho mỗi bản ghi và **đánh dấu đã quét** kể cả khi tệp không khai báo gì, nếu không thì mỗi
+     * lần mở ứng dụng lại mở lại từng tệp EPUB. Trả về số bản ghi đã xử lý.
+     */
+    suspend fun backfillMetadata(): Int
 }

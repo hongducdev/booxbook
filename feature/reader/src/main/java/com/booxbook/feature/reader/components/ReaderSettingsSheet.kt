@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.CropFree
 import androidx.compose.material.icons.rounded.FormatSize
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.TouchApp
@@ -30,6 +31,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -44,6 +46,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.booxbook.core.engine.model.ReaderPreferences
+import com.booxbook.core.engine.model.ReadingFrame
+import com.booxbook.core.engine.model.ReadingFrameColor
+import com.booxbook.core.engine.model.ReadingFrameStyle
 import com.booxbook.core.ui.theme.GoogleSansFlex400
 import com.booxbook.core.ui.theme.GoogleSansFlex600
 import com.booxbook.core.ui.theme.GoogleSansFlexDisplay
@@ -51,6 +56,7 @@ import com.booxbook.core.ui.theme.PillShape
 import com.booxbook.feature.reader.ReaderPageTurnEffect
 import com.booxbook.feature.reader.ReaderTapZoneMode
 import com.booxbook.feature.reader.ReaderThemePreset
+import com.booxbook.feature.reader.preferences.ReaderPreferencesManager
 
 import kotlin.math.roundToInt
 
@@ -69,6 +75,10 @@ fun ReaderSettingsSheet(
     onPageTurnEffectSelected: (ReaderPageTurnEffect) -> Unit,
     onHapticsToggled: (Boolean) -> Unit,
     onPreviewTapZones: () -> Unit,
+    onOpenBookends: () -> Unit,
+    onMarginChange: (ReaderPreferencesManager.MarginSide, Float) -> Unit,
+    onResetMargins: () -> Unit,
+    onFrameChanged: (ReadingFrame) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -254,7 +264,19 @@ fun ReaderSettingsSheet(
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 4. Touch interaction & page-turn effects
+            // 4. Lề vùng đọc & viền khung
+            ReadingMarginsAndFrameSection(
+                preferences = preferences,
+                onMarginChange = onMarginChange,
+                onResetMargins = onResetMargins,
+                onFrameChanged = onFrameChanged
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 5. Touch interaction & page-turn effects
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     imageVector = Icons.Rounded.TouchApp,
@@ -340,7 +362,196 @@ fun ReaderSettingsSheet(
                     )
                 )
             }
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Bookends nằm trong cùng sheet này thay vì một mục riêng ở tab Cài đặt: nó là cài đặt *của màn
+            // đọc*, và người đọc chỉ nhận ra mình muốn đổi nó khi đang đọc dở một cuốn.
+            TextButton(
+                onClick = onOpenBookends,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Bookends · lớp thông tin trên trang đọc",
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontFamily = GoogleSansFlex600,
+                        fontWeight = FontWeight.Bold
+                    )
+                )
+            }
         }
+    }
+}
+
+/**
+ * Lề trang và viền khung.
+ *
+ * **Trên và dưới riêng, trái và phải chung một mức.** Chữ chừa hai bên không đều trông như lỗi, còn trên/dưới
+ * thì thật sự cần khác nhau: trên phải né thanh trạng thái và overlay, dưới phải né thanh công cụ.
+ *
+ * Lề làm bằng padding Compose chứ không dùng `pageMargins` của Readium — Readium chỉ có **một** hệ số cho cả
+ * bốn phía nên không đủ. Đổi lại, `EpubReaderContainer` phải báo Readium dàn lại mỗi khi vùng đọc đổi kích
+ * thước, nếu không pager sẽ giữ bề rộng trang cũ.
+ *
+ * Viền khung **không chiếm chỗ** — nó chỉ vẽ lên trên vùng đọc, nên hai nhóm cài đặt độc lập.
+ */
+@Composable
+private fun ReadingMarginsAndFrameSection(
+    preferences: ReaderPreferences,
+    onMarginChange: (ReaderPreferencesManager.MarginSide, Float) -> Unit,
+    onResetMargins: () -> Unit,
+    onFrameChanged: (ReadingFrame) -> Unit
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            imageVector = Icons.Rounded.CropFree,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = "Lề & viền trang",
+            style = MaterialTheme.typography.labelLarge.copy(
+                fontFamily = GoogleSansFlex600,
+                fontWeight = FontWeight.Bold
+            ),
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.weight(1f))
+        TextButton(onClick = onResetMargins) { Text("Đặt lại") }
+    }
+
+    Spacer(modifier = Modifier.height(4.dp))
+    Text(
+        text = "Lề chừa quanh trang sách, áp cho cả EPUB và truyện tranh CBZ. Trái và phải dùng chung một mức.",
+        style = MaterialTheme.typography.bodySmall.copy(fontFamily = GoogleSansFlex400),
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+    Spacer(modifier = Modifier.height(8.dp))
+
+    MarginSlider("Trên", preferences.marginTopDp) { onMarginChange(ReaderPreferencesManager.MarginSide.TOP, it) }
+    MarginSlider("Dưới", preferences.marginBottomDp) { onMarginChange(ReaderPreferencesManager.MarginSide.BOTTOM, it) }
+    MarginSlider("Trái & phải", preferences.marginHorizontalDp) {
+        onMarginChange(ReaderPreferencesManager.MarginSide.HORIZONTAL, it)
+    }
+
+    Spacer(modifier = Modifier.height(8.dp))
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "Viền khung",
+                style = MaterialTheme.typography.bodyMedium.copy(fontFamily = GoogleSansFlex400),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = "Vẽ một đường viền quanh vùng đọc, không chiếm chỗ của chữ",
+                style = MaterialTheme.typography.bodySmall.copy(fontFamily = GoogleSansFlex400),
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Switch(
+            checked = preferences.frame.enabled,
+            onCheckedChange = { enabled -> onFrameChanged(preferences.frame.copy(enabled = enabled)) }
+        )
+    }
+
+    if (preferences.frame.enabled) {
+        val frame = preferences.frame
+        Spacer(modifier = Modifier.height(8.dp))
+
+        SectionLabel("Kiểu nét")
+        Spacer(modifier = Modifier.height(6.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            ReadingFrameStyle.entries.forEach { candidate ->
+                OptionPill(
+                    title = candidate.label,
+                    selected = frame.style == candidate,
+                    onClick = { onFrameChanged(frame.copy(style = candidate)) },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+        SectionLabel("Màu viền")
+        Spacer(modifier = Modifier.height(6.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            ReadingFrameColor.entries.forEach { candidate ->
+                OptionPill(
+                    title = candidate.label,
+                    selected = frame.color == candidate,
+                    onClick = { onFrameChanged(frame.copy(color = candidate)) },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+        FrameSlider(
+            label = "Độ dày",
+            value = frame.thicknessDp,
+            range = ReadingFrame.MIN_THICKNESS_DP..ReadingFrame.MAX_THICKNESS_DP
+        ) { onFrameChanged(frame.copy(thicknessDp = it)) }
+        FrameSlider(
+            label = "Bo góc",
+            value = frame.cornerRadiusDp,
+            range = 0f..ReadingFrame.MAX_CORNER_RADIUS_DP
+        ) { onFrameChanged(frame.copy(cornerRadiusDp = it)) }
+        FrameSlider(
+            label = "Khoảng cách vào trong",
+            value = frame.insetDp,
+            range = ReadingFrame.MIN_INSET_DP..ReadingFrame.MAX_INSET_DP
+        ) { onFrameChanged(frame.copy(insetDp = it)) }
+    }
+}
+
+@Composable
+private fun MarginSlider(label: String, value: Float, onValueChange: (Float) -> Unit) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(
+                text = "Lề $label",
+                style = MaterialTheme.typography.bodySmall.copy(fontFamily = GoogleSansFlex400),
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = "${value.roundToInt()} dp",
+                style = MaterialTheme.typography.bodySmall.copy(fontFamily = GoogleSansFlex600),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            valueRange = 0f..ReaderPreferences.MAX_MARGIN_DP
+        )
+    }
+}
+
+@Composable
+private fun FrameSlider(
+    label: String,
+    value: Float,
+    range: ClosedFloatingPointRange<Float>,
+    onValueChange: (Float) -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodySmall.copy(fontFamily = GoogleSansFlex400),
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = "${value.roundToInt()} dp",
+                style = MaterialTheme.typography.bodySmall.copy(fontFamily = GoogleSansFlex600),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+        Slider(value = value, onValueChange = onValueChange, valueRange = range)
     }
 }
 

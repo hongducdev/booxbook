@@ -6,6 +6,7 @@ import androidx.fragment.app.FragmentFactory
 import com.booxbook.core.engine.ReaderEngine
 import com.booxbook.core.engine.epub.ReadiumReaderEngine
 import com.booxbook.core.engine.epub.ReadiumAssetRetriever
+import com.booxbook.core.engine.epub.EpubPreferencesFactory
 import com.booxbook.core.engine.epub.ReadiumFragmentFactoryProvider
 import com.booxbook.core.engine.model.ReaderPreferences
 import com.booxbook.core.engine.model.ReaderState
@@ -139,22 +140,8 @@ class Azw3ReaderEngine @Inject constructor(
         _state.value = ReaderState.Idle
     }
 
-    override fun buildEpubPreferences(prefs: ReaderPreferences): EpubPreferences {
-        val resolvedTheme = when (prefs.themePreset) {
-            "SEPIA" -> Theme.SEPIA
-            "LIGHT" -> Theme.LIGHT
-            "DARK", "AMOLED" -> Theme.DARK
-            else -> if (prefs.isDarkMode) Theme.DARK else Theme.LIGHT
-        }
-        return EpubPreferences(
-            scroll = prefs.isScrollMode,
-            fontSize = prefs.fontSize,
-            lineHeight = prefs.lineHeight,
-            pageMargins = prefs.pageMargins,
-            fontFamily = prefs.fontFamily?.let { FontFamily(it) },
-            theme = resolvedTheme
-        )
-    }
+    override fun buildEpubPreferences(prefs: ReaderPreferences): EpubPreferences =
+        EpubPreferencesFactory.build(prefs)
 
     override fun createFragmentFactory(
         initialLocator: Locator?,

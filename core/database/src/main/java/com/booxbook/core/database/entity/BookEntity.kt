@@ -2,10 +2,25 @@ package com.booxbook.core.database.entity
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.booxbook.core.model.Book
 import com.booxbook.core.model.BookFormat
+
+/**
+ * Dấu phân tách các thẻ (tags) trong một cột.
+ *
+ * Dùng ký tự điều khiển `Unit Separator` (0x1F) thay vì dấu phẩy: thẻ do nhà xuất bản đặt có thể chứa dấu
+ * phẩy ("Fiction, Thriller"), và tách bằng dấu phẩy sẽ biến một thẻ thành hai.
+ */
+internal const val TAG_SEPARATOR = '\u001F'
+
+internal fun encodeTags(tags: List<String>): String =
+    tags.filter { it.isNotBlank() }.joinToString(TAG_SEPARATOR.toString())
+
+internal fun decodeTags(raw: String?): List<String> =
+    raw?.split(TAG_SEPARATOR)?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty()
 
 @Entity(
     tableName = "books",
@@ -35,7 +50,17 @@ data class BookEntity(
     @ColumnInfo(name = "added_timestamp")
     val addedTimestamp: Long = System.currentTimeMillis(),
     @ColumnInfo(name = "last_read_timestamp")
-    val lastReadTimestamp: Long = 0L
+    val lastReadTimestamp: Long = 0L,
+    @ColumnInfo(name = "series")
+    val series: String? = null,
+    @ColumnInfo(name = "series_index")
+    val seriesIndex: String? = null,
+    @ColumnInfo(name = "tags", defaultValue = "")
+    val tags: String = "",
+    @ColumnInfo(name = "description")
+    val description: String? = null,
+    @ColumnInfo(name = "language")
+    val language: String? = null
 )
 
 fun BookEntity.asDomainModel(): Book = Book(
@@ -48,7 +73,12 @@ fun BookEntity.asDomainModel(): Book = Book(
     totalPages = totalPages,
     fileSize = fileSize,
     addedTimestamp = addedTimestamp,
-    lastReadTimestamp = lastReadTimestamp
+    lastReadTimestamp = lastReadTimestamp,
+    series = series,
+    seriesIndex = seriesIndex,
+    tags = decodeTags(tags),
+    description = description,
+    language = language
 )
 
 fun Book.asEntity(): BookEntity = BookEntity(
@@ -61,5 +91,10 @@ fun Book.asEntity(): BookEntity = BookEntity(
     totalPages = totalPages,
     fileSize = fileSize,
     addedTimestamp = addedTimestamp,
-    lastReadTimestamp = lastReadTimestamp
+    lastReadTimestamp = lastReadTimestamp,
+    series = series,
+    seriesIndex = seriesIndex,
+    tags = encodeTags(tags),
+    description = description,
+    language = language
 )

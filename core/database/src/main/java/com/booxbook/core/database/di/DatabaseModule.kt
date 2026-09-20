@@ -2,10 +2,12 @@ package com.booxbook.core.database.di
 
 import android.content.Context
 import androidx.room.Room
+import com.booxbook.core.database.ALL_MIGRATIONS
 import com.booxbook.core.database.BooxBookDatabase
 import com.booxbook.core.database.DatabaseConstants
 import com.booxbook.core.database.dao.AnnotationDao
 import com.booxbook.core.database.dao.BookDao
+import com.booxbook.core.database.dao.BookReviewDao
 import com.booxbook.core.database.dao.ReadingProgressDao
 import com.booxbook.core.database.dao.ReadingSessionDao
 import com.booxbook.core.database.repository.BookRepository
@@ -33,7 +35,10 @@ object DatabaseModule {
             BooxBookDatabase::class.java,
             DatabaseConstants.DATABASE_NAME
         )
-            .fallbackToDestructiveMigration()
+            // Cố ý **không** dùng `fallbackToDestructiveMigration()`: nó biến mọi lần tăng version schema
+            // thành một lần xoá sạch thư viện, tiến độ đọc và thống kê của người dùng. Mỗi lần tăng version
+            // phải đi kèm một `Migration` viết tay trong `ALL_MIGRATIONS`.
+            .addMigrations(*ALL_MIGRATIONS)
             .build()
     }
 
@@ -51,6 +56,10 @@ object DatabaseModule {
     @Provides
     fun provideReadingSessionDao(database: BooxBookDatabase): ReadingSessionDao =
         database.readingSessionDao()
+
+    @Provides
+    fun provideBookReviewDao(database: BooxBookDatabase): BookReviewDao =
+        database.bookReviewDao()
 
     @Provides
     @Singleton

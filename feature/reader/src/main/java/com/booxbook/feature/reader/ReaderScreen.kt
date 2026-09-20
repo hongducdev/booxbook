@@ -5,6 +5,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.displayCutout
@@ -46,23 +47,26 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.booxbook.core.engine.model.ReaderThemePalette
 import com.booxbook.core.engine.cbz.CbzReaderComponent
 import com.booxbook.core.model.BookFormat
 import com.booxbook.core.ui.component.ExpressivePillButton
-import com.booxbook.core.ui.theme.AmoledBackground
 import com.booxbook.core.ui.theme.GoogleSansFlexDisplay
-import com.booxbook.core.ui.theme.SepiaBackground
 import com.booxbook.feature.reader.components.AnimatedReaderTopBar
+import com.booxbook.feature.reader.components.BookendsOverlay
+import com.booxbook.feature.reader.components.BookendsSettingsSheet
 import com.booxbook.feature.reader.components.BookmarksSheet
 import com.booxbook.feature.reader.components.EpubReaderContainer
 import com.booxbook.feature.reader.components.FloatingReaderToolbar
 import com.booxbook.feature.reader.components.PageTurnFlipOverlay
+import com.booxbook.feature.reader.components.ReadingFrameLayer
 import com.booxbook.feature.reader.components.ReaderOpeningOverlay
 import com.booxbook.feature.reader.components.ReaderSettingsSheet
 import com.booxbook.feature.reader.components.TableOfContentsSheet
 import com.booxbook.feature.reader.components.TapZonePreviewOverlay
 import com.booxbook.feature.reader.components.TtsFloatingPlayer
 import com.booxbook.feature.reader.components.rememberPageTurnFlipController
+import com.booxbook.feature.reader.bookends.BookendsViewModel
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
 import org.readium.r2.shared.publication.Href
 import org.readium.r2.shared.publication.Link
@@ -74,9 +78,11 @@ fun ReaderScreen(
     bookId: String,
     initialLocator: String? = null,
     onBackClick: () -> Unit = {},
-    viewModel: ReaderViewModel = hiltViewModel()
+    viewModel: ReaderViewModel = hiltViewModel(),
+    bookendsViewModel: BookendsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val bookendsState by bookendsViewModel.uiState.collectAsStateWithLifecycle()
     val ttsState by viewModel.ttsSessionState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
@@ -149,6 +155,16 @@ fun ReaderScreen(
         viewModel.loadBook(bookId, targetLocator = initialLocator)
     }
 
+    // Overlay chỉ *đọc* trạng thái, nên màn đọc đẩy vào đúng hai thứ nó có: vị trí đang đọc và tiến trình
+    // phiên. `MutableStateFlow` phía nhận tự bỏ qua giá trị trùng, nên đẩy mỗi recomposition là an toàn.
+    LaunchedEffect(viewModel, bookendsViewModel) {
+        viewModel.bookendsContext.collect(bookendsViewModel::onReadingContextChanged)
+    }
+
+    LaunchedEffect(viewModel, bookendsViewModel) {
+        viewModel.bookendsSessionProgress.collect(bookendsViewModel::onSessionProgressChanged)
+    }
+
     BackHandler {
         when {
             uiState.activeSheet != null -> viewModel.dismissSheet()
@@ -157,12 +173,14 @@ fun ReaderScreen(
         }
     }
 
-    val backgroundColor = when (uiState.themePreset) {
-        ReaderThemePreset.LIGHT -> Color(0xFFFEF7FF)
-        ReaderThemePreset.SEPIA -> SepiaBackground
-        ReaderThemePreset.DARK -> Color(0xFF141218)
-        ReaderThemePreset.AMOLED -> AmoledBackground
-    }
+    val backgroundColor = Color(ReaderThemePalette.backgroundArgb(uiState.themePreset.name).toInt())
+
+    // Bookends không dùng màu theme Material: nó nằm trên nền trang giấy của chính người đọc, nên độ tương
+    // phản phải tính theo nền đó, không theo màu surface của ứng dụng. Cùng bảng màu với trang sách.
+    val isDarkReader = ReaderThemePalette.isDark(uiState.themePreset.name)
+    val bookendsContentColor = Color(
+        ReaderThemePalette.textArgb(uiState.themePreset.name).toInt()
+    )
 
     Scaffold(
         modifier = Modifier
@@ -191,6 +209,25 @@ fun ReaderScreen(
                         .fillMaxSize()
                         .windowInsetsPadding(readerInsets)
                 ) {
+                    val preferences = uiState.preferences
+
+                    // Lề áp cho **trang sách** bằng padding Compose, cho cả ba định dạng.
+                    //
+                    // Readium chỉ có một `pageMargins` cho cả bốn phía nên không đủ cho nhu cầu thật là chừa chỗ
+                    // khác nhau ở trên và ở dưới. Đổi lại, padding làm WebView đổi kích thước mà Readium không tự
+                    // biết — `EpubReaderContainer` bù bằng cách gọi `submitPreferences` sau mỗi lần đổi kích thước.
+                    val pagePadding = PaddingValues(
+                        start = preferences.marginHorizontalDp.dp,
+                        top = preferences.marginTopDp.dp,
+                        end = preferences.marginHorizontalDp.dp,
+                        bottom = preferences.marginBottomDp.dp
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(pagePadding)
+                    ) {
                     // Content Canvas: EPUB vs CBZ
                     if (uiState.format == BookFormat.CBZ) {
                         val archive = viewModel.cbzReaderEngine.getArchive()
@@ -257,6 +294,15 @@ fun ReaderScreen(
                         }
                     }
 
+                    // Đường viền vẽ **lên trên** vùng đọc và không tham gia bố cục, nên hai cài đặt lề và viền
+                    // độc lập nhau: tăng lề để chữ không chạm viền, còn viền vẫn nằm nguyên chỗ đã đặt.
+                    // Nằm trên canvas nhưng dưới lớp lật trang và overlay chữ.
+                    ReadingFrameLayer(
+                        frame = preferences.frame,
+                        isDarkReader = isDarkReader,
+                        modifier = Modifier.matchParentSize()
+                    )
+
                     // Kindle-like page-lift transition: above the canvas, below the chrome.
                     PageTurnFlipOverlay(
                         controller = flipController,
@@ -264,12 +310,33 @@ fun ReaderScreen(
                     )
 
                     // Transient tap-zone preview, triggered from reader settings.
+                    // Ở trong hộp đã chừa lề vì nó vẽ đúng vùng chạm của canvas.
                     TapZonePreviewOverlay(
                         mode = tapZoneMode,
                         visible = showTapZonePreview,
                         onDismissed = { showTapZonePreview = false },
                         modifier = Modifier.fillMaxSize()
                     )
+                    }
+
+                    // Bookends nằm **ngoài** hộp đã chừa lề: nó neo theo màn đọc, không theo trang, nên đổi lề
+                    // không làm nó chạy. Đặt trong hộp đó sẽ khiến cả lớp thông tin trôi theo lề — đã quan sát
+                    // trên máy.
+                    //
+                    // Nằm cùng tầng với hiệu ứng lật trang: trên chữ, dưới thanh công cụ. Ẩn khi thanh công cụ
+                    // mở ra, vì lúc đó overlay và chrome sẽ tranh nhau cùng một dải màn hình.
+                    bookendsState.preset?.let { preset ->
+                        bookendsState.snapshot?.let { snapshot ->
+                            BookendsOverlay(
+                                preset = preset,
+                                snapshot = snapshot,
+                                visible = !uiState.isControlsVisible && uiState.activeSheet == null,
+                                contentColor = bookendsContentColor,
+                                trackColor = bookendsContentColor.copy(alpha = 0.22f),
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                    }
                 }
 
                 // Top App Bar
@@ -384,6 +451,26 @@ fun ReaderScreen(
                                 viewModel.dismissSheet()
                                 showTapZonePreview = true
                             },
+                            onOpenBookends = { viewModel.openSheet(ActiveReaderSheet.BOOKENDS) },
+                            onMarginChange = viewModel::updateMargin,
+                            onResetMargins = viewModel::resetMargins,
+                            onFrameChanged = { frame -> viewModel.updateFrame { frame } },
+                            onDismiss = viewModel::dismissSheet
+                        )
+                    }
+
+                    ActiveReaderSheet.BOOKENDS -> {
+                        BookendsSettingsSheet(
+                            settings = bookendsState.settings,
+                            snapshot = bookendsState.snapshot,
+                            onCreatePreset = bookendsViewModel::createPresetFromActive,
+                            onPresetUpdated = { bookendsViewModel.upsertPreset(it) },
+                            onPresetSelected = bookendsViewModel::setActivePreset,
+                            onPresetReset = bookendsViewModel::resetPreset,
+                            onPresetDelete = bookendsViewModel::deletePreset,
+                            onEnabledChange = bookendsViewModel::setEnabled,
+                            onAutoRuleSet = bookendsViewModel::setAutoRule,
+                            onAutoRuleRemoved = bookendsViewModel::removeAutoRule,
                             onDismiss = viewModel::dismissSheet
                         )
                     }

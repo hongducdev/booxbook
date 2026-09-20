@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import kotlinx.coroutines.launch
 
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
@@ -39,6 +40,15 @@ class LibraryViewModel @Inject constructor(
     private val _userMessage = MutableStateFlow<String?>(null)
 
     internal var ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+
+    init {
+        // Sách nhập trước khi có tính năng đọc metadata (series, mô tả, ngôn ngữ, thẻ) nằm lại với các cột
+        // `NULL`. Quét lại một lần lúc mở thư viện để token `%series`/`%description`/`%lang` có dữ liệu.
+        // Repository tự đánh dấu đã quét nên lần mở sau không mở lại từng tệp nữa.
+        viewModelScope.launch(ioDispatcher) {
+            runCatching { bookRepository.backfillMetadata() }
+        }
+    }
 
     // Room emits on its background query dispatcher; mapping is purely in-memory
     private val booksDataFlow = combine(

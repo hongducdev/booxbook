@@ -10,12 +10,22 @@ import com.booxbook.core.engine.azw3.Azw3ReaderEngine
 import com.booxbook.core.engine.cbz.CbzReaderEngine
 import com.booxbook.core.engine.epub.EpubReaderEngine
 import com.booxbook.core.engine.epub.ReadiumReaderEngine
+import com.booxbook.core.engine.model.ReaderPreferences
 import com.booxbook.core.engine.model.ReaderState
+import com.booxbook.core.engine.model.ReadingFrame
+import com.booxbook.core.engine.model.TocItem
 import com.booxbook.core.model.Annotation
 import com.booxbook.core.model.AnnotationType
 import com.booxbook.core.model.Book
 import com.booxbook.core.model.BookFormat
+import com.booxbook.core.model.BookReview
 import com.booxbook.core.model.ReadingProgress
+import com.booxbook.core.model.bookends.BookendsAnnotationCounts
+import com.booxbook.core.model.bookends.BookendsChapterIndex
+import com.booxbook.feature.reader.bookends.BookendsChapterIndexFactory
+import com.booxbook.feature.reader.bookends.BookendsReadingContext
+import com.booxbook.feature.reader.bookends.BookendsSessionProgress
+import com.booxbook.feature.reader.preferences.ReaderPreferencesManager
 import com.booxbook.core.tts.TtsEngineWrapper
 import com.booxbook.core.tts.TtsService
 import com.booxbook.core.tts.model.TtsSentence
@@ -37,12 +47,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import org.readium.r2.shared.publication.Locator
+import org.readium.r2.shared.publication.services.positions
 import org.readium.r2.shared.util.mediatype.MediaType
 import javax.inject.Inject
 
 @HiltViewModel
 class ReaderViewModel @Inject constructor(
     private val bookRepository: BookRepository,
+    private val preferencesManager: ReaderPreferencesManager,
     val epubReaderEngine: EpubReaderEngine,
     val azw3ReaderEngine: Azw3ReaderEngine,
     val cbzReaderEngine: CbzReaderEngine,
@@ -56,6 +68,15 @@ class ReaderViewModel @Inject constructor(
             azw3ReaderEngine.ioDispatcher = value
             cbzReaderEngine.ioDispatcher = value
         }
+
+    /**
+     * Nguồn thời gian của bộ theo dõi phiên đọc.
+     *
+     * Có khe cắm riêng vì test điều khiển được thời gian **ảo** của coroutine scheduler nhưng không điều khiển
+     * được `System.currentTimeMillis()`. Muốn khoá hành vi "thời gian nhàn rỗi không phải thời gian đọc" thì
+     * phải đẩy được đồng hồ, nếu không test chỉ kiểm tra được rằng hàm chạy mà không sập.
+     */
+    internal var clock: () -> Long = System::currentTimeMillis
 
     private val _uiState = MutableStateFlow(ReaderUiState())
     val uiState: StateFlow<ReaderUiState> = _uiState.asStateFlow()
@@ -73,11 +94,58 @@ class ReaderViewModel @Inject constructor(
 
     private var progressSaveJob: Job? = null
     private var annotationsJob: Job? = null
+    private var reviewJob: Job? = null
     private var canvasReadyFallbackJob: Job? = null
     private var initialLocator: String? = null
     private var loadedBookId: String? = null
     private var appContext: Context? = null
     private var currentTtsSpineIndex: Int = 0
+
+    // ── Bookends ────────────────────────────────────────────────────────────────────────────────
+    private val _bookendsContext = MutableStateFlow(BookendsReadingContext())
+
+    /**
+     * Vị trí đọc hiện tại, dưới dạng mà lớp overlay cần.
+     *
+     * Chỉ màn đọc biết được sự kết hợp này: mục lục nằm trong engine, số trang hiển thị nằm ở `uiState`,
+     * còn số chú thích nằm trong luồng annotations. Gom lại ở đây để `BookendsViewModel` không phải móc
+     * vào ba nguồn khác nhau.
+     */
+    val bookendsContext: StateFlow<BookendsReadingContext> = _bookendsContext.asStateFlow()
+
+    private val _bookendsSessionProgress = MutableStateFlow(BookendsSessionProgress())
+
+    /** Tiến trình của phiên đọc đang diễn ra, cho `%session_time` và `%session_pages`. */
+    val bookendsSessionProgress: StateFlow<BookendsSessionProgress> = _bookendsSessionProgress.asStateFlow()
+
+    private var bookendsChapterIndex: BookendsChapterIndex = BookendsChapterIndex()
+    private var bookendsChapterIndexSource: List<TocItem>? = null
+    private var bookendsSessionPageTurns: Int = 0
+    private var displayPageCountJob: Job? = null
+
+    /**
+     * Ảnh chụp cài đặt **ảnh hưởng tới số trang**.
+     *
+     * Cỡ chữ làm Readium dàn lại trang nên `displayPageCount` có thể đổi. Lề thì **không** nằm ở đây: nó là
+     * padding Compose, và `EpubReaderContainer` báo Readium dàn lại khi vùng đọc đổi kích thước.
+     */
+    private data class TypographyKey(
+        val fontSize: Double,
+        val fontFamily: String?
+    )
+
+    private var lastTypographyKey: TypographyKey? = null
+
+    /** Chỉ tính lại số trang sau khi đã mở sách — trước đó chưa có publication để hỏi. */
+    private var hasOpenedBook: Boolean = false
+
+    /**
+     * Đánh giá của cuốn đang mở, giữ lại để dựng snapshot cho token `%rating`.
+     *
+     * Lưu thành trường thay vì đọc lại trong `refreshBookendsContext` vì hàm đó chạy mỗi lần lật trang, còn
+     * đánh giá chỉ đổi khi người đọc chấm điểm.
+     */
+    private var loadedReview: BookReview? = null
 
     // Reading Time Tracking State
     private var sessionStartTimeMs: Long = 0L
@@ -98,9 +166,41 @@ class ReaderViewModel @Inject constructor(
          * người đọc không bị kẹt vĩnh viễn sau một lớp phủ.
          */
         const val CANVAS_READY_FALLBACK_MS = 2500L
+
+        /**
+         * Độ trễ trước khi tính lại tổng số trang sau khi cài đặt dàn trang đổi.
+         *
+         * Đủ dài để gộp một loạt thay đổi từ thanh trượt, đủ ngắn để người dùng không kịp thấy thiếu số.
+         */
+        const val PAGE_COUNT_DEBOUNCE_MS = 700L
     }
 
     init {
+        // Cài đặt hiển thị đến từ `ReaderPreferencesManager` — nguồn duy nhất mà cả màn đọc lẫn tab Cài đặt
+        // cùng đọc/ghi. Trước đây `ReaderViewModel` giữ bản sao riêng trong `uiState` nên thay đổi từ tab Cài
+        // đặt không bao giờ tới được màn đọc.
+        viewModelScope.launch {
+            preferencesManager.preferences.collect { preferences ->
+                val typography = TypographyKey(
+                    fontSize = preferences.fontSize,
+                    fontFamily = preferences.fontFamily
+                )
+
+                // Lần phát đầu tiên là giá trị nạp từ đĩa lúc khởi tạo, không phải người dùng vừa đổi.
+                val changed = lastTypographyKey != null && typography != lastTypographyKey
+                lastTypographyKey = typography
+
+                _uiState.update {
+                    it.copy(
+                        preferences = preferences,
+                        themePreset = preferences.toThemePreset()
+                    )
+                }
+
+                if (changed && hasOpenedBook) scheduleDisplayPageCountRefresh()
+            }
+        }
+
         viewModelScope.launch {
             ttsEngineWrapper.state.collect { ttsState ->
                 _uiState.update {
@@ -177,6 +277,15 @@ class ReaderViewModel @Inject constructor(
                             isCurrentLocationBookmarked = isBookmarked(annotations, state.currentLocator, state.currentPage)
                         )
                     }
+                    refreshBookendsContext()
+                }
+            }
+
+            reviewJob?.cancel()
+            reviewJob = viewModelScope.launch {
+                bookRepository.getReview(bookId).collect { review ->
+                    loadedReview = review
+                    refreshBookendsContext()
                 }
             }
 
@@ -221,6 +330,9 @@ class ReaderViewModel @Inject constructor(
      */
     private fun beginCanvasBuild() {
         _uiState.update { it.copy(loadingPhase = ReaderLoadingPhase.BUILDING_CANVAS, isLoading = false) }
+        refreshBookendsContext()
+        hasOpenedBook = true
+        scheduleDisplayPageCountRefresh()
         canvasReadyFallbackJob?.cancel()
         canvasReadyFallbackJob = viewModelScope.launch {
             delay(CANVAS_READY_FALLBACK_MS)
@@ -230,6 +342,130 @@ class ReaderViewModel @Inject constructor(
 
     private fun emitFeedback(feedback: ReaderFeedback) {
         _feedback.tryEmit(feedback)
+    }
+
+    // ── Bookends ────────────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Hẹn tính lại tổng số trang sau khi cài đặt dàn trang đổi.
+     *
+     * Có độ trễ vì người dùng thường kéo thanh trượt qua nhiều giá trị liên tiếp: tính `positions()` cho mỗi
+     * bước kéo sẽ mở lại từng tệp chương hàng chục lần.
+     *
+     * **Không** đặt `displayPageCount` về 0 trong lúc chờ: Readium ước lượng vị trí theo từng tệp chương nên
+     * con số này thường không đổi khi lề hay cỡ chữ thay đổi, và đặt về 0 chỉ làm token nháy mỗi lần kéo.
+     */
+    private fun scheduleDisplayPageCountRefresh() {
+        displayPageCountJob?.cancel()
+        displayPageCountJob = viewModelScope.launch {
+            delay(PAGE_COUNT_DEBOUNCE_MS)
+            readDisplayPageCount()
+        }
+    }
+
+    /**
+     * Đọc tổng số trang thật của cuốn sách từ `Publication.positions()`.
+     *
+     * Chạy nền và không chặn màn đọc: Readium phải dàn trang từng tệp chương để đếm vị trí, việc này tốn thời
+     * gian với sách dài. Trong lúc chờ, `displayPageCount` bằng 0 nên token tự ẩn — chưa có số vẫn tốt hơn
+     * hiện một tổng số sai (đã từng hiện `11 / 8` khi lấy nhầm `PaginationListener`).
+     *
+     * Tự bỏ qua với CBZ: `getActiveReadiumEngine()` trả `null` nên không cần nhánh riêng ở nơi gọi.
+     */
+    private suspend fun readDisplayPageCount() {
+        val publication = getActiveReadiumEngine()?.getPublication() ?: return
+        val count = withContext(ioDispatcher) {
+            runCatching { publication.positions().size }.getOrNull()
+        } ?: return
+
+        if (count <= 0) return
+        _uiState.update { it.copy(displayPageCount = count) }
+        refreshBookendsContext()
+    }
+
+    private fun refreshBookendsContext() {
+        val state = _uiState.value
+        val book = state.book
+        if (book == null) {
+            _bookendsContext.value = BookendsReadingContext()
+            return
+        }
+
+        _bookendsContext.value = BookendsReadingContext(
+            bookId = book.id,
+            title = book.title,
+            author = book.author,
+            format = book.format.displayName,
+            filePath = book.filePath,
+            fileExtension = book.format.extension,
+            series = book.series.orEmpty(),
+            seriesLabel = book.seriesLabel,
+            seriesIndex = book.seriesIndex.orEmpty(),
+            tags = book.tags,
+            description = book.description.orEmpty(),
+            language = book.language.orEmpty(),
+            rating = loadedReview?.rating ?: 0,
+            addedMillis = book.addedTimestamp,
+            fileSizeBytes = book.fileSize,
+            pageNum = displayedPageNumber(state),
+            pageCount = displayedPageCount(state),
+            progression = state.progressPercentage.toDouble(),
+            chapterTitle = state.currentChapterTitle,
+            chapters = chapterIndexFor(state.tableOfContents, book.format),
+            annotations = BookendsAnnotationCounts(
+                highlights = state.annotations.count { it.type == AnnotationType.HIGHLIGHT },
+                notes = state.annotations.count { it.type == AnnotationType.NOTE },
+                bookmarks = state.annotations.count { it.type == AnnotationType.BOOKMARK }
+            )
+        )
+    }
+
+    /**
+     * Số trang người đọc nhìn thấy.
+     *
+     * CBZ đếm từ 0 trong state nên phải cộng 1. EPUB/AZW3 đã có sẵn số đúng trong [ReaderUiState.currentPage]
+     * — đó chính là `Locator.locations.position`, chỉ số trang đếm từ 1 trên toàn publication, cùng thang đo
+     * với [ReaderUiState.displayPageCount].
+     */
+    private fun displayedPageNumber(state: ReaderUiState): Int = when (state.format) {
+        BookFormat.CBZ -> state.currentPage + 1
+        else -> state.currentPage
+    }
+
+    private fun displayedPageCount(state: ReaderUiState): Int = when (state.format) {
+        BookFormat.CBZ -> state.totalPages
+        else -> state.displayPageCount
+    }
+
+    /**
+     * Chỉ mục chương, dựng lại chỉ khi danh sách mục lục đổi.
+     *
+     * Dựng lại là việc phải tránh: ánh xạ từng `href` sang thứ tự đọc là phép tìm tuyến tính, và hàm này
+     * được gọi mỗi lần lật trang.
+     */
+    private fun chapterIndexFor(tableOfContents: List<TocItem>, format: BookFormat): BookendsChapterIndex {
+        if (bookendsChapterIndexSource === tableOfContents) return bookendsChapterIndex
+
+        val readingOrderHrefs = if (format == BookFormat.CBZ) {
+            emptyList()
+        } else {
+            getActiveReadiumEngine()?.getPublication()?.readingOrder?.map { it.href.toString() }.orEmpty()
+        }
+
+        bookendsChapterIndex = BookendsChapterIndexFactory.build(
+            tableOfContents = tableOfContents,
+            readingOrderHrefs = readingOrderHrefs,
+            cbzPageCount = if (format == BookFormat.CBZ) _uiState.value.totalPages else 0
+        )
+        bookendsChapterIndexSource = tableOfContents
+        return bookendsChapterIndex
+    }
+
+    private fun publishBookendsSessionProgress() {
+        _bookendsSessionProgress.value = BookendsSessionProgress(
+            seconds = accumulatedActiveDurationMs / 1000L,
+            pageTurns = bookendsSessionPageTurns
+        )
     }
 
     private suspend fun initEpub(book: Book, savedProgress: ReadingProgress?, targetLocator: String? = null) {
@@ -340,6 +576,7 @@ class ReaderViewModel @Inject constructor(
     ) {
         val percent = percentage ?: if (totalPages > 0) (pageIndex + 1).toFloat() / totalPages else 0f
         val loc = locator ?: "page://$pageIndex"
+        val previousPage = _uiState.value.currentPage
 
         _uiState.update { state ->
             state.copy(
@@ -351,6 +588,14 @@ class ReaderViewModel @Inject constructor(
                 isCurrentLocationBookmarked = isBookmarked(state.annotations, loc, pageIndex)
             )
         }
+
+        // `onPageChanged` còn được gọi khi chỉ đổi định dạng chữ (cùng trang), nên số lần lật trang chỉ tăng
+        // khi vị trí thật sự khác đi — nếu không, `%session_pages` sẽ nhảy vọt mỗi lần chỉnh cỡ chữ.
+        if (pageIndex != previousPage) {
+            bookendsSessionPageTurns++
+            publishBookendsSessionProgress()
+        }
+        refreshBookendsContext()
 
         // Debounced save progress to Room
         progressSaveJob?.cancel()
@@ -385,49 +630,28 @@ class ReaderViewModel @Inject constructor(
         _uiState.update { it.copy(activeSheet = null) }
     }
 
-    fun updateFontSize(delta: Double) {
-        _uiState.update { state ->
-            val newSize = (state.preferences.fontSize + delta).coerceIn(0.7, 2.5)
-            state.copy(preferences = state.preferences.copy(fontSize = newSize))
-        }
-    }
+    fun updateFontSize(delta: Double) = preferencesManager.setFontSizeDelta(delta)
 
-    fun updateFontFamily(font: String?) {
-        _uiState.update { state ->
-            state.copy(preferences = state.preferences.copy(fontFamily = font))
-        }
-    }
+    fun updateFontFamily(font: String?) = preferencesManager.setFontFamily(font)
 
-    fun updateThemePreset(preset: ReaderThemePreset) {
-        _uiState.update { state ->
-            val isDark = preset == ReaderThemePreset.DARK || preset == ReaderThemePreset.AMOLED
-            state.copy(
-                themePreset = preset,
-                preferences = state.preferences.copy(
-                    isDarkMode = isDark,
-                    themePreset = preset.name
-                )
-            )
-        }
-    }
+    fun updateThemePreset(preset: ReaderThemePreset) = preferencesManager.setThemePreset(
+        presetName = preset.name,
+        isDark = preset == ReaderThemePreset.DARK || preset == ReaderThemePreset.AMOLED
+    )
 
-    fun updateTapZoneMode(mode: ReaderTapZoneMode) {
-        _uiState.update { state ->
-            state.copy(preferences = state.preferences.copy(tapZoneMode = mode.name))
-        }
-    }
+    fun updateTapZoneMode(mode: ReaderTapZoneMode) = preferencesManager.setTapZoneMode(mode.name)
 
-    fun updatePageTurnEffect(effect: ReaderPageTurnEffect) {
-        _uiState.update { state ->
-            state.copy(preferences = state.preferences.copy(pageTurnEffect = effect.name))
-        }
-    }
+    fun updatePageTurnEffect(effect: ReaderPageTurnEffect) = preferencesManager.setPageTurnEffect(effect.name)
 
-    fun updateHapticsEnabled(enabled: Boolean) {
-        _uiState.update { state ->
-            state.copy(preferences = state.preferences.copy(hapticsEnabled = enabled))
-        }
-    }
+    fun updateHapticsEnabled(enabled: Boolean) = preferencesManager.setHapticsEnabled(enabled)
+
+    fun updateMargin(side: ReaderPreferencesManager.MarginSide, valueDp: Float) =
+        preferencesManager.setMargin(side, valueDp)
+
+    fun resetMargins() = preferencesManager.resetMargins()
+
+    fun updateFrame(transform: (ReadingFrame) -> ReadingFrame) =
+        preferencesManager.updateFrame(transform)
 
     fun toggleBookmark() {
         val currentBook = _uiState.value.book ?: return
@@ -744,16 +968,21 @@ class ReaderViewModel @Inject constructor(
     }
 
     fun startReadingSession(bookId: String) {
-        val now = System.currentTimeMillis()
+        val now = clock()
         sessionStartTimeMs = now
         lastActiveTimeMs = now
         accumulatedActiveDurationMs = 0L
         isSessionPaused = false
+        bookendsSessionPageTurns = 0
+        publishBookendsSessionProgress()
 
         periodicFlushJob?.cancel()
         periodicFlushJob = viewModelScope.launch(ioDispatcher) {
             // Perpetual by design: the loop always keeps one `delay()` queued, so it never runs out of
             // work and is only stopped by `release()` or `flushReadingSession(isEnding = true)`.
+            //
+            // The tick only *persists* what has already been accumulated. It must not accumulate on its own:
+            // it fires on the wall clock, not on anything the reader did.
             while (isActive) {
                 delay(PERIODIC_FLUSH_INTERVAL_MS)
                 flushReadingSession(isEnding = false)
@@ -761,56 +990,59 @@ class ReaderViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Ghi nhận **một tương tác thật** của người đọc.
+     *
+     * Đây là nơi duy nhất được phép đẩy [lastActiveTimeMs] tiến lên. [flushReadingSession] cố ý không làm
+     * việc đó: nó chạy theo đồng hồ treo tường (mỗi 60 giây), còn đây là hành động của người đọc.
+     */
     fun recordUserInteraction() {
-        val now = System.currentTimeMillis()
-        if (!isSessionPaused && lastActiveTimeMs > 0) {
-            val elapsed = now - lastActiveTimeMs
-            val isTtsActive = ttsEngineWrapper.state.value.isPlaying
-            if (elapsed <= INACTIVITY_TIMEOUT_MS || isTtsActive) {
-                accumulatedActiveDurationMs += elapsed
-            } else {
-                accumulatedActiveDurationMs += INACTIVITY_TIMEOUT_MS
-            }
-        }
-        lastActiveTimeMs = now
+        accumulateActiveTime()
+        lastActiveTimeMs = clock()
         isSessionPaused = false
+        publishBookendsSessionProgress()
+    }
+
+    /**
+     * Cộng dồn thời gian đã trôi qua kể từ mốc hoạt động gần nhất.
+     *
+     * Khoảng trống dài hơn [INACTIVITY_TIMEOUT_MS] chỉ được tính đúng [INACTIVITY_TIMEOUT_MS]: người đọc gấp
+     * máy rồi mở lại sau ba tiếng thì ba tiếng đó không phải thời gian đọc. Trừ khi TTS đang chạy — lúc đó máy
+     * vẫn đang đọc thành tiếng cho người dùng nghe, nên thời gian đó là thời gian đọc thật.
+     */
+    private fun accumulateActiveTime() {
+        if (isSessionPaused || lastActiveTimeMs <= 0L) return
+        val elapsed = clock() - lastActiveTimeMs
+        val isTtsActive = ttsEngineWrapper.state.value.isPlaying
+        accumulatedActiveDurationMs += if (elapsed <= INACTIVITY_TIMEOUT_MS || isTtsActive) {
+            elapsed
+        } else {
+            INACTIVITY_TIMEOUT_MS
+        }
     }
 
     fun pauseReadingSession() {
         if (isSessionPaused) return
-        val now = System.currentTimeMillis()
-        val isTtsActive = ttsEngineWrapper.state.value.isPlaying
-        if (lastActiveTimeMs > 0) {
-            val elapsed = now - lastActiveTimeMs
-            if (elapsed <= INACTIVITY_TIMEOUT_MS || isTtsActive) {
-                accumulatedActiveDurationMs += elapsed
-            } else {
-                accumulatedActiveDurationMs += INACTIVITY_TIMEOUT_MS
-            }
-        }
+        accumulateActiveTime()
         isSessionPaused = true
         flushReadingSession(isEnding = false)
     }
 
     fun resumeReadingSession() {
-        lastActiveTimeMs = System.currentTimeMillis()
+        lastActiveTimeMs = clock()
         isSessionPaused = false
     }
 
+    /**
+     * Ghi phần thời gian đã cộng dồn xuống Room.
+     *
+     * **Không** cộng thêm thời gian trôi qua kể từ tương tác cuối. Bản trước có cộng, và vì hàm này được gọi
+     * mỗi 60 giây bởi [periodicFlushJob], để màn đọc mở không tương tác vẫn sinh ra 60 giây "thời gian đọc"
+     * mỗi phút — quan sát được trên máy thật: 11 trang nhưng tích 4,5 giờ.
+     */
     fun flushReadingSession(isEnding: Boolean = false) {
         val bookId = loadedBookId ?: return
-        val now = System.currentTimeMillis()
-
-        if (!isSessionPaused && lastActiveTimeMs > 0) {
-            val elapsed = now - lastActiveTimeMs
-            val isTtsActive = ttsEngineWrapper.state.value.isPlaying
-            if (elapsed <= INACTIVITY_TIMEOUT_MS || isTtsActive) {
-                accumulatedActiveDurationMs += elapsed
-            } else {
-                accumulatedActiveDurationMs += INACTIVITY_TIMEOUT_MS
-            }
-            lastActiveTimeMs = now
-        }
+        val now = clock()
 
         val secondsToRecord = accumulatedActiveDurationMs / 1000L
         if (secondsToRecord >= 1L) {
@@ -833,6 +1065,7 @@ class ReaderViewModel @Inject constructor(
             lastActiveTimeMs = 0L
             accumulatedActiveDurationMs = 0L
         }
+        publishBookendsSessionProgress()
     }
 
     private fun isBookmarked(annotations: List<Annotation>, locator: String?, page: Int): Boolean {
@@ -857,8 +1090,10 @@ class ReaderViewModel @Inject constructor(
         flushReadingSession(isEnding = true)
         progressSaveJob?.cancel()
         annotationsJob?.cancel()
+        reviewJob?.cancel()
         canvasReadyFallbackJob?.cancel()
         canvasReadyFallbackJob = null
+        displayPageCountJob?.cancel()
         ttsEngineWrapper.stop()
         epubReaderEngine.closeBookSync()
         azw3ReaderEngine.closeBookSync()

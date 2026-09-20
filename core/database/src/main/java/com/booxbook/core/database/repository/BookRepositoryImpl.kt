@@ -3,18 +3,21 @@ package com.booxbook.core.database.repository
 import android.net.Uri
 import com.booxbook.core.database.dao.AnnotationDao
 import com.booxbook.core.database.dao.BookDao
+import com.booxbook.core.database.dao.BookReviewDao
 import com.booxbook.core.database.dao.ReadingProgressDao
 import com.booxbook.core.database.dao.ReadingSessionDao
 import com.booxbook.core.database.entity.BookWithProgress
 import com.booxbook.core.database.entity.ReadingSessionEntity
 import com.booxbook.core.database.entity.asDomainModel
 import com.booxbook.core.database.entity.asEntity
+import com.booxbook.core.database.entity.encodeTags
 import com.booxbook.core.database.storage.BookStorageManager
 import com.booxbook.core.model.Annotation
 import com.booxbook.core.model.AnnotationType
 import com.booxbook.core.model.Book
 import com.booxbook.core.model.BookFormat
 import com.booxbook.core.model.BookReadingStat
+import com.booxbook.core.model.BookReview
 import com.booxbook.core.model.DailyReadingStat
 import com.booxbook.core.model.HeatmapDayStat
 import com.booxbook.core.model.ReadingProgress
@@ -38,6 +41,7 @@ class BookRepositoryImpl @Inject constructor(
     private val readingProgressDao: ReadingProgressDao,
     private val annotationDao: AnnotationDao,
     private val readingSessionDao: ReadingSessionDao,
+    private val bookReviewDao: BookReviewDao,
     private val storageManager: BookStorageManager
 ) : BookRepository {
 
@@ -91,7 +95,12 @@ class BookRepositoryImpl @Inject constructor(
                 coverPath = info.coverPath,
                 format = info.format,
                 fileSize = info.fileSize,
-                addedTimestamp = System.currentTimeMillis()
+                addedTimestamp = System.currentTimeMillis(),
+                series = info.series,
+                seriesIndex = info.seriesIndex,
+                tags = info.tags,
+                description = info.description,
+                language = info.language
             )
             bookDao.insertBook(book.asEntity())
             book
@@ -100,6 +109,43 @@ class BookRepositoryImpl @Inject constructor(
 
     override suspend fun saveBook(book: Book) {
         bookDao.upsertBook(book.asEntity())
+    }
+
+    override fun getReview(bookId: String): Flow<BookReview?> =
+        bookReviewDao.getReview(bookId).map { it?.asDomainModel() }
+
+    override suspend fun getReviewSync(bookId: String): BookReview? =
+        bookReviewDao.getReviewSync(bookId)?.asDomainModel()
+
+    override fun getAllReviews(): Flow<List<BookReview>> =
+        bookReviewDao.getAllReviews().map { entities -> entities.map { it.asDomainModel() } }
+
+    override suspend fun saveReview(review: BookReview) {
+        // Mốc cập nhật do tầng lưu trữ đặt, không phải nơi gọi: nó phải là thời điểm ghi thật.
+        bookReviewDao.upsertReview(
+            review.copy(updatedTimestamp = System.currentTimeMillis()).asEntity()
+        )
+    }
+
+    override suspend fun deleteReview(bookId: String) = bookReviewDao.deleteReview(bookId)
+
+    override suspend fun backfillMetadata(): Int {
+        val candidates = bookDao.getBooksMissingMetadata()
+        candidates.forEach { entity ->
+            val extracted = storageManager.reExtractMetadata(entity.asDomainModel())
+            // Ghi `""` chứ không để `null`: `null` nghĩa là "chưa quét", nên để nguyên sẽ khiến lần mở ứng dụng
+            // sau quét lại đúng những tệp này — kể cả CBZ/AZW3 vốn không có metadata văn bản để đọc.
+            bookDao.updateBook(
+                entity.copy(
+                    series = extracted?.series.orEmpty(),
+                    seriesIndex = extracted?.seriesIndex.orEmpty(),
+                    tags = encodeTags(extracted?.tags.orEmpty()),
+                    description = extracted?.description.orEmpty(),
+                    language = extracted?.language.orEmpty()
+                )
+            )
+        }
+        return candidates.size
     }
 
     override suspend fun updateLastRead(bookId: String, timestamp: Long) {

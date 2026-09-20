@@ -13,6 +13,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -89,11 +91,17 @@ fun EpubReaderContainer(
     var hostView by remember { mutableStateOf<FrameLayout?>(null) }
     var activeFragment by remember { mutableStateOf<EpubNavigatorFragment?>(null) }
 
+    /** Kích thước đã báo cho Readium lần gần nhất — tránh gọi `submitPreferences` lặp lại vô ích. */
+    var lastReportedSize by remember { mutableStateOf<IntSize?>(null) }
+
     // Re-key the attach effect on the engine state so it is retried once the publication is
     // ready, instead of silently giving up if the first composition runs too early.
     val engineState by epubEngine.state.collectAsStateWithLifecycle()
 
     // Create/attach the navigator once the container is attached to the window.
+    //
+    // Không dựng lại navigator khi cài đặt dàn trang đổi: Readium tự dàn lại qua `submitPreferences`, còn
+    // dựng lại fragment để lại canvas trắng (đã thử và quan sát trên máy).
     LaunchedEffect(hostView, engineState, epubEngine) {
         if (activeFragment != null) return@LaunchedEffect
         if (epubEngine.getNavigatorFactory() == null) return@LaunchedEffect
@@ -340,7 +348,25 @@ fun EpubReaderContainer(
 
     AndroidView(
         factory = { context -> FrameLayout(context).apply { id = containerId } },
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            // Khi lề thay đổi, hộp Compose hẹp lại và WebView đổi kích thước — nhưng Readium **không tự biết**,
+            // nên pager giữ nguyên bề rộng trang cũ và chữ chồng lên nhau, tràn ra ngoài khung. Đã quan sát
+            // đúng như vậy trên máy. `submitPreferences` là API công khai duy nhất khiến Readium dàn lại, nên
+            // gọi nó sau mỗi lần kích thước đổi.
+            .onSizeChanged { size ->
+                if (size.width == 0 || size.height == 0) return@onSizeChanged
+                if (size == lastReportedSize) return@onSizeChanged
+                val firstLayout = lastReportedSize == null
+                lastReportedSize = size
+
+                // Bố cục đầu tiên đã có preferences đúng ngay từ `createFragmentFactory`, không cần gọi lại.
+                if (firstLayout) return@onSizeChanged
+
+                val fragment = activeFragment ?: return@onSizeChanged
+                if (!fragment.isAdded) return@onSizeChanged
+                runCatching { fragment.submitPreferences(epubEngine.buildEpubPreferences(preferences)) }
+            },
         update = { view -> hostView = view }
     )
 }

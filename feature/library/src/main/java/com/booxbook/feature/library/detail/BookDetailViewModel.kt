@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.booxbook.core.database.repository.BookRepository
 import com.booxbook.core.engine.BookTocExtractor
 import com.booxbook.core.model.Book
+import com.booxbook.core.model.BookReview
 import com.booxbook.core.model.ReadingProgress
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineDispatcher
@@ -55,6 +56,67 @@ class BookDetailViewModel @Inject constructor(
 
     private var progressJob: Job? = null
     private var tocJob: Job? = null
+    private var reviewJob: Job? = null
+
+    /**
+     * Chấm điểm cuốn sách.
+     *
+     * Chạm lại đúng số sao đang chọn thì bỏ chấm — nếu không thì không có cách nào trả về trạng thái "chưa
+     * chấm" sau khi đã lỡ tay, và `%rating` sẽ mãi hiện một ngôi sao không đúng ý người đọc.
+     */
+    fun setRating(stars: Int) {
+        val current = _uiState.value
+        val bookId = current.book?.id ?: return
+        val next = if (current.review.rating == stars) 0 else stars.coerceIn(0, MAX_RATING)
+
+        viewModelScope.launch(ioDispatcher) {
+            runCatching {
+                bookRepository.saveReview(current.review.copy(bookId = bookId, rating = next))
+            }.onFailure { error ->
+                _feedback.tryEmit(
+                    BookDetailFeedback.Failure("Không thể lưu đánh giá: ${error.message ?: "lỗi không xác định"}")
+                )
+            }
+        }
+    }
+
+    /** Lưu cảm nhận. Chuỗi rỗng vẫn được lưu — đó là cách người đọc xoá cảm nhận cũ. */
+    fun saveReviewText(text: String) {
+        val current = _uiState.value
+        val bookId = current.book?.id ?: return
+        if (current.review.review == text) return
+
+        viewModelScope.launch(ioDispatcher) {
+            runCatching {
+                bookRepository.saveReview(current.review.copy(bookId = bookId, review = text))
+            }.onFailure { error ->
+                _feedback.tryEmit(
+                    BookDetailFeedback.Failure("Không thể lưu cảm nhận: ${error.message ?: "lỗi không xác định"}")
+                )
+            }
+        }
+    }
+
+    /** Đánh dấu đã đọc xong. Tiến độ vẫn do màn đọc cập nhật; đây chỉ là mốc thời gian người đọc xác nhận. */
+    fun toggleFinished() {
+        val current = _uiState.value
+        val bookId = current.book?.id ?: return
+        val finishedAt = if (current.review.isFinished) null else System.currentTimeMillis()
+
+        viewModelScope.launch(ioDispatcher) {
+            runCatching {
+                bookRepository.saveReview(current.review.copy(bookId = bookId, finishedAt = finishedAt))
+            }.onFailure { error ->
+                _feedback.tryEmit(
+                    BookDetailFeedback.Failure("Không thể lưu trạng thái: ${error.message ?: "lỗi không xác định"}")
+                )
+            }
+        }
+    }
+
+    private companion object {
+        const val MAX_RATING = 5
+    }
 
     fun loadBook(bookId: String) {
         viewModelScope.launch {
@@ -92,6 +154,13 @@ class BookDetailViewModel @Inject constructor(
             progressJob = viewModelScope.launch {
                 bookRepository.getReadingProgress(bookId).collect { progress ->
                     _uiState.update { it.copy(progress = progress) }
+                }
+            }
+
+            reviewJob?.cancel()
+            reviewJob = viewModelScope.launch {
+                bookRepository.getReview(bookId).collect { review ->
+                    _uiState.update { it.copy(review = review ?: BookReview(bookId = bookId)) }
                 }
             }
 

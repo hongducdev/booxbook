@@ -27,6 +27,10 @@ interface ReadingSessionDao {
     @Query("SELECT * FROM reading_sessions WHERE book_id = :bookId ORDER BY start_time DESC")
     fun getSessionsForBook(bookId: String): Flow<List<ReadingSessionEntity>>
 
+    /** Bản đồng bộ của [getSessionsForBook], dùng cho test migration và các tác vụ nền một lần. */
+    @Query("SELECT * FROM reading_sessions WHERE book_id = :bookId ORDER BY start_time DESC")
+    suspend fun getSessionsForBookSync(bookId: String): List<ReadingSessionEntity>
+
     @Query("SELECT DISTINCT date FROM reading_sessions ORDER BY date DESC")
     fun getDistinctReadingDates(): Flow<List<String>>
 

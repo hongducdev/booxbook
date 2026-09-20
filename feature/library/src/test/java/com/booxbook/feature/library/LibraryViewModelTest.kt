@@ -7,6 +7,7 @@ import com.booxbook.core.model.Annotation
 import com.booxbook.core.model.AnnotationType
 import com.booxbook.core.model.Book
 import com.booxbook.core.model.BookFormat
+import com.booxbook.core.model.BookReview
 import com.booxbook.core.model.ReadingProgress
 import com.booxbook.core.model.ReadingSession
 import com.booxbook.core.model.ReadingStatisticsOverview
@@ -317,4 +318,16 @@ private class FakeBookRepository : BookRepository {
     override fun getReadingStatisticsOverview(): Flow<ReadingStatisticsOverview> = MutableStateFlow(ReadingStatisticsOverview())
     override fun getDailyGoalMinutes(): Flow<Int> = MutableStateFlow(45)
     override suspend fun setDailyGoalMinutes(minutes: Int) {}
+
+    override fun getReview(bookId: String): Flow<BookReview?> = MutableStateFlow(null)
+    override suspend fun getReviewSync(bookId: String): BookReview? = null
+    override fun getAllReviews(): Flow<List<BookReview>> = MutableStateFlow(emptyList())
+    override suspend fun saveReview(review: BookReview) {}
+    override suspend fun deleteReview(bookId: String) {}
+
+    var backfillCallCount = 0
+    override suspend fun backfillMetadata(): Int {
+        backfillCallCount++
+        return 0
+    }
 }

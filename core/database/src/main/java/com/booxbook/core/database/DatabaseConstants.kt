@@ -6,5 +6,11 @@ package com.booxbook.core.database
  */
 object DatabaseConstants {
     const val DATABASE_NAME = "booxbook.db"
-    const val DATABASE_VERSION = 2
+
+    /**
+     * Phiên bản schema. Tăng số này **bắt buộc** đi kèm một `Migration` trong [ALL_MIGRATIONS].
+     *
+     * 2 → 3: thêm metadata sách (`series`/`series_index`/`tags`/`description`/`language`) và bảng `book_reviews`.
+     */
+    const val DATABASE_VERSION = 3
 }

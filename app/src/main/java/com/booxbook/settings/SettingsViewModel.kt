@@ -4,10 +4,10 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.booxbook.core.database.repository.BookRepository
+import com.booxbook.feature.reader.preferences.ReaderPreferencesManager
 import com.booxbook.feature.statistics.StatisticsPreferencesManager
 import com.booxbook.feature.statistics.components.HeatmapTileGeometry
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,18 +27,16 @@ data class SettingsUiState(
 class SettingsViewModel @Inject constructor(
     private val bookRepository: BookRepository,
     private val statisticsPreferencesManager: StatisticsPreferencesManager,
-    @ApplicationContext private val context: Context
+    private val readerPreferencesManager: ReaderPreferencesManager
 ) : ViewModel() {
-
-    private val readerPrefs = context.getSharedPreferences("booxbook_reader_prefs", Context.MODE_PRIVATE)
 
     private val _uiState = MutableStateFlow(
         SettingsUiState(
             heatmapGeometry = statisticsPreferencesManager.heatmapGeometry.value,
             dailyGoalMinutes = 45,
-            tapZoneMode = readerPrefs.getString("tap_zone_mode", "KINDLE") ?: "KINDLE",
-            pageTurnEffect = readerPrefs.getString("page_turn_effect", "SLIDE") ?: "SLIDE",
-            hapticsEnabled = readerPrefs.getBoolean("haptics_enabled", true)
+            tapZoneMode = readerPreferencesManager.preferences.value.tapZoneMode,
+            pageTurnEffect = readerPreferencesManager.preferences.value.pageTurnEffect,
+            hapticsEnabled = readerPreferencesManager.preferences.value.hapticsEnabled
         )
     )
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
@@ -54,6 +52,20 @@ class SettingsViewModel @Inject constructor(
                 _uiState.update { it.copy(dailyGoalMinutes = goal) }
             }
         }
+        // Cài đặt hiển thị của màn đọc đến từ cùng một nguồn mà `ReaderViewModel` dùng, nên đổi ở đây là có
+        // tác dụng ngay khi đang đọc. Trước đây lớp này ghi thẳng vào SharedPreferences còn màn đọc không bao
+        // giờ đọc lại — cài đặt chỉ có tác dụng sau khi khởi động lại ứng dụng, tức là gần như không bao giờ.
+        viewModelScope.launch {
+            readerPreferencesManager.preferences.collect { preferences ->
+                _uiState.update {
+                    it.copy(
+                        tapZoneMode = preferences.tapZoneMode,
+                        pageTurnEffect = preferences.pageTurnEffect,
+                        hapticsEnabled = preferences.hapticsEnabled
+                    )
+                }
+            }
+        }
     }
 
     fun setHeatmapGeometry(geometry: HeatmapTileGeometry) {
@@ -66,18 +78,9 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun setTapZoneMode(mode: String) {
-        readerPrefs.edit().putString("tap_zone_mode", mode).apply()
-        _uiState.update { it.copy(tapZoneMode = mode) }
-    }
+    fun setTapZoneMode(mode: String) = readerPreferencesManager.setTapZoneMode(mode)
 
-    fun setPageTurnEffect(effect: String) {
-        readerPrefs.edit().putString("page_turn_effect", effect).apply()
-        _uiState.update { it.copy(pageTurnEffect = effect) }
-    }
+    fun setPageTurnEffect(effect: String) = readerPreferencesManager.setPageTurnEffect(effect)
 
-    fun setHapticsEnabled(enabled: Boolean) {
-        readerPrefs.edit().putBoolean("haptics_enabled", enabled).apply()
-        _uiState.update { it.copy(hapticsEnabled = enabled) }
-    }
+    fun setHapticsEnabled(enabled: Boolean) = readerPreferencesManager.setHapticsEnabled(enabled)
 }
